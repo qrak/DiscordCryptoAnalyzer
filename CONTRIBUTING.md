@@ -3,7 +3,7 @@
 Thank you for your interest in contributing!
 
 ## How to Contribute
-- Fork the repository on GitHub (https://github.com/qrak/DiscordCryptoBot)
+- Fork the repository on GitHub (https://github.com/qrak/DiscordCryptoAnalyzer)
 - Clone your fork and create a new branch for your changes
 - Make your changes and commit with clear messages
 - Push your branch and open a Pull Request

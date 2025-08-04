@@ -1,5 +1,14 @@
 # Discord Crypto Analyzer
 
+<p align="left">
+  <img src="https://img.shields.io/badge/python-3.13-blue.svg" />
+  <img src="https://img.shields.io/badge/discord.py-2.4.0-blue.svg" />
+  <img src="https://img.shields.io/badge/numpy-2.1.3-blue.svg" />
+  <img src="https://img.shields.io/badge/pandas-2.2.3-blue.svg" />
+  <img src="https://img.shields.io/badge/plotly-6.0.1-blue.svg" />
+  <img src="https://img.shields.io/badge/ccxt-4.4.69-blue.svg" />
+</p>
+
 A powerful Discord Crypto Analyzer for real-time cryptocurrency market analysis using AI models.
 
 ## Try It Live
@@ -36,9 +45,10 @@ Discord Crypto Analyzer is a feature-rich tool that provides detailed technical 
 
 ## Installation
 
+
 ### Prerequisites
 
-- Python 3.10 or higher
+- Python 3.13 or higher
 - Discord Bot Token
 - OpenRouter API Key or Local LM Studio setup
 - CryptoCompare API Key (for market data)
@@ -53,18 +63,38 @@ git clone https://github.com/qrak/DiscordCryptoAnalyzer
 cd DiscordCryptoAnalyzer
 ```
 
-2. Install the required dependencies:
+2. (Recommended) Create a Python virtual environment:
+
+```bash
+python -m venv .venv
+```
+
+Activate the virtual environment:
+- On Windows (PowerShell):
+  ```bash
+  .venv\Scripts\Activate.ps1
+  ```
+- On Windows (cmd):
+  ```cmd
+  .venv\Scripts\activate.bat
+  ```
+- On macOS/Linux:
+  ```bash
+  source .venv/bin/activate
+  ```
+
+3. Install the required dependencies:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-3. Create a configuration file:
+4. Create a configuration file:
    - Copy `config/config_private.template.py` to `config/config_private.py`
    - Set your API keys and Discord settings in this file
    - Adjust other settings in `config/config_public.py` as needed
 
-4. Run the bot:
+5. Run the bot:
 
 ```bash
 python start.py
