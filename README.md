@@ -21,7 +21,7 @@ Channel: #ai-analysis
 
 ## Overview
 
-Discord Crypto Analyzer is a feature-rich tool that provides detailed technical analysis for cryptocurrency trading pairs. The bot leverages AI models to analyze market data, identify trends. It offers a convenient way for crypto enthusiasts and traders to get AI-powered insights directly within Discord channels.
+Discord Crypto Analyzer is a powerful bot that provides real-time cryptocurrency analysis directly to your Discord server. It uses advanced AI models to generate detailed reports, forecasts, and detect key market patterns. It's perfect for traders and enthusiasts looking for instant, data-driven insights into the market.
 
 ## Features
 
