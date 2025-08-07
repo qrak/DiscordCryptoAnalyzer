@@ -15,7 +15,7 @@ A powerful Discord Crypto Analyzer for real-time cryptocurrency market analysis 
 
 Join our Discord server to see the bot in action and test features in real time:
 
-[👉 Discord Invitation Link](https://discord.gg/eq4xNRxwXR)
+[👉 Discord Invitation Link](https://discord.gg/ZC48aTTqR2)
 
 Channel: #ai-analysis
 
