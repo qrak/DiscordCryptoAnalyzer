@@ -292,18 +292,6 @@ The bot includes a sophisticated RAG engine that enhances market analysis with r
 - **Automated Updates**: Periodically refreshes knowledge base with latest market information
 - **Symbol Recognition**: Automatically identifies cryptocurrency mentions in news articles
 
-## Technical Details
-
- Uses `ccxt` library for exchange data
- Implements a wide range of technical indicators
- Integrates multiple AI providers (LM Studio, OpenRouter, Google)
- Employs asynchronous programming for optimal performance
- Features robust error handling and logging
- Includes token counting for AI model usage optimization
- Uses Retrieval-Augmented Generation (RAG) for contextual awareness
- Implements intelligent article indexing for fast search and retrieval
- Features adaptive cooldown system to prevent API rate limiting
- Utilizes aiohttp with cached sessions for efficient API usage
  
 ## Example Output
 
