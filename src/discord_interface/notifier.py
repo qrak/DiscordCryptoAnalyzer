@@ -7,12 +7,12 @@ import discord
 from aiohttp import ClientSession
 from discord.ext import commands
 
-from config.config import (BOT_TOKEN_DISCORD, MAIN_CHANNEL_ID, TEMPORARY_CHANNEL_ID_DISCORD)
+from config.config import (BOT_TOKEN_DISCORD, TEMPORARY_CHANNEL_ID_DISCORD)
 from config.config import FILE_MESSAGE_EXPIRY, SUPPORTED_LANGUAGES
 from src.discord_interface.cogs.anti_spam import AntiSpam
 from src.discord_interface.cogs.command_handler import CommandHandler
 from src.discord_interface.cogs.reaction_handler import ReactionHandler
-from src.discord_interface.filehandler import DiscordFileHandler
+from .filehandler import DiscordFileHandler
 from src.utils.decorators import retry_async
 
 
@@ -92,7 +92,7 @@ class DiscordNotifier:
 
             # Check CommandHandler dependencies (optional check)
             command_handler = self.bot.get_cog('CommandHandler')
-            if command_handler and hasattr(command_handler, 'symbol_manager') and command_handler.symbol_manager:
+            if command_handler and hasattr(command_handler, 'analysis_handler') and command_handler.analysis_handler and hasattr(command_handler.analysis_handler, 'symbol_manager') and command_handler.analysis_handler.symbol_manager:
                 self.logger.debug("CommandHandler has access to SymbolManager.")
             elif command_handler:
                 self.logger.warning("CommandHandler does not have SymbolManager set (or check failed).")
@@ -232,6 +232,8 @@ class DiscordNotifier:
             sent_message = await channel.send(content=message[:2000], file=file, embed=embed)
             
             message_type = "file" if file else ("embed" if embed else "message")
+            
+            # Track the message for deletion
             await self.file_handler.track_message(
                 message_id=sent_message.id,
                 channel_id=channel_id,

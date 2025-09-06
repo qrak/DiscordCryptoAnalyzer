@@ -154,7 +154,7 @@ class BasePatternDetector(PatternDetectorInterface):
                                original_start_index: int,
                                lookback: int,
                                pattern_prefix: str,
-                               value_formatter: str = ":.4f",
+                               value_formatter: str = ".4f",
                                additional_data: Optional[Dict[str, Any]] = None) -> List[Pattern]:
         """
         Generic utility to detect crossovers between two lines.
@@ -166,7 +166,7 @@ class BasePatternDetector(PatternDetectorInterface):
             original_start_index: Starting index in original data
             lookback: Number of periods to look back
             pattern_prefix: Prefix for pattern type (e.g., "macd", "di")
-            value_formatter: Format string for values (default: ":.4f")
+            value_formatter: Format string for values (default: ".4f")
             additional_data: Optional additional data to include in pattern
             
         Returns:

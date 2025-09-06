@@ -6,7 +6,7 @@ LM_STUDIO_BASE_URL = "http://localhost:1234/v1"
 LM_STUDIO_MODEL = "local-model"
 
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
-OPENROUTER_BASE_MODEL = "google/gemini-2.5"
+OPENROUTER_BASE_MODEL = "google/gemini-2.5-flash"
 OPENROUTER_FALLBACK_MODEL = "deepseek/deepseek-r1:free"
 GOOGLE_STUDIO_MODEL = "gemini-2.5-flash"
 
@@ -62,7 +62,3 @@ SUPPORTED_LANGUAGES = {
     "Russian": "ru"
 }
 DEFAULT_LANGUAGE = "English"
-
-# google/gemini-2.5-pro-preview-03-25
-# google/gemini-2.5-flash-preview:thinking
-# google/gemini-2.5-pro-exp-03-25:free

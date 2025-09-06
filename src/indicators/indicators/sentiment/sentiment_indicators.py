@@ -1,5 +1,17 @@
 import numpy as np
 from numba import njit
+from dataclasses import dataclass
+
+
+@dataclass
+class FearGreedConfig:
+    """Configuration for Fear and Greed Index."""
+    rsi_length: int = 14
+    macd_fast_length: int = 12
+    macd_slow_length: int = 26
+    macd_signal_length: int = 9
+    mfi_length: int = 14
+    window_size: int = 50
 
 @njit(cache=True)
 def _calculate_rsi_window(close, rsi_length):
@@ -122,7 +134,7 @@ def _calculate_fear_greed_for_window(rsi_list, histogram_list, mfi_list, window_
 
 
 @njit(cache=True)
-def fear_and_greed_index_numba(close, high, low, volume, rsi_length, macd_fast_length, macd_slow_length,
+def _fear_and_greed_index_numba(close, high, low, volume, rsi_length, macd_fast_length, macd_slow_length,
                                macd_signal_length, mfi_length, window_size):
     n = len(close)
     fear_and_greed_index = np.full(n, np.nan)
@@ -152,3 +164,32 @@ def fear_and_greed_index_numba(close, high, low, volume, rsi_length, macd_fast_l
 
     fear_and_greed_index = np.nan_to_num(fear_and_greed_index, nan=50)
     return fear_and_greed_index
+
+
+def fear_and_greed_index_numba(
+    close: np.ndarray, 
+    high: np.ndarray, 
+    low: np.ndarray, 
+    volume: np.ndarray, 
+    config: FearGreedConfig
+) -> np.ndarray:
+    """
+    Fear and Greed Index - Simple interface using config object.
+    
+    Calculates a composite sentiment indicator based on RSI, MACD, and MFI.
+    
+    Args:
+        close: Close prices
+        high: High prices  
+        low: Low prices
+        volume: Volume data
+        config: Configuration object containing all parameters
+        
+    Returns:
+        Fear and greed index array (0-100, where <30 is fear, >70 is greed)
+    """
+    return _fear_and_greed_index_numba(
+        close, high, low, volume,
+        config.rsi_length, config.macd_fast_length, config.macd_slow_length,
+        config.macd_signal_length, config.mfi_length, config.window_size
+    )

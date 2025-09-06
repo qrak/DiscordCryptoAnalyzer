@@ -164,18 +164,22 @@ class MomentumIndicators(IndicatorCategory['MomentumIndicators']):
         return rcma1 * 1 + rcma2 * 2 + rcma3 * 3 + rcma4 * 4
 
     def uo(self, fast=7, medium=14, slow=28, fast_w=4.0, medium_w=2.0, slow_w=1.0, drift=1) -> np.ndarray:
+        from ..indicators.momentum.momentum_indicators import UltimateOscillatorConfig
+        config = UltimateOscillatorConfig(
+            fast=fast,
+            medium=medium,
+            slow=slow,
+            fast_w=fast_w,
+            medium_w=medium_w,
+            slow_w=slow_w,
+            drift=drift
+        )
         return self._base.calculate_indicator(
             uo_numba,
             self.high,
             self.low,
             self.close,
-            fast,
-            medium,
-            slow,
-            fast_w,
-            medium_w,
-            slow_w,
-            drift,
+            config,
             required_length=slow)
 
 class OverlapIndicators(IndicatorCategory['OverlapIndicators']):
@@ -244,18 +248,22 @@ class SentimentIndicators(IndicatorCategory['SentimentIndicators']):
             mfi_length: int = 14,
             window_size: int = 60
     ) -> np.ndarray:
+        from ..indicators.sentiment.sentiment_indicators import FearGreedConfig
+        config = FearGreedConfig(
+            rsi_length=rsi_length,
+            macd_fast_length=macd_fast_length,
+            macd_slow_length=macd_slow_length,
+            macd_signal_length=macd_signal_length,
+            mfi_length=mfi_length,
+            window_size=window_size
+        )
         return self._base.calculate_indicator(
             fear_and_greed_index_numba,
             self.close,
             self.high,
             self.low,
             self.volume,
-            rsi_length,
-            macd_fast_length,
-            macd_slow_length,
-            macd_signal_length,
-            mfi_length,
-            window_size,
+            config,
             required_length=max(rsi_length, macd_slow_length + macd_signal_length - 1, mfi_length)
         )
 

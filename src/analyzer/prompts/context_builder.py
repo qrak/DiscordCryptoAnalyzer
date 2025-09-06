@@ -1,0 +1,162 @@
+"""
+Context building for prompt building system.
+Handles building context sections like trading context, sentiment, market data, etc.
+"""
+
+import numpy as np
+from datetime import datetime
+from typing import Any, Dict, Optional
+
+from src.logger.logger import Logger
+from ..formatting.basic_formatter import fmt
+
+
+class ContextBuilder:
+    """Builds context sections for prompts including trading context, sentiment, and market data."""
+    
+    def __init__(self, timeframe: str = "1h", logger: Optional[Logger] = None):
+        """Initialize the context builder.
+        
+        Args:
+            timeframe: Primary timeframe for analysis
+            logger: Optional logger instance for debugging
+        """
+        self.timeframe = timeframe
+        self.logger = logger
+    
+    def build_trading_context(self, context) -> str:
+        """Build trading context section with current market information.
+        
+        Args:
+            context: Analysis context containing symbol and current price
+            
+        Returns:
+            str: Formatted trading context section
+        """
+        # Get the current time to understand candle formation
+        current_time = datetime.now()
+        
+        # Create candle status message for hourly timeframes
+        candle_status = ""
+        if self.timeframe == "1h" or self.timeframe == "1H":
+            minutes_into_hour = current_time.minute
+            candle_progress = (minutes_into_hour / 60) * 100
+            candle_status = f"\n- Current Candle: {minutes_into_hour} minutes into formation ({candle_progress:.1f}% complete)"
+            candle_status += f"\n- Analysis Note: Technical indicators calculated using only completed candles"
+        
+        trading_context = f"""
+        TRADING CONTEXT:
+        - Symbol: {context.symbol if hasattr(context, 'symbol') else 'BTC/USDT'}
+        - Current Day: {current_time.strftime("%A")}
+        - Current Price: {context.current_price}
+        - Analysis Time: {current_time.strftime('%Y-%m-%d %H:%M:%S')}{candle_status}
+        - Primary Timeframe: {self.timeframe}
+        - Analysis Includes: 1H, 1D, 7D, 30D, and 365D timeframes"""
+        
+        return trading_context
+    
+    def build_sentiment_section(self, sentiment_data: Optional[Dict[str, Any]]) -> str:
+        """Build sentiment analysis section.
+        
+        Args:
+            sentiment_data: Sentiment data including fear & greed index
+            
+        Returns:
+            str: Formatted sentiment section
+        """
+        if not sentiment_data:
+            return ""
+        
+        historical_data = sentiment_data.get('historical', [])
+        
+        sentiment_section = f"""
+        MARKET SENTIMENT:
+        - Current Fear & Greed Index: {sentiment_data.get('fear_greed_index', 'N/A')}
+        - Classification: {sentiment_data.get('value_classification', 'N/A')}"""
+        
+        if historical_data:
+            sentiment_section += "\n\n    Historical Fear & Greed (Last 7 days):"
+            for day in historical_data:
+                date_str = day['timestamp'].strftime('%Y-%m-%d') if isinstance(day['timestamp'], datetime) else day['timestamp']
+                sentiment_section += f"\n    - {date_str}: {day['value']} ({day['value_classification']})"
+        
+        return sentiment_section
+    
+    def build_market_data_section(self, ohlcv_candles: np.ndarray) -> str:
+        """Build market data section with multi-timeframe price summary.
+        
+        Args:
+            ohlcv_candles: OHLCV candle data array
+            
+        Returns:
+            str: Formatted market data section
+        """
+        if ohlcv_candles is None or ohlcv_candles.size == 0:
+            return "MARKET DATA:\nNo OHLCV data available"
+
+        if ohlcv_candles.shape[0] < 24:
+            return "MARKET DATA:\nInsufficient historical data (less than 25 candles)"
+
+        available_candles = ohlcv_candles.shape[0]
+        data = "MARKET DATA:\n"
+
+        # Keep multi-timeframe price summary if desired
+        if available_candles >= 100:
+            last_close = float(ohlcv_candles[-1, 4])
+            periods = {
+                "4h": 4,
+                "12h": 12,
+                "24h": 24,
+                "3d": 72,
+                "7d": 168
+            }
+
+            data += "\nMulti-Timeframe Price Summary (Based on 1h candles):\n"
+            for period_name, candle_count in periods.items():
+                if candle_count < available_candles:
+                    period_start = float(ohlcv_candles[-candle_count, 4])
+                    change_pct = ((last_close / period_start) - 1) * 100
+                    high = max([float(candle[2]) for candle in ohlcv_candles[-candle_count:]])
+                    low = min([float(candle[3]) for candle in ohlcv_candles[-candle_count:]])
+                    
+                    # Format very small numbers using the imported fmt function
+                    high_formatted = fmt(high)
+                    low_formatted = fmt(low)
+                    
+                    data += f"{period_name}: {change_pct:.2f}% change | High: {high_formatted} | Low: {low_formatted}\n"
+
+        return data if data != "MARKET DATA:\n" else ""
+    
+    def build_market_period_metrics_section(self, market_metrics: Optional[Dict[str, Any]], 
+                                           indicator_calculator) -> str:
+        """Build market period metrics section.
+        
+        Args:
+            market_metrics: Market metrics data
+            indicator_calculator: Calculator instance for formatting
+            
+        Returns:
+            str: Formatted market period metrics section
+        """
+        if not market_metrics:
+            return ""
+        
+        return indicator_calculator.format_market_period_metrics(market_metrics)
+    
+    def build_long_term_analysis_section(self, long_term_data: Optional[Dict[str, Any]], 
+                                        current_price: Optional[float],
+                                        indicator_calculator) -> str:
+        """Build long-term analysis section.
+        
+        Args:
+            long_term_data: Long-term historical data
+            current_price: Current asset price
+            indicator_calculator: Calculator instance for formatting
+            
+        Returns:
+            str: Formatted long-term analysis section
+        """
+        if not long_term_data:
+            return ""
+        
+        return indicator_calculator.format_long_term_analysis(long_term_data, current_price)

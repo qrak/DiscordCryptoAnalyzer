@@ -1,353 +1,121 @@
+"""
+Simplified Discord File Handler using specialized components.
+Orchestrates message tracking, cleanup scheduling, and deletion operations.
+"""
 import asyncio
-import json
-import os
-from datetime import datetime
 from typing import Optional
 
-import discord
-
-from config.config import FILE_MESSAGE_EXPIRY
-from src.utils.decorators import retry_async
+from .filehandler_components.tracking_persistence import TrackingPersistence
+from .filehandler_components.message_tracker import MessageTracker
+from .filehandler_components.cleanup_scheduler import CleanupScheduler
+from .filehandler_components.message_deleter import MessageDeleter
 
 
 class DiscordFileHandler:
-    """Simplified handler for message tracking and automatic deletion with a centralized approach"""
+    """Simplified handler for message tracking and automatic deletion with specialized components."""
     
     def __init__(self, bot, logger, tracking_file="data/tracked_messages.json", cleanup_interval=7200):
         self.bot = bot
         self.logger = logger
-        self.tracking_file = tracking_file
-        self.cleanup_interval = cleanup_interval
-        self.cleanup_task = None
         self.is_initialized = False
-        self.deletion_tasks = set()
-        self._message_deletion_tasks = {}  # Map message_id to deletion tasks
-        self._tracking_lock = asyncio.Lock()  # Single lock for all tracking operations
         
-        # Ensure directory exists
-        os.makedirs(os.path.dirname(self.tracking_file), exist_ok=True)
-        
+        # Initialize specialized components
+        self.persistence = TrackingPersistence(tracking_file, logger)
+        self.tracker = MessageTracker(self.persistence, logger)
+        self.scheduler = CleanupScheduler(cleanup_interval, logger)
+        self.deleter = MessageDeleter(bot, logger)
+    
     def initialize(self):
+        """Initialize the file handler and start background tasks."""
         self.is_initialized = True
-        self.start_cleanup_background_task()
+        self.scheduler.start_cleanup_task(self.bot, self.check_and_delete_expired_messages)
+        self.logger.info("DiscordFileHandler initialized with specialized components")
     
-    def start_cleanup_background_task(self):
-        """Start the background task that cleans up expired messages"""
-        if self.cleanup_task is not None:
-            self.cleanup_task.cancel()
-            
-        self.cleanup_task = self.bot.loop.create_task(
-            self.periodic_cleanup_task(),
-            name="MessageCleanupTask"
-        )
-        self.logger.info(f"Started background message cleanup task (interval: {self.cleanup_interval}s)")
+    async def track_message(self, message_id: int, channel_id: int, user_id: int, 
+                          message_type: str = "general", expire_after: Optional[int] = None) -> bool:
+        """Track a message for automatic deletion."""
+        if not self.is_initialized:
+            self.logger.debug("FileHandler not yet initialized, waiting for ready event...")
+            # Wait for the bot to be ready and FileHandler to be initialized
+            if hasattr(self.bot, 'discord_notifier') and hasattr(self.bot.discord_notifier, '_ready_event'):
+                try:
+                    await asyncio.wait_for(self.bot.discord_notifier._ready_event.wait(), timeout=10.0)
+                except asyncio.TimeoutError:
+                    self.logger.warning("Timeout waiting for FileHandler initialization, cannot track message")
+                    return False
+            else:
+                self.logger.warning("FileHandler not initialized and no ready event available, cannot track message")
+                return False
+        
+        return await self.tracker.track_message(message_id, channel_id, user_id, message_type, expire_after)
     
-    async def periodic_cleanup_task(self):
-        """Periodically runs the cleanup process for messages"""
+    async def check_and_delete_expired_messages(self) -> int:
+        """Check for and delete all expired messages."""
         try:
-            await asyncio.sleep(10)  # Initial delay
+            expired_messages = await self.tracker.get_expired_messages()
+            if not expired_messages:
+                return 0
             
-            while True:
-                try:
-                    await self.cleanup_all_expired_messages()
-                    self.logger.debug("Scheduled message cleanup check completed")
-                except asyncio.CancelledError:
-                    self.logger.info("Message cleanup task cancelled")
-                    break
-                except Exception as e:
-                    self.logger.error(f"Error in scheduled message cleanup: {e}")
-                
-                try:
-                    await asyncio.sleep(self.cleanup_interval)
-                except asyncio.CancelledError:
-                    self.logger.info("Message cleanup sleep cancelled")
-                    break
-        except asyncio.CancelledError:
-            self.logger.info("Periodic message cleanup task cancelled")
-        except Exception as e:
-            self.logger.error(f"Unexpected error in periodic message cleanup task: {e}")
-
-    async def cleanup_all_expired_messages(self):
-        """Clean up all expired messages"""
-        try:
-            deleted_count = await self.check_and_delete_expired_messages()
+            deleted_count = await self._delete_expired_messages(expired_messages)
+            
             if deleted_count > 0:
-                self.logger.debug(f"Cleaned up {deleted_count} expired messages")
+                self.logger.info(f"Successfully deleted {deleted_count} expired messages during cleanup")
+            
+            return deleted_count
         except Exception as e:
-            self.logger.error(f"Error in cleanup_all_expired_messages: {e}")
-    
-    async def shutdown(self):
-        cancelled_tasks = 0
-        
-        # Cancel the cleanup task
-        if self.cleanup_task and not self.cleanup_task.done():
-            try:
-                self.cleanup_task.cancel()
-                cancelled_tasks += 1
-            except Exception as e:
-                self.logger.warning(f"Error cancelling cleanup task: {e}")
-            self.cleanup_task = None
-        
-        # Cancel all remaining tasks
-        deletion_tasks = list(self.deletion_tasks)
-        if deletion_tasks:
-            for task in deletion_tasks:
-                if not task.done():
-                    task.cancel()
-                    cancelled_tasks += 1
-            
-            if cancelled_tasks > 0:
-                await asyncio.gather(*[asyncio.create_task(self._wait_task_cancelled(task)) for task in deletion_tasks], 
-                                    return_exceptions=True)
-        
-        self.logger.info(f"Cancelled {cancelled_tasks} file handler tasks")
-    
-    @staticmethod
-    async def _wait_task_cancelled(task):
-        """Wait for a task to acknowledge cancellation with a short timeout"""
-        try:
-            await asyncio.wait_for(asyncio.shield(task), timeout=0.5)
-        except (asyncio.TimeoutError, asyncio.CancelledError):
-            pass
-    
-    async def track_message(self, message_id: int, channel_id: int, user_id: Optional[int] = None, 
-                           message_type: str = "message", expire_after: int = FILE_MESSAGE_EXPIRY):
-        """Track a message and schedule it for deletion after expire_after seconds"""
-        async with self._tracking_lock:
-            try:
-                # Load all tracking data
-                tracking_data = await self._load_tracking_data()
-                
-                expires_at = int(datetime.now().timestamp() + expire_after)
-                str_message_id = str(message_id)
-                
-                tracking_data[str_message_id] = {
-                    "channel_id": channel_id,
-                    "user_id": user_id if user_id is not None else 0,  # Use 0 for bot messages
-                    "created_at": int(datetime.now().timestamp()),
-                    "expires_at": expires_at,
-                    "message_type": message_type
-                }
-                
-                # Save updated data
-                await self._save_tracking_data(tracking_data)
-                
-                self.logger.debug(f"Tracked {message_type} {message_id} for user {user_id or 'bot'}")
-                
-                # Schedule deletion task
-                self._schedule_message_deletion(message_id, channel_id, expire_after)
-                
-            except Exception as e:
-                self.logger.error(f"Failed to track message {message_id}: {e}")
-
-    async def remove_message_tracking(self, message_id: int):
-        """Remove tracking for a specific message"""
-        # Cancel any scheduled deletion task
-        if message_id in self._message_deletion_tasks:
-            task = self._message_deletion_tasks.pop(message_id)
-            if not task.done():
-                task.cancel()
-        
-        # Remove from tracking data
-        async with self._tracking_lock:
-            try:
-                tracking_data = await self._load_tracking_data()
-                str_message_id = str(message_id)
-                
-                if str_message_id in tracking_data:
-                    del tracking_data[str_message_id]
-                    await self._save_tracking_data(tracking_data)
-                    self.logger.debug(f"Removed tracking for message {message_id}")
-            except Exception as e:
-                self.logger.error(f"Error removing tracking for message {message_id}: {e}")
-    
-    def _schedule_message_deletion(self, message_id: int, channel_id: int, delay: int = FILE_MESSAGE_EXPIRY):
-        """Schedule a message for deletion after the specified delay"""
-        # Cancel existing task if there is one
-        if message_id in self._message_deletion_tasks and not self._message_deletion_tasks[message_id].done():
-            self._message_deletion_tasks[message_id].cancel()
-            
-        # Create a new deletion task
-        task = self.bot.loop.create_task(
-            self._delete_message_after_delay(message_id, channel_id, delay),
-            name=f"DeleteMsg-{message_id}"
-        )
-        self._message_deletion_tasks[message_id] = task
-        self.deletion_tasks.add(task)
-        
-        # Add cleanup callbacks
-        task.add_done_callback(lambda t: self._message_deletion_tasks.pop(message_id, None))
-        task.add_done_callback(self.deletion_tasks.discard)
-        
-        return task
-        
-    async def _delete_message_after_delay(self, message_id: int, channel_id: int, delay: int):
-        """Task that waits for the specified delay and then deletes the message"""
-        try:
-            self.logger.debug(f"Scheduled message {message_id} for deletion after {delay} seconds")
-            await asyncio.sleep(delay)
-            
-            # Check if message is still being tracked before attempting to delete
-            async with self._tracking_lock:
-                tracking_data = await self._load_tracking_data()
-                if str(message_id) not in tracking_data:
-                    # Message was already deleted by another process
-                    self.logger.debug(f"Message {message_id} is no longer being tracked, skipping deletion")
-                    return
-            
-            self.logger.debug(f"Deleting message {message_id} after scheduled delay")
-            success = await self._delete_message(message_id, channel_id)
-            if success:
-                # Remove from tracking
-                await self.remove_message_tracking(message_id)
-                
-        except asyncio.CancelledError:
-            # Task was cancelled, just exit
-            self.logger.debug(f"Deletion task for message {message_id} was cancelled")
-            pass
-        except Exception as e:
-            self.logger.error(f"Error in message deletion task for {message_id}: {e}")
-
-    async def check_and_delete_expired_messages(self):
-        """Check for and delete all expired messages concurrently.
-        
-        Returns the number of successfully deleted messages.
-        """
-        # Get expired messages to delete
-        expired_messages = await self._get_expired_messages()
-        if not expired_messages:
+            self.logger.error(f"Error in check_and_delete_expired_messages: {e}")
             return 0
-
-        self.logger.info(f"Found {len(expired_messages)} expired messages to delete")
-        
-        # Process deletions outside the lock to avoid deadlocks
-        return await self._process_message_deletions(expired_messages)
-
-    async def _get_expired_messages(self) -> list:
-        """Get list of expired messages that need deletion."""
-        async with self._tracking_lock:
-            tracking_data = await self._load_tracking_data()
-            current_time = datetime.now().timestamp()
-            expired_messages = []
-            
-            # Find expired messages not already being handled by a specific deletion task
-            for str_message_id, data in list(tracking_data.items()):
-                message_id = int(str_message_id)
-                if self._should_delete_message(message_id, data, current_time):
-                    expired_messages.append((message_id, data["channel_id"]))
-            
-            return expired_messages
-
-    def _should_delete_message(self, message_id: int, data: dict, current_time: float) -> bool:
-        """Check if a message should be deleted."""
-        is_expired = data["expires_at"] < current_time
-        not_being_handled = (message_id not in self._message_deletion_tasks or 
-                           self._message_deletion_tasks[message_id].done())
-        return is_expired and not_being_handled
-
-    async def _process_message_deletions(self, expired_messages: list) -> int:
-        """Process deletion of expired messages and return count of successful deletions."""
+    
+    async def _delete_expired_messages(self, expired_messages) -> int:
+        """Delete a list of expired messages."""
         deleted_count = 0
         
         for message_id, channel_id in expired_messages:
-            try:
-                success = await self._try_delete_message(message_id, channel_id)
-                if success:
-                    deleted_count += 1
-                    
-            except discord.NotFound:
-                deleted_count += await self._handle_already_deleted_message(message_id)
-            except Exception as e:
-                self.logger.error(f"Error deleting message {message_id}: {e}")
-        
-        if deleted_count > 0:
-            self.logger.info(f"Successfully deleted {deleted_count} expired messages during cleanup")
+            success = await self._process_single_message_deletion(message_id, channel_id)
+            if success:
+                deleted_count += 1
         
         return deleted_count
-
-    async def _try_delete_message(self, message_id: int, channel_id: int) -> bool:
-        """Try to delete a message and remove tracking data if successful."""
-        result = await self._delete_message(message_id, channel_id)
+    
+    async def _process_single_message_deletion(self, message_id: int, channel_id: int) -> bool:
+        """Process deletion of a single message."""
+        try:
+            success = await self.deleter.try_delete_message(message_id, channel_id)
+            if success:
+                await self.tracker.remove_message_tracking(message_id)
+                return True
+        except Exception as e:
+            self.logger.error(f"Error processing deletion for message {message_id}: {e}")
         
-        if result is True:
-            await self._remove_message_tracking(message_id)
-            return True
         return False
-
-    async def _handle_already_deleted_message(self, message_id: int) -> int:
-        """Handle case where message was already deleted."""
-        await self._remove_message_tracking(message_id)
-        self.logger.debug(f"Removed tracking for already deleted message {message_id}")
-        return 1
-
-    async def _remove_message_tracking(self, message_id: int) -> None:
-        """Remove tracking data for a message."""
-        async with self._tracking_lock:
-            tracking_data = await self._load_tracking_data()
-            str_message_id = str(message_id)
-            if str_message_id in tracking_data:
-                del tracking_data[str_message_id]
-                await self._save_tracking_data(tracking_data)
-
-    @retry_async(max_retries=3, initial_delay=1, backoff_factor=2, max_delay=30)
-    async def _delete_message(self, message_id: int, channel_id: int):
-        """Core message deletion logic. Returns True on success, False on permission/HTTP error, raises NotFound."""
+    
+    async def delete_message_now(self, message_id: int, channel_id: int) -> bool:
+        """Immediately delete a specific message."""
+        success = await self.deleter.try_delete_message(message_id, channel_id)
+        if success:
+            await self.tracker.remove_message_tracking(message_id)
+        return success
+    
+    async def get_tracking_stats(self):
+        """Get statistics about tracked messages."""
+        stats = await self.tracker.get_tracking_stats()
+        stats["active_deletion_tasks"] = self.scheduler.get_task_count()
+        return stats
+    
+    async def shutdown(self):
+        """Clean up resources and cancel all background tasks."""
         try:
-            if not self.bot or self.bot.is_closed():
-                self.logger.warning(f"Bot closed, cannot delete message {message_id}")
-                return False
-                
-            channel = self.bot.get_channel(channel_id)
-            if not channel:
-                self.logger.warning(f"Channel {channel_id} not found for message {message_id}. Assuming deleted.")
-                raise discord.NotFound(None, f"Channel {channel_id} not found") 
-                
-            try:
-                message = await channel.fetch_message(message_id)
-                await message.delete()
-                self.logger.debug(f"Deleted message {message_id} from channel {channel_id}")
-                return True
-            except discord.NotFound:
-                self.logger.debug(f"Message {message_id} already deleted (NotFound exception)")
-                # Return True instead of raising, since the end goal (message not existing) is achieved
-                return True
-            except discord.Forbidden:
-                self.logger.warning(f"Missing permissions to delete message {message_id}")
-                return False
-            except discord.HTTPException as e:
-                self.logger.error(f"Failed to delete message {message_id} due to HTTP error: {e}")
-                return False
-        except discord.NotFound:
-             raise
+            await self.scheduler.shutdown()
+            self.is_initialized = False
+            self.logger.info("DiscordFileHandler shutdown complete")
         except Exception as e:
-            self.logger.error(f"Unexpected error deleting message {message_id}: {e}")
-            return False
-
-    async def _load_tracking_data(self) -> dict:
-        """Load all message tracking data"""
-        if not os.path.exists(self.tracking_file):
-            return {}
-            
-        try:
-            with open(self.tracking_file, 'r') as f:
-                return json.load(f)
-        except json.JSONDecodeError:
-            self.logger.warning(f"Corrupted tracking file. Creating new.")
-            return {}
-        except Exception as e:
-            self.logger.error(f"Error loading tracking data: {e}")
-            return {}
-
-    async def _save_tracking_data(self, data: dict) -> bool:
-        """Save tracking data"""
-        try:
-            if data:
-                with open(self.tracking_file, 'w') as f:
-                    json.dump(data, f)
-            elif os.path.exists(self.tracking_file):
-                with open(self.tracking_file, 'w') as f:
-                    json.dump({}, f)
-            return True
-        except Exception as e:
-            self.logger.error(f"Error saving tracking data: {e}")
-            return False
+            self.logger.error(f"Error during DiscordFileHandler shutdown: {e}")
+    
+    # Backward compatibility methods
+    async def cleanup_all_expired_messages(self):
+        """Backward compatibility wrapper for cleanup."""
+        return await self.check_and_delete_expired_messages()
+    
+    async def _wait_task_cancelled(self, task: asyncio.Task):
+        """Backward compatibility for task cancellation."""
+        return await self.scheduler._wait_task_cancelled(task)

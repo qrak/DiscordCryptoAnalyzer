@@ -55,7 +55,7 @@ class MACDPatternDetector(BasePatternDetector):
         
         patterns = self._detect_line_crossovers(
             recent_line, recent_signal, market_data, original_start_index,
-            lookback, "macd", ":.4f", additional_data
+            lookback, "macd", ".4f", additional_data
         )
         
         # Update pattern data with MACD-specific values and fix pattern types

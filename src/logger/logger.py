@@ -44,7 +44,8 @@ class Logger(logging.Logger):
         
         if log_dir is None:
             current_file = os.path.abspath(__file__)
-            src_dir = os.path.dirname(os.path.dirname(os.path.dirname(current_file)))
+            # current_file is inside src/logger; go up four levels to reach project root
+            src_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(current_file))))
             self.log_dir = os.path.join(src_dir, 'logs')
         else:
             self.log_dir = log_dir

@@ -1,11 +1,29 @@
 """
-RAG (Retrieval Augmented Generation) components for Discord Crypto Bot.
+RAG System - Restructured with Clean Architecture
 
-This package contains all components related to the crypto news and market data
-retrieval, processing, and storage used for informing the AI assistant responses.
+This package provides a well-organized RAG (Retrieval-Augmented Generation) system
+with clear separation of concerns following the same principles as the analyzer restructure.
 """
 
-from src.rag.engine import RagEngine
-from src.rag.filehandler import RagFileHandler
+from .core import RagEngine, ContextBuilder
+from .data import MarketDataManager, NewsManager, RagFileHandler
+from .search import IndexManager, SearchUtilities
+from .processing import ArticleProcessor, NewsCategoryAnalyzer
+from .management import CategoryManager, TickerManager, CategoryFetcher, CategoryProcessor
 
-__all__ = ['RagEngine', 'RagFileHandler']
+__all__ = [
+    # Core RAG orchestration
+    'RagEngine', 'ContextBuilder',
+    
+    # Data operations
+    'MarketDataManager', 'NewsManager', 'RagFileHandler',
+    
+    # Search operations
+    'IndexManager', 'SearchUtilities',
+    
+    # Content processing
+    'ArticleProcessor', 'NewsCategoryAnalyzer',
+    
+    # Management operations
+    'CategoryManager', 'TickerManager', 'CategoryFetcher', 'CategoryProcessor'
+]

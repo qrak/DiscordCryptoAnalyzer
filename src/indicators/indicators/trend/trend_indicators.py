@@ -5,53 +5,50 @@ from numba import njit
 
 from src.indicators.indicators.overlap import ema_numba
 from src.indicators.indicators.volatility import atr_numba
+from .trend_calculation_utils import (
+    calculate_directional_movement, calculate_smoothed_values, 
+    calculate_directional_indicators, calculate_ichimoku_lines,
+    calculate_ichimoku_spans, calculate_band_adjustments,
+    calculate_vortex_components, calculate_pfe_efficiency
+)
+from .sar_utils import (
+    initialize_sar_arrays, get_initial_sar_state,
+    update_bullish_sar, update_bearish_sar
+)
 
 
 @njit(cache=True)
 def adx_numba(high, low, close, length):
+    """Calculate ADX (Average Directional Index)."""
     n = len(high)
+    
+    # Calculate True Range
     tr = np.full(n, np.nan)
-    dm_pos = np.full(n, np.nan)
-    dm_neg = np.full(n, np.nan)
-    tr14 = np.full(n, np.nan)
-    dm_pos14 = np.full(n, np.nan)
-    dm_neg14 = np.full(n, np.nan)
-    pdi = np.full(n, np.nan)
-    ndi = np.full(n, np.nan)
-    dx = np.full(n, np.nan)
-    adx = np.full(n, np.nan)
-
     for i in range(1, n):
         tr[i] = max(high[i] - low[i], abs(high[i] - close[i - 1]), abs(low[i] - close[i - 1]))
-        dm_pos[i] = high[i] - high[i - 1] if high[i] - high[i - 1] > low[i - 1] - low[i] else 0
-        dm_neg[i] = low[i - 1] - low[i] if low[i - 1] - low[i] > high[i] - high[i - 1] else 0
-
-    tr14[length - 1] = np.sum(tr[1:length])
-    dm_pos14[length - 1] = np.sum(dm_pos[1:length])
-    dm_neg14[length - 1] = np.sum(dm_neg[1:length])
-
+    
+    # Calculate directional movements
+    dm_pos, dm_neg = calculate_directional_movement(high, low)
+    
+    # Calculate smoothed values
+    tr14 = calculate_smoothed_values(tr, length)
+    dm_pos14 = calculate_smoothed_values(dm_pos, length)
+    dm_neg14 = calculate_smoothed_values(dm_neg, length)
+    
+    # Calculate directional indicators and DX
+    pdi, ndi, dx = calculate_directional_indicators(dm_pos14, dm_neg14, tr14)
+    
+    # Calculate ADX
+    adx = np.full(n, np.nan)
     length_recip = 1 / length
-    for i in range(length, n):
-        tr14[i] = tr14[i - 1] - (tr14[i - 1] * length_recip) + tr[i]
-        dm_pos14[i] = dm_pos14[i - 1] - (dm_pos14[i - 1] * length_recip) + dm_pos[i]
-        dm_neg14[i] = dm_neg14[i - 1] - (dm_neg14[i - 1] * length_recip) + dm_neg[i]
-
-        if tr14[i] != 0:
-            pdi[i] = 100 * (dm_pos14[i] / tr14[i])
-            ndi[i] = 100 * (dm_neg14[i] / tr14[i])
-        else:
-            pdi[i] = 0
-            ndi[i] = 0
-
-        if pdi[i] + ndi[i] != 0:
-            dx[i] = 100 * abs((pdi[i] - ndi[i]) / (pdi[i] + ndi[i]))
-        else:
-            dx[i] = 0
-
-        if i == (length * 2 - 2):
-            adx[length * 2 - 2] = np.nanmean(dx[length - 1:length * 2 - 1])
-
-        if i > (length * 2 - 2):
+    
+    # Initialize ADX
+    if length * 2 - 2 < n:
+        adx[length * 2 - 2] = np.nanmean(dx[length - 1:length * 2 - 1])
+    
+    # Calculate subsequent ADX values
+    for i in range(length * 2 - 1, n):
+        if not np.isnan(adx[i - 1]) and not np.isnan(dx[i]):
             adx[i] = ((adx[i - 1] * (length - 1)) + dx[i]) * length_recip
 
     return adx, pdi, ndi
@@ -60,29 +57,25 @@ def adx_numba(high, low, close, length):
 @njit(cache=True)
 def supertrend_numba(high: np.ndarray, low: np.ndarray, close: np.ndarray,
                      length: int = 10, multiplier: float = 3.0) -> Tuple[np.ndarray, np.ndarray]:
+    """Calculate Supertrend indicator."""
     n = len(close)
     atr = atr_numba(high, low, close, length)
 
     hl2 = (high + low) / 2
-    upperband = np.full(n, np.nan)
-    lowerband = np.full(n, np.nan)
+    upperband = hl2 + multiplier * atr
+    lowerband = hl2 - multiplier * atr
+    
     trend = np.full(n, np.nan)
     direction = np.full(n, 1)
 
-    upperband[0] = hl2[0] + multiplier * atr[0]
-    lowerband[0] = hl2[0] - multiplier * atr[0]
+    # Initialize first values
     trend[0] = lowerband[0] if direction[0] == 1 else upperband[0]
 
     for i in range(1, n):
-        upperband[i] = hl2[i] + multiplier * atr[i]
-        lowerband[i] = hl2[i] - multiplier * atr[i]
+        # Adjust bands based on previous close
+        upperband[i], lowerband[i] = calculate_band_adjustments(close, upperband, lowerband, i)
 
-        if close[i - 1] <= upperband[i - 1]:
-            upperband[i] = min(upperband[i], upperband[i - 1])
-
-        if close[i - 1] >= lowerband[i - 1]:
-            lowerband[i] = max(lowerband[i], lowerband[i - 1])
-
+        # Determine trend direction
         if close[i] > upperband[i - 1]:
             direction[i] = 1
         elif close[i] < lowerband[i - 1]:
@@ -95,105 +88,36 @@ def supertrend_numba(high: np.ndarray, low: np.ndarray, close: np.ndarray,
     return trend, direction
 
 @njit(cache=True)
-def ichimoku_cloud_numba(high, low, conversion_length, base_length, lagging_span2_length, displacement):
-    n = len(high)
-    conversion_line = np.full(n, np.nan)
-    base_line = np.full(n, np.nan)
-    leading_span_a = np.full(n, np.nan)
-    leading_span_b = np.full(n, np.nan)
-
-    for i in range(base_length - 1, n):
-        conversion_line[i] = (np.max(high[i - conversion_length + 1: i + 1]) +
-                              np.min(low[i - conversion_length + 1: i + 1])) / 2
-
-        base_line[i] = (np.max(high[i - base_length + 1: i + 1]) +
-                        np.min(low[i - base_length + 1: i + 1])) / 2
-
-        if i + displacement < n:
-            leading_span_a[i + displacement] = (conversion_line[i] + base_line[i]) / 2
-
-        if i >= lagging_span2_length - 1 and i + displacement < n:
-            leading_span_b[i + displacement] = (np.max(high[i - lagging_span2_length + 1: i + 1]) +
-                                                np.min(low[i - lagging_span2_length + 1: i + 1])) / 2
+def ichimoku_cloud_numba(high, low, conversion_length=9, base_length=26, 
+                        lagging_span2_length=52, displacement=26):
+    """Calculate Ichimoku Cloud components using configuration."""
+    # Calculate conversion and base lines
+    conversion_line, base_line = calculate_ichimoku_lines(
+        high, low, conversion_length, base_length
+    )
+    
+    # Calculate leading spans
+    leading_span_a, leading_span_b = calculate_ichimoku_spans(
+        high, low, conversion_line, base_line, lagging_span2_length, displacement
+    )
 
     return conversion_line, base_line, leading_span_a, leading_span_b
 
 @njit(cache=True)
-def _initialize_sar_state(high, low, step):
-    """Initialize SAR state variables."""
-    trend = -1 if high[0] > low[1] else 1
-    
-    if trend == 1:
-        sar_value = np.min(low[:2])
-        ep_value = high[0]
-    else:
-        sar_value = np.max(high[:2])
-        ep_value = low[0]
-    
-    return trend, sar_value, ep_value, step
-
-
-@njit(cache=True)
-def _update_sar_bullish_trend(i, high, low, sar, ep, af, trend, step, max_step):
-    """Update SAR for bullish trend."""
-    new_sar = sar[i - 1] + af[i - 1] * (ep[i - 1] - sar[i - 1])
-    
-    if low[i] > new_sar:
-        # Continue bullish trend
-        sar[i] = min(new_sar, low[i - 1], low[i])
-        if high[i] > ep[i - 1]:
-            ep[i] = high[i]
-            af[i] = min(af[i - 1] + step, max_step)
-        else:
-            ep[i] = ep[i - 1]
-            af[i] = af[i - 1]
-        return 1
-    else:
-        # Trend reversal to bearish
-        sar[i] = ep[i - 1]
-        ep[i] = low[i]
-        af[i] = step
-        return -1
-
-
-@njit(cache=True)
-def _update_sar_bearish_trend(i, high, low, sar, ep, af, trend, step, max_step):
-    """Update SAR for bearish trend."""
-    new_sar = sar[i - 1] + af[i - 1] * (ep[i - 1] - sar[i - 1])
-    
-    if high[i] < new_sar:
-        # Continue bearish trend
-        sar[i] = max(new_sar, high[i - 1], high[i])
-        if low[i] < ep[i - 1]:
-            ep[i] = low[i]
-            af[i] = min(af[i - 1] + step, max_step)
-        else:
-            ep[i] = ep[i - 1]
-            af[i] = af[i - 1]
-        return -1
-    else:
-        # Trend reversal to bullish
-        sar[i] = ep[i - 1]
-        ep[i] = high[i]
-        af[i] = step
-        return 1
-
-
-@njit(cache=True)
 def parabolic_sar_numba(high, low, step=0.02, max_step=0.2):
+    """Calculate Parabolic SAR using extracted utilities."""
     n = len(high)
-    sar = np.full(n, np.nan)
-    ep = np.full(n, np.nan)
-    af = np.full(n, np.nan)
+    sar, ep, af = initialize_sar_arrays(n)
 
     # Initialize state
-    trend, sar[0], ep[0], af[0] = _initialize_sar_state(high, low, step)
+    trend, sar[0], ep[0], af[0] = get_initial_sar_state(high, low, step)
 
+    # Calculate SAR for each period
     for i in range(1, n):
         if trend == 1:
-            trend = _update_sar_bullish_trend(i, high, low, sar, ep, af, trend, step, max_step)
+            trend = update_bullish_sar(i, high, low, sar, ep, af, step, max_step)
         else:
-            trend = _update_sar_bearish_trend(i, high, low, sar, ep, af, trend, step, max_step)
+            trend = update_bearish_sar(i, high, low, sar, ep, af, step, max_step)
 
     return sar
 
@@ -215,18 +139,15 @@ def trix_numba(close, length=18, scalar=100, drift=1):
 
 @njit(cache=True)
 def vortex_indicator_numba(high, low, close, length):
+    """Calculate Vortex Indicator using extracted utilities."""
     n = len(high)
-    tr = np.zeros(n)
-    vmp = np.zeros(n)
-    vmm = np.zeros(n)
     vi_plus = np.full(n, np.nan)
     vi_minus = np.full(n, np.nan)
 
-    for i in range(1, n):
-        tr[i] = max(high[i] - low[i], abs(high[i] - close[i - 1]), abs(low[i] - close[i - 1]))
-        vmp[i] = abs(high[i] - low[i - 1])
-        vmm[i] = abs(low[i] - high[i - 1])
+    # Calculate components
+    tr, vmp, vmm = calculate_vortex_components(high, low, close)
 
+    # Calculate rolling sums and Vortex Indicator
     for i in range(length, n):
         tr_sum = np.sum(tr[i - length + 1:i + 1])
         vmp_sum = np.sum(vmp[i - length + 1:i + 1])
@@ -241,31 +162,27 @@ def vortex_indicator_numba(high, low, close, length):
 
 @njit(cache=True)
 def pfe_numba(close, n, m):
+    """Calculate Polarized Fractal Efficiency using extracted utilities."""
     length = len(close)
     p = np.full(length, np.nan)
     pfe = np.full(length, np.nan)
 
-    # Calculate differences manually instead of using np.diff
+    # Calculate efficiency values
     for i in range(n - 1, length):
-        # Calculate sum of squared differences manually
-        sum_square_diffs = 0.0
-        for j in range(i - n + 1, i):
-            diff = close[j + 1] - close[j]
-            sum_square_diffs += diff * diff
+        p[i] = calculate_pfe_efficiency(close, i - n + 1, n)
 
-        if sum_square_diffs > 0:  # Avoid division by zero
-            term1 = np.sqrt((close[i] - close[i - n]) ** 2 + n ** 2)
-            pi = 100 * term1 / np.sqrt(sum_square_diffs)
-            if close[i] < close[i - 1]:
-                pi = -pi
-            p[i] = pi
-
-    # Calculate EMA of p
+    # Calculate EMA of efficiency values
     multiplier = 2 / (m + 1)
-    pfe[n - 1:] = p[n - 1:]  # Copy initial values
+    start_idx = n - 1
 
-    for i in range(n + m - 1, length):
-        pfe[i] = ((p[i] - pfe[i - 1]) * multiplier) + pfe[i - 1]
+    # Initialize with first valid value
+    if start_idx < length and not np.isnan(p[start_idx]):
+        pfe[start_idx] = p[start_idx]
+
+    # Calculate EMA
+    for i in range(start_idx + 1, length):
+        if not np.isnan(p[i]) and not np.isnan(pfe[i - 1]):
+            pfe[i] = ((p[i] - pfe[i - 1]) * multiplier) + pfe[i - 1]
 
     return pfe
 

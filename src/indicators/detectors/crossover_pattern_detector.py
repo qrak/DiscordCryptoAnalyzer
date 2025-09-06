@@ -60,7 +60,7 @@ class CrossoverPatternDetector(BasePatternDetector):
         
         patterns = self._detect_line_crossovers(
             plus_di, minus_di, market_data, original_start_index,
-            lookback, "di", ":.1f", additional_data
+            lookback, "di", ".1f", additional_data
         )
         
         # Update pattern descriptions and data with DI-specific information

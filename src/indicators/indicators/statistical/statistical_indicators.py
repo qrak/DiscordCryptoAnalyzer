@@ -1,5 +1,12 @@
 import numpy as np
 from numba import njit
+from .utils import (
+    f_ess, f_hp,
+    calculate_correlation_matrix,
+    calculate_spectral_components,
+    smooth_power_spectrum,
+    calculate_dominant_cycle
+)
 
 @njit(cache=True)
 def apa_adaptive_eot_numba(closeprices, q1_=0.8, q2_=0.4, minlen=10, maxlen=48, avelen=3):
@@ -15,7 +22,7 @@ def apa_adaptive_eot_numba(closeprices, q1_=0.8, q2_=0.4, minlen=10, maxlen=48, 
 def _eot(closeprices, lpperiod, k):
     n = len(closeprices)
     pk = np.zeros(n)
-    filt = _f_ess(_f_hp(closeprices, lpperiod), lpperiod)
+    filt = f_ess(f_hp(closeprices, lpperiod), lpperiod)
     x = np.zeros(n)
     q = np.zeros(n)
 
@@ -27,92 +34,22 @@ def _eot(closeprices, lpperiod, k):
     return q
 
 @njit(cache=True)
-def _f_ess(source, length_):
-    s = 1.414
-    a = np.exp(-s * np.pi / length_)
-    b = 2 * a * np.cos(s * np.pi / length_)
-    c2 = b
-    c3 = -a * a
-    c1 = 1 - c2 - c3
-    out = np.zeros_like(source)
-    for i in range(2, len(source)):
-        out[i] = c1 * (source[i] + source[i - 1]) / 2 + c2 * out[i - 1] + c3 * out[i - 2]
-    return out
-
-@njit(cache=True)
-def _f_hp(source, maxlen):
-    c = 360 * np.pi / 180
-    alpha = (1 - np.sin(c / maxlen)) / np.cos(c / maxlen)
-    hp = np.zeros_like(source)
-    for i in range(1, len(source)):
-        hp[i] = 0.5 * (1 + alpha) * (source[i] - source[i - 1]) + alpha * hp[i - 1]
-    return hp
-
-
-@njit(cache=True)
 def _auto_dom_imp(source, minlen, maxlen, avelen):
-    c = 2 * np.pi
-    filt = _f_ess(_f_hp(source, maxlen), minlen)
-    arr_size = maxlen * 2
-    corr = np.zeros(arr_size)
-    cospart = np.zeros(arr_size)
-    sinpart = np.zeros(arr_size)
-    sqsum = np.zeros(arr_size)
-    r1 = np.zeros(arr_size)
-    r2 = np.zeros(arr_size)
-    pwr = np.zeros(arr_size)
-
-    for lag in range(maxlen):
-        m = avelen if avelen != 0 else lag
-        sx, sy, sxx, syy, sxy = 0.0, 0.0, 0.0, 0.0, 0.0
-        for i in range(m):
-            x = filt[i]
-            y = filt[lag + i]
-            sx += x
-            sy += y
-            sxx += x * x
-            sxy += x * y
-            syy += y * y
-        if (m * sxx - sx * sx) * (m * syy - sy * sy) > 0:
-            corr[lag] = (m * sxy - sx * sy) / np.sqrt((m * sxx - sx * sx) * (m * syy - sy * sy))
-
-    for period in range(minlen, maxlen):
-        cospart[period] = 0
-        sinpart[period] = 0
-        for n in range(avelen, maxlen):
-            cospart[period] += corr[n] * np.cos(c * n / period)
-            sinpart[period] += corr[n] * np.sin(c * n / period)
-        sqsum[period] = cospart[period] ** 2 + sinpart[period] ** 2
-
-    for period in range(minlen, maxlen):
-        r2[period] = r1[period]
-        r1[period] = 0.2 * sqsum[period] ** 2 + 0.8 * r2[period]
-
-    maxpwr = np.max(r1[minlen:maxlen])
-
-    if maxpwr == 0:
-        return 1
-
-    for period in range(avelen, maxlen):
-        pwr[period] = r1[period] / maxpwr
-
-    peakpwr = np.max(pwr[minlen:maxlen])
-    spx, sp = 0.0, 0.0
-
-    for period in range(minlen, maxlen):
-        if pwr[period] >= 0.5:
-            spx += period * pwr[period]
-            sp += pwr[period]
-
-    for period in range(minlen, maxlen):
-        if peakpwr >= 0.25 and pwr[period] >= 0.25:
-            spx += period * pwr[period]
-            sp += pwr[period]
-
-    dominantcycle = spx / sp if sp != 0 else 0
-    dominantcycle = dominantcycle if sp >= 0.25 else dominantcycle
-    dominantcycle = max(dominantcycle, 1)
-    return dominantcycle
+    """Simplified auto-dominant impulse using extracted utilities"""
+    # Apply filtering
+    filt = f_ess(f_hp(source, maxlen), minlen)
+    
+    # Calculate correlation matrix
+    corr = calculate_correlation_matrix(filt, maxlen, avelen)
+    
+    # Calculate spectral components
+    sqsum = calculate_spectral_components(corr, minlen, maxlen, avelen)
+    
+    # Smooth power spectrum
+    r1 = smooth_power_spectrum(sqsum, minlen, maxlen)
+    
+    # Calculate dominant cycle
+    return calculate_dominant_cycle(r1, minlen, maxlen, avelen)
 
 @njit(cache=True)
 def kurtosis_numba(arr, length):

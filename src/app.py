@@ -1,14 +1,13 @@
 import asyncio
-import sys
 
 from src.logger.logger import Logger
 from src.platforms.alternative_me import AlternativeMeAPI
 from src.platforms.coingecko import CoinGeckoAPI
 from src.platforms.cryptocompare import CryptoCompareAPI
 from src.platforms.exchange_manager import ExchangeManager
-from src.analyzer.market_analyzer import MarketAnalyzer
+from src.analyzer.core.analysis_engine import AnalysisEngine
 from src.discord_interface.notifier import DiscordNotifier
-from src.rag.engine import RagEngine
+from src.rag import RagEngine
 from src.utils.token_counter import TokenCounter
 from src.utils.keyboard_handler import KeyboardHandler
 
@@ -66,14 +65,14 @@ class DiscordCryptoBot:
         self.rag_engine.set_symbol_manager(self.symbol_manager)
         self.logger.debug("Passed SymbolManager to RagEngine")
 
-        self.market_analyzer = MarketAnalyzer(
+        self.market_analyzer = AnalysisEngine(
             logger=self.logger,
             rag_engine=self.rag_engine,
             coingecko_api=self.coingecko_api,
             alternative_me_api=self.alternative_me_api
         )
 
-        self.logger.debug("MarketAnalyzer initialized")
+        self.logger.debug("AnalysisEngine initialized")
 
         self.discord_notifier = DiscordNotifier(
             logger=self.logger,
@@ -94,7 +93,7 @@ class DiscordCryptoBot:
         self.logger.debug("DiscordNotifier initialized")
 
         self.market_analyzer.set_discord_notifier(self.discord_notifier)
-        self.logger.debug("MarketAnalyzer set DiscordNotifier")
+        self.logger.debug("AnalysisEngine set DiscordNotifier")
 
         await self.rag_engine.start_periodic_updates()
         

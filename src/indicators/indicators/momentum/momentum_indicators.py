@@ -1,9 +1,22 @@
 from typing import Tuple
+from dataclasses import dataclass
 
 import numpy as np
 from numba import njit
 
 from src.indicators.indicators.overlap import ema_numba, ewma_numba
+
+
+@dataclass
+class UltimateOscillatorConfig:
+    """Configuration for Ultimate Oscillator."""
+    fast: int = 7
+    medium: int = 14
+    slow: int = 28
+    fast_w: float = 4.0
+    medium_w: float = 2.0
+    slow_w: float = 1.0
+    drift: int = 1
 
 
 @njit(cache=True)
@@ -250,7 +263,7 @@ def calculate_relative_strength_numba(pair_close, benchmark_close, window=14):
     return rs_array
 
 @njit(cache=True)
-def uo_numba(high, low, close, fast, medium, slow, fast_w, medium_w, slow_w, drift):
+def _uo_numba(high, low, close, fast, medium, slow, fast_w, medium_w, slow_w, drift):
     n = len(high)
     uo = np.full(n, np.nan)
     bp = np.zeros(n)
@@ -282,3 +295,46 @@ def uo_numba(high, low, close, fast, medium, slow, fast_w, medium_w, slow_w, dri
                 fast_w + medium_w + slow_w)
 
     return uo
+
+
+def uo_numba(
+    high: np.ndarray, 
+    low: np.ndarray, 
+    close: np.ndarray, 
+    config: UltimateOscillatorConfig
+) -> np.ndarray:
+    """
+    Ultimate Oscillator (UO) - Simple interface using config object.
+
+    Ultimate Oscillator using three timeframes: 7, 14 and 28 periods.
+
+    Sources:
+        https://www.tradingview.com/wiki/Ultimate_Oscillator_(UO)
+
+    Calculation:
+        Default Inputs:
+            fast=7, medium=14, slow=28, fast_w=4.0, medium_w=2.0, slow_w=1.0
+        SUM = Summation
+        BP = Buying Pressure = close - low(min(low, previous_close))
+        TR = True Range = high(max(high, previous_close)) - low(min(low, previous_close))
+        Average7 = SUM(BP, 7) / SUM(TR, 7)
+        Average14 = SUM(BP, 14) / SUM(TR, 14)
+        Average28 = SUM(BP, 28) / SUM(TR, 28)
+
+        UO = 100 * (4 * Average7 + 2 * Average14 + Average28) / (4 + 2 + 1)
+
+    Args:
+        high (pd.Series): Series of 'high's
+        low (pd.Series): Series of 'low's
+        close (pd.Series): Series of 'close's
+        config (UltimateOscillatorConfig): Configuration object containing all parameters
+
+    Returns:
+        pd.Series: New feature generated.
+    """
+    return _uo_numba(
+        high, low, close, 
+        config.fast, config.medium, config.slow,
+        config.fast_w, config.medium_w, config.slow_w,
+        config.drift
+    )
