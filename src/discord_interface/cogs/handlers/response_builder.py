@@ -5,7 +5,6 @@ Handles creating embeds, messages, and formatting responses.
 from datetime import datetime
 from typing import Optional
 import discord
-from discord.ext import commands
 
 
 class ResponseBuilder:

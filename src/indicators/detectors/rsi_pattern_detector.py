@@ -1,6 +1,5 @@
 from typing import List
-import numpy as np 
-from datetime import datetime
+import numpy as np
 
 from src.indicators.base.pattern_detector import BasePatternDetector, MarketData, Pattern, RSISettings
 from .rsi_pattern_utils import (

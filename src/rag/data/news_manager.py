@@ -5,7 +5,6 @@ Handles fetching, caching, and processing of cryptocurrency news articles.
 """
 
 import asyncio
-import re
 from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional, Set
 from src.logger.logger import Logger
@@ -47,11 +46,13 @@ class NewsManager:
             articles = await self.cryptocompare_api.get_latest_news(limit=50, max_age_hours=24)
             
             if articles:
-                # Detect coins in articles using local method instead of API method
+                # Detect coins in articles using centralized method
                 for article in articles:
-                    coins_mentioned = self.detect_coins_in_article(article, known_crypto_tickers)
+                    coins_mentioned = self.article_processor.detect_coins_in_article(article, known_crypto_tickers)
                     if coins_mentioned:
-                        article['detected_coins'] = '|'.join(coins_mentioned)
+                        # Store as list internally, convert to string for file storage
+                        article['detected_coins'] = list(coins_mentioned)
+                        article['detected_coins_str'] = '|'.join(coins_mentioned)
                         
                 self.logger.debug(f"Fetched {len(articles)} recent news articles from CryptoCompare")
                 return articles
@@ -102,41 +103,8 @@ class NewsManager:
             return False
     
     def detect_coins_in_article(self, article: Dict[str, Any], known_crypto_tickers: Set[str]) -> Set[str]:
-        """Detect cryptocurrency mentions in article content."""
-        coins_mentioned = set()
-        title = article.get('title', '').upper()
-        body = article.get('body', '').upper() if len(article.get('body', '')) < 10000 else article.get('body', '')[:10000].upper()
-        categories = article.get('categories', '').split('|')
-
-        # Check categories for tickers
-        for category in categories:
-            cat_upper = category.upper()
-            if cat_upper in known_crypto_tickers:
-                coins_mentioned.add(cat_upper)
-
-        # Find potential tickers in title and body
-        potential_tickers_regex = r'\b[A-Z]{2,6}\b'
-        potential_tickers_in_title = set(re.findall(potential_tickers_regex, title))
-        potential_tickers_in_body = set(re.findall(potential_tickers_regex, body))
-
-        # Validate tickers against known set
-        for ticker in potential_tickers_in_title:
-            if ticker in known_crypto_tickers:
-                coins_mentioned.add(ticker)
-
-        for ticker in potential_tickers_in_body:
-            if ticker in known_crypto_tickers:
-                coins_mentioned.add(ticker)
-
-        # Special handling for major cryptocurrencies
-        title_lower = title.lower()
-        body_lower = body.lower()
-        if 'bitcoin' in title_lower or 'bitcoin' in body_lower or 'BTC' in coins_mentioned:
-            coins_mentioned.add('BTC')
-        if 'ethereum' in title_lower or 'ethereum' in body_lower or 'ETH' in coins_mentioned:
-            coins_mentioned.add('ETH')
-
-        return coins_mentioned
+        """Detect cryptocurrency mentions in article content - delegates to ArticleProcessor."""
+        return self.article_processor.detect_coins_in_article(article, known_crypto_tickers)
     
     def get_articles_by_indices(self, indices: List[int]) -> List[Dict[str, Any]]:
         """Get articles by their indices in the database."""
@@ -153,7 +121,7 @@ class NewsManager:
         
         for i, article in enumerate(self.news_database):
             # Check detected coins
-            detected_coins = article.get('detected_coins', '').lower()
+            detected_coins = article.get('detected_coins_str', '').lower()
             if coin_lower in detected_coins:
                 results.append(i)
                 continue

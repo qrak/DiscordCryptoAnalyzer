@@ -3,8 +3,9 @@ Shared article processing utilities for RAG components.
 Eliminates code duplication between news_manager and context_builder.
 """
 from datetime import datetime
-from typing import Dict, Any
+from typing import Dict, Any, Set
 import logging
+import re
 
 
 class ArticleProcessor:
@@ -12,6 +13,43 @@ class ArticleProcessor:
     
     def __init__(self, logger: logging.Logger = None):
         self.logger = logger or logging.getLogger(__name__)
+    
+    def detect_coins_in_article(self, article: Dict[str, Any], known_crypto_tickers: Set[str]) -> Set[str]:
+        """Detect cryptocurrency mentions in article content (centralized implementation)."""
+        coins_mentioned = set()
+        title = article.get('title', '').upper()
+        body = article.get('body', '').upper() if len(article.get('body', '')) < 10000 else article.get('body', '')[:10000].upper()
+        categories = article.get('categories', '').split('|')
+
+        # Check categories for tickers
+        for category in categories:
+            cat_upper = category.upper()
+            if cat_upper in known_crypto_tickers:
+                coins_mentioned.add(cat_upper)
+
+        # Find potential tickers in title and body
+        potential_tickers_regex = r'\b[A-Z]{2,6}\b'
+        potential_tickers_in_title = set(re.findall(potential_tickers_regex, title))
+        potential_tickers_in_body = set(re.findall(potential_tickers_regex, body))
+
+        # Validate tickers against known set
+        for ticker in potential_tickers_in_title:
+            if ticker in known_crypto_tickers:
+                coins_mentioned.add(ticker)
+
+        for ticker in potential_tickers_in_body:
+            if ticker in known_crypto_tickers:
+                coins_mentioned.add(ticker)
+
+        # Special handling for major cryptocurrencies
+        title_lower = title.lower()
+        body_lower = body.lower()
+        if 'bitcoin' in title_lower or 'bitcoin' in body_lower or 'BTC' in coins_mentioned:
+            coins_mentioned.add('BTC')
+        if 'ethereum' in title_lower or 'ethereum' in body_lower or 'ETH' in coins_mentioned:
+            coins_mentioned.add('ETH')
+
+        return coins_mentioned
     
     def get_article_timestamp(self, article: Dict[str, Any]) -> float:
         """Extract timestamp from article in a consistent format."""

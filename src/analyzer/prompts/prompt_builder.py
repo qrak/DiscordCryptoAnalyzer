@@ -1,5 +1,5 @@
 import numpy as np
-from typing import Any, Dict, List, Optional, TypedDict
+from typing import Any, Dict, Optional, TypedDict
 
 from src.logger.logger import Logger
 from ..calculations.indicator_calculator import IndicatorCalculator
@@ -125,55 +125,3 @@ class PromptBuilder:
             
         sr = td['support_resistance']
         return len(sr) == 2 and not (np.isnan(sr[0]) and np.isnan(sr[1]))
-
-    # ============================================================================
-    # BACKWARD COMPATIBILITY METHODS - Delegate to component managers
-    # ============================================================================
-    
-    def _build_trading_context(self) -> str:
-        """Build trading context section - delegates to context builder."""
-        return self.context_builder.build_trading_context(self.context)
-    
-    def _build_sentiment_section(self) -> str:
-        """Build sentiment section - delegates to context builder."""
-        return self.context_builder.build_sentiment_section(self.context.sentiment if hasattr(self.context, 'sentiment') else None)
-    
-    def _build_market_overview_section(self) -> str:
-        """Build market overview section - delegates to market overview formatter."""
-        return self.market_overview_formatter.format_market_overview(self.context.market_overview if hasattr(self.context, 'market_overview') else None)
-    
-    def _build_market_data(self) -> str:
-        """Build market data section - delegates to context builder."""
-        return self.context_builder.build_market_data_section(self.context.ohlcv_candles if hasattr(self.context, 'ohlcv_candles') else None)
-    
-    def _build_technical_analysis(self) -> str:
-        """Build technical analysis section - delegates to technical analysis formatter."""
-        return self.technical_analysis_formatter.format_technical_analysis(self.context, self.timeframe)
-    
-    def _build_market_period_metrics(self) -> str:
-        """Build market period metrics section - delegates to context builder."""
-        return self.context_builder.build_market_period_metrics_section(
-            self.context.market_metrics if hasattr(self.context, 'market_metrics') else None,
-            self.indicator_calculator
-        )
-    
-    def _build_long_term_analysis(self) -> str:
-        """Build long-term analysis section - delegates to context builder."""
-        return self.context_builder.build_long_term_analysis_section(
-            self.context.long_term_data if hasattr(self.context, 'long_term_data') else None,
-            self.context.current_price if hasattr(self.context, 'current_price') else None,
-            self.indicator_calculator
-        )
-    
-    def _build_analysis_steps(self) -> str:
-        """Build analysis steps - delegates to template manager."""
-        symbol = self.context.symbol if hasattr(self.context, 'symbol') else 'BTC/USDT'
-        return self.template_manager.build_analysis_steps(symbol, self._has_advanced_support_resistance())
-    
-    @staticmethod
-    def _build_response_template() -> str:
-        """Build response template - delegates to template manager."""
-        template_manager = TemplateManager()
-        return template_manager.build_response_template()
-
-

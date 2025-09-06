@@ -8,6 +8,7 @@ import re
 from collections import defaultdict
 from typing import List, Dict, Any, Set
 from src.logger.logger import Logger
+from ..processing.article_processor import ArticleProcessor
 
 
 class IndexManager:
@@ -15,6 +16,7 @@ class IndexManager:
     
     def __init__(self, logger: Logger):
         self.logger = logger
+        self.article_processor = ArticleProcessor(logger)
         
         # Search indices
         self.category_index: Dict[str, List[int]] = defaultdict(list)
@@ -51,7 +53,8 @@ class IndexManager:
             category_lower = category.lower()
             self.category_index[category_lower].append(index)
 
-            if category in known_crypto_tickers:
+            # Use consistent case-insensitive comparison
+            if category.strip().upper() in known_crypto_tickers:
                 self.coin_index[category_lower].append(index)
 
     def _index_article_tags(self, article: Dict[str, Any], index: int) -> None:
@@ -63,11 +66,17 @@ class IndexManager:
 
     def _index_article_coins(self, article: Dict[str, Any], index: int, known_crypto_tickers: Set[str]) -> None:
         """Detect and index coins mentioned in the article."""
-        coins_mentioned = self._detect_coins_in_article(article, known_crypto_tickers)
-        if not coins_mentioned:
-            return
+        # Check if coins are already detected and stored as list
+        if 'detected_coins' in article and isinstance(article['detected_coins'], list):
+            coins_mentioned = set(article['detected_coins'])
+        else:
+            # Fall back to detection
+            coins_mentioned = self._detect_coins_in_article(article, known_crypto_tickers)
+            if coins_mentioned:
+                # Store as list internally
+                article['detected_coins'] = list(coins_mentioned)
+                article['detected_coins_str'] = '|'.join(coins_mentioned)
             
-        article['detected_coins'] = '|'.join(coins_mentioned)
         for coin in coins_mentioned:
             self.coin_index[coin.lower()].append(index)
 
@@ -103,40 +112,8 @@ class IndexManager:
                 self.keyword_index[word].append(index)
     
     def _detect_coins_in_article(self, article: Dict[str, Any], known_crypto_tickers: Set[str]) -> Set[str]:
-        """Detect cryptocurrency mentions in article content (Optimized)."""
-        coins_mentioned = set()
-        title = article.get('title', '').upper()
-        body = article.get('body', '').upper() if len(article.get('body', '')) < 10000 else article.get('body', '')[:10000].upper()
-        categories = article.get('categories', '').split('|')
-
-        for category in categories:
-            cat_upper = category.upper()
-            if cat_upper in known_crypto_tickers:
-                coins_mentioned.add(cat_upper)
-
-        potential_tickers_regex = r'\b[A-Z]{2,6}\b'
-        potential_tickers_in_title = set(re.findall(potential_tickers_regex, title))
-        potential_tickers_in_body = set(re.findall(potential_tickers_regex, body))
-
-        for ticker in potential_tickers_in_title:
-            if ticker in known_crypto_tickers:
-                coins_mentioned.add(ticker)
-
-        for ticker in potential_tickers_in_body:
-            if ticker in known_crypto_tickers:
-                coins_mentioned.add(ticker)
-
-        title_lower = title.lower()
-        body_lower = body.lower()
-        
-        for ticker in known_crypto_tickers:
-            # For common coins with well-known full names, check for those too
-            if ticker == 'BTC' and ('bitcoin' in title_lower or 'bitcoin' in body_lower):
-                coins_mentioned.add('BTC')
-            elif ticker == 'ETH' and ('ethereum' in title_lower or 'ethereum' in body_lower):
-                coins_mentioned.add('ETH')
-
-        return coins_mentioned
+        """Detect cryptocurrency mentions in article content - delegates to ArticleProcessor."""
+        return self.article_processor.detect_coins_in_article(article, known_crypto_tickers)
     
     def search_by_category(self, category: str) -> List[int]:
         """Search for articles in a specific category."""

@@ -17,7 +17,7 @@ class CategoryFetcher:
     async def fetch_cryptocompare_categories(self, force_refresh: bool = False) -> List[Dict[str, Any]]:
         """Fetch cryptocurrency categories from CryptoCompare API."""
         if self.cryptocompare_api is None:
-            self.logger.error("CryptoCompare API client not initialized")
+            self.logger.debug("CryptoCompare API client not initialized, using fallback categories")
             return []
             
         response = await self.cryptocompare_api.get_categories(force_refresh=force_refresh)

@@ -65,28 +65,8 @@ class MarketDataManager:
             return None
     
     def _extract_top_coins(self, coingecko_data: Optional[Dict]) -> List[str]:
-        """Extract top coins by dominance, excluding stablecoins."""
-        top_coins = []
-        stablecoins = ["USDT", "USDC", "BUSD", "DAI", "TUSD", "UST", "USDP", "GUSD"]
-        
-        if coingecko_data and "dominance" in coingecko_data:
-            sorted_dominance = sorted(
-                coingecko_data["dominance"].items(), 
-                key=lambda x: x[1], 
-                reverse=True
-            )
-            
-            for coin, _ in sorted_dominance:
-                if coin.upper() not in stablecoins:
-                    top_coins.append(coin.upper())
-                    if len(top_coins) >= 5:
-                        break
-        
-        if not top_coins:
-            self.logger.warning("Could not determine top coins by dominance, using defaults")
-            top_coins = ["BTC", "ETH", "BNB", "XRP", "ADA"]
-        
-        return top_coins
+        """Extract top coins by dominance, excluding stablecoins - delegates to processor."""
+        return self.processor.extract_top_coins(coingecko_data)
     
     async def _fetch_price_data(self, top_coins: List[str]) -> Optional[Dict]:
         """Fetch price data using CCXT or fallback to CryptoCompare."""

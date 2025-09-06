@@ -101,7 +101,7 @@ class LMStudioClient(BaseApiClient):
                     except Exception as e:
                         self.logger.error(f"Error processing streaming chunk: {e}")
 
-            self.logger.debug(f"Streaming response from LM Studio completed")
+            self.logger.debug("Streaming response from LM Studio completed")
             return cast(ResponseDict, complete_response)
 
         except asyncio.TimeoutError as e:

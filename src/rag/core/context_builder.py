@@ -26,6 +26,11 @@ class ContextBuilder:
                            category_word_map: Dict[str, str] = None,
                            important_categories: Set[str] = None) -> List[Tuple[int, float]]:
         """Search for articles matching keywords with relevance scores."""
+        # Provide default empty containers to avoid mutable defaults
+        coin_index = coin_index or {}
+        category_word_map = category_word_map or {}
+        important_categories = important_categories or set()
+        
         query = query.lower()
         keywords = set(re.findall(r'\b\w{3,15}\b', query))
 
@@ -39,7 +44,7 @@ class ContextBuilder:
         for i, article in enumerate(news_database):
             score = self._calculate_article_relevance(
                 article, keywords, query, coin, current_time,
-                category_word_map or {}, important_categories or set()
+                category_word_map, important_categories
             )
             if score > 0:
                 scores.append((i, score))
@@ -84,7 +89,7 @@ class ContextBuilder:
             body=article.get('body', '').lower(),
             categories=article.get('categories', '').lower(),
             tags=article.get('tags', '').lower(),
-            detected_coins=article.get('detected_coins', '').lower()
+            detected_coins=article.get('detected_coins_str', '').lower()
         )
     
     def _calculate_keyword_score(self, keywords: Set[str], content) -> float:
@@ -164,47 +169,50 @@ class ContextBuilder:
         self.latest_article_urls = {}
         
         for idx in indices:
-            if idx >= len(news_database):
-                continue
+            if idx >= len(news_database) or articles_added >= k:
+                break
 
             article = news_database[idx]
-
-            published_date = self._format_article_date(article)
-
-            title = article.get('title', 'No Title')
-            source = article.get('source', 'Unknown Source')
-
-            article_text = f"## {title}\n"
-            article_text += f"**Source:** {source} | **Date:** {published_date}\n\n"
-
-            body = article.get('body', '')
-            if body:
-                paragraphs = body.split('\n\n')[:5]
-                summary = '\n\n'.join(paragraphs)
-                if len(summary) > 2500:
-                    summary = summary[:2500] + "..."
-                article_text += f"{summary}\n\n"
-
-            categories = article.get('categories', '')
-            tags = article.get('tags', '')
-            if categories or tags:
-                article_text += f"**Topics:** {categories} | {tags}\n\n"
-
-            article_tokens = self.token_counter.count_tokens(article_text)
+            article_text, article_tokens = self._format_single_article(article)
+            
             if total_tokens + article_tokens <= max_tokens:
                 context_parts.append(article_text)
                 total_tokens += article_tokens
                 articles_added += 1
-
+                
+                # Store URL for reference
                 if 'url' in article:
+                    title = article.get('title', 'No Title')
                     self.latest_article_urls[title] = article['url']
             else:
                 break
 
-            if articles_added >= k:
-                break
-
         return "".join(context_parts), total_tokens
+    
+    def _format_single_article(self, article: Dict[str, Any]) -> Tuple[str, int]:
+        """Format a single article for context inclusion."""
+        published_date = self._format_article_date(article)
+        title = article.get('title', 'No Title')
+        source = article.get('source', 'Unknown Source')
+
+        article_text = f"## {title}\n"
+        article_text += f"**Source:** {source} | **Date:** {published_date}\n\n"
+
+        body = article.get('body', '')
+        if body:
+            paragraphs = body.split('\n\n')[:5]
+            summary = '\n\n'.join(paragraphs)
+            if len(summary) > 2500:
+                summary = summary[:2500] + "..."
+            article_text += f"{summary}\n\n"
+
+        categories = article.get('categories', '')
+        tags = article.get('tags', '')
+        if categories or tags:
+            article_text += f"**Topics:** {categories} | {tags}\n\n"
+
+        article_tokens = self.token_counter.count_tokens(article_text)
+        return article_text, article_tokens
 
     def _format_article_date(self, article: Dict[str, Any]) -> str:
         """Format article date in a consistent way."""

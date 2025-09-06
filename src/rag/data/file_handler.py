@@ -3,7 +3,7 @@ import os
 import sys
 import time
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 
 from config.config import DATA_DIR
 from src.logger.logger import Logger
@@ -25,6 +25,30 @@ class RagFileHandler:
         self._last_news_save_time = 0
         
         self.setup_directories()
+    
+    def _normalize_timestamp(self, timestamp_field: Union[int, float, str, None]) -> float:
+        """Convert various timestamp formats to a float timestamp."""
+        if timestamp_field is None:
+            return 0.0
+
+        # Handle numeric timestamps
+        if isinstance(timestamp_field, (int, float)):
+            return float(timestamp_field)
+        
+        # Handle string timestamps
+        if isinstance(timestamp_field, str):
+            try:
+                # Try to parse as numeric string first
+                return float(timestamp_field)
+            except ValueError:
+                try:
+                    # Normalize Z timezone indicator
+                    normalized_str = timestamp_field.replace('Z', '+00:00')
+                    return datetime.fromisoformat(normalized_str).timestamp()
+                except (ValueError, Exception) as e:
+                    self.logger.warning(f"Could not normalize timestamp '{timestamp_field}': {e}")
+        
+        return 0.0
     
     def setup_directories(self):
         os.makedirs(self.data_dir, exist_ok=True)
@@ -50,9 +74,21 @@ class RagFileHandler:
 
     def save_json_file(self, file_path: str, data: Dict):
         try:
-            with open(file_path, 'w', encoding='utf-8') as f:
+            # Atomic write: write to temporary file first, then rename
+            temp_path = f"{file_path}.tmp"
+            with open(temp_path, 'w', encoding='utf-8') as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)
+            
+            # Atomic operation: rename temp file to target
+            os.replace(temp_path, file_path)
         except Exception as e:
+            # Clean up temp file if it exists
+            temp_path = f"{file_path}.tmp"
+            if os.path.exists(temp_path):
+                try:
+                    os.remove(temp_path)
+                except:
+                    pass
             self.logger.error(f"Error saving JSON file {file_path}: {e}")
 
     def file_exists(self, file_path: str) -> bool:
@@ -85,16 +121,21 @@ class RagFileHandler:
             
         self._last_news_save_time = current_time
             
-        current_time = datetime.now().timestamp()
-        one_day_ago = current_time - 86400
-        recent_articles = [art for art in articles if art.get('published_on', 0) > one_day_ago]
+        current_timestamp = datetime.now().timestamp()
+        one_day_ago = current_timestamp - 86400
+        
+        recent_articles = []
+        for art in articles:
+            article_timestamp = self._normalize_timestamp(art.get('published_on', 0))
+            if article_timestamp > one_day_ago:
+                recent_articles.append(art)
         
         if not recent_articles:
             self.logger.debug("No recent articles to save")
             return
 
         try:
-            recent_articles.sort(key=lambda x: x.get('published_on', 0), reverse=True)
+            recent_articles.sort(key=lambda x: self._normalize_timestamp(x.get('published_on', 0)), reverse=True)
             
             news_data = {
                 'last_updated': datetime.now().isoformat(),
@@ -118,9 +159,14 @@ class RagFileHandler:
                 
             articles = data.get('articles', [])
             
-            current_time = datetime.now().timestamp()
-            one_day_ago = current_time - 86400
-            recent_articles = [art for art in articles if art.get('published_on', 0) > one_day_ago]
+            current_timestamp = datetime.now().timestamp()
+            one_day_ago = current_timestamp - 86400
+            
+            recent_articles = []
+            for art in articles:
+                article_timestamp = self._normalize_timestamp(art.get('published_on', 0))
+                if article_timestamp > one_day_ago:
+                    recent_articles.append(art)
             
             if len(recent_articles) < len(articles):
                 self.logger.debug(f"Filtered out {len(articles) - len(recent_articles)} articles older than 24 hours")
@@ -141,9 +187,14 @@ class RagFileHandler:
                 
             articles = data.get('articles', [])
             
-            current_time = datetime.now().timestamp()
-            cutoff_time = current_time - (max_age_hours * 3600)  # Convert hours to seconds
-            fallback_articles = [art for art in articles if art.get('published_on', 0) > cutoff_time]
+            current_timestamp = datetime.now().timestamp()
+            cutoff_time = current_timestamp - (max_age_hours * 3600)  # Convert hours to seconds
+            
+            fallback_articles = []
+            for art in articles:
+                article_timestamp = self._normalize_timestamp(art.get('published_on', 0))
+                if article_timestamp > cutoff_time:
+                    fallback_articles.append(art)
             
             if fallback_articles:
                 self.logger.debug(f"Using {len(fallback_articles)} cached articles as fallback")
@@ -155,9 +206,14 @@ class RagFileHandler:
             return []
             
     def filter_recent_articles(self, articles: List[Dict]) -> List[Dict]:
-        current_time = datetime.now().timestamp()
-        one_day_ago = current_time - 86400
-        recent_articles = [art for art in articles if art.get('published_on', 0) > one_day_ago]
+        current_timestamp = datetime.now().timestamp()
+        one_day_ago = current_timestamp - 86400
+        
+        recent_articles = []
+        for art in articles:
+            article_timestamp = self._normalize_timestamp(art.get('published_on', 0))
+            if article_timestamp > one_day_ago:
+                recent_articles.append(art)
         
         return recent_articles
     
