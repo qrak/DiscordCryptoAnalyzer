@@ -126,100 +126,152 @@ class DataFetcher:
         Returns:
             Dictionary with processed ticker data in a format similar to CryptoCompare API
         """
-        # Try to get from cache first
-        cache_key = 'all' if symbols is None else ','.join(sorted(symbols))
-        current_time = time.time()
+        cache_key = self._get_cache_key(symbols)
         
-        if cache_key in self.ticker_cache:
-            cache_entry = self.ticker_cache[cache_key]
-            if current_time - cache_entry['timestamp'] < self.cache_ttl:
-                self.logger.debug(f"Using cached ticker data for {cache_key} (age: {int(current_time - cache_entry['timestamp'])}s)")
-                return cache_entry['data']
-                
+        # Try cache first
+        cached_data = self._get_cached_tickers(cache_key)
+        if cached_data is not None:
+            return cached_data
+        
         self.logger.debug(f"Fetching multiple tickers: {symbols if symbols else 'all'}")
         
         try:
-            # Check if exchange supports fetch_tickers
-            if not self.exchange.has.get('fetchTickers', False):
-                self.logger.warning(f"Exchange {self.exchange.id} does not support fetchTickers")
+            # Validate exchange capabilities
+            if not self._validate_exchange_support():
                 return {}
             
-            # Fetch tickers from exchange
+            # Fetch and process ticker data
             tickers = await self.exchange.fetch_tickers(symbols)
-            
             if not tickers:
                 self.logger.warning("No ticker data returned from exchange")
                 return {}
-                
-            # Process the ticker data into a similar format as CryptoCompare API
-            result = {
-                "RAW": {},
-                "DISPLAY": {}
-            }
             
-            for symbol, ticker in tickers.items():
-                # Extract base currency from symbol
-                if '/' in symbol:
-                    base_currency = symbol.split('/')[0]
-                    quote_currency = symbol.split('/')[1]
-                else:
-                    # Skip if we can't determine base/quote
-                    continue
-                    
-                # Only process if we have the necessary data
-                if 'last' not in ticker or ticker['last'] is None:
-                    continue
-                    
-                # Initialize structure if needed
-                if base_currency not in result["RAW"]:
-                    result["RAW"][base_currency] = {}
-                if base_currency not in result["DISPLAY"]:
-                    result["DISPLAY"][base_currency] = {}
-                    
-                # Populate RAW data with enhanced fields
-                result["RAW"][base_currency][quote_currency] = {
-                    "PRICE": ticker.get('last', 0),
-                    "CHANGEPCT24HOUR": ticker.get('percentage', 0),
-                    "CHANGE24HOUR": ticker.get('change', 0),
-                    "VOLUME24HOUR": ticker.get('baseVolume', 0),
-                    "MKTCAP": None,  # Market cap not typically available in CCXT ticker
-                    "LASTUPDATE": ticker.get('timestamp', 0),
-                    "HIGH24HOUR": ticker.get('high', 0),
-                    "LOW24HOUR": ticker.get('low', 0),
-                    # Additional fields added from CCXT data
-                    "VWAP": ticker.get('vwap', 0),
-                    "BID": ticker.get('bid', 0),
-                    "ASK": ticker.get('ask', 0),
-                    "BIDVOLUME": ticker.get('bidVolume', 0),
-                    "ASKVOLUME": ticker.get('askVolume', 0),
-                    "OPEN24HOUR": ticker.get('open', 0),
-                    "PREVCLOSE": ticker.get('previousClose', 0),
-                    "QUOTEVOLUME24HOUR": ticker.get('quoteVolume', 0),
-                    "AVERAGE": ticker.get('average', 0)
-                }
-                
-                # Populate DISPLAY data with formatted values
-                result["DISPLAY"][base_currency][quote_currency] = {
-                    "PRICE": f"$ {ticker.get('last', 0):,.2f}" if quote_currency in ("USD", "USDT") else f"{ticker.get('last', 0):,.8f}",
-                    "CHANGEPCT24HOUR": f"{ticker.get('percentage', 0):,.2f}",
-                    "VOLUME24HOUR": f"{ticker.get('baseVolume', 0):,.2f}",
-                    "HIGH24HOUR": f"{ticker.get('high', 0):,.2f}" if quote_currency in ("USD", "USDT") else f"{ticker.get('high', 0):,.8f}",
-                    "LOW24HOUR": f"{ticker.get('low', 0):,.2f}" if quote_currency in ("USD", "USDT") else f"{ticker.get('low', 0):,.8f}",
-                    # Additional display fields
-                    "VWAP": f"$ {ticker.get('vwap', 0):,.2f}" if quote_currency in ("USD", "USDT") else f"{ticker.get('vwap', 0):,.8f}",
-                    "BID": f"$ {ticker.get('bid', 0):,.2f}" if quote_currency in ("USD", "USDT") else f"{ticker.get('bid', 0):,.8f}",
-                    "ASK": f"$ {ticker.get('ask', 0):,.2f}" if quote_currency in ("USD", "USDT") else f"{ticker.get('ask', 0):,.8f}",
-                }
-            
-            # Store result in cache before returning
-            self.ticker_cache[cache_key] = {
-                'timestamp': current_time,
-                'data': result
-            }
+            result = self._process_ticker_data(tickers)
+            self._cache_ticker_data(cache_key, result)
             
             return result
             
         except Exception as e:
             self.logger.error(f"Error fetching multiple tickers: {e}")
             return {}
+
+    def _get_cache_key(self, symbols: List[str] = None) -> str:
+        """Generate cache key for ticker data."""
+        return 'all' if symbols is None else ','.join(sorted(symbols))
+
+    def _get_cached_tickers(self, cache_key: str) -> Optional[Dict[str, Any]]:
+        """Get cached ticker data if available and valid."""
+        current_time = time.time()
+        
+        if cache_key not in self.ticker_cache:
+            return None
+            
+        cache_entry = self.ticker_cache[cache_key]
+        if current_time - cache_entry['timestamp'] >= self.cache_ttl:
+            return None
+            
+        self.logger.debug(
+            f"Using cached ticker data for {cache_key} "
+            f"(age: {int(current_time - cache_entry['timestamp'])}s)"
+        )
+        return cache_entry['data']
+
+    def _validate_exchange_support(self) -> bool:
+        """Validate that the exchange supports the required operations."""
+        if not self.exchange.has.get('fetchTickers', False):
+            self.logger.warning(f"Exchange {self.exchange.id} does not support fetchTickers")
+            return False
+        return True
+
+    def _process_ticker_data(self, tickers: Dict[str, Any]) -> Dict[str, Any]:
+        """Process ticker data into CryptoCompare-like format."""
+        result = {"RAW": {}, "DISPLAY": {}}
+        
+        for symbol, ticker in tickers.items():
+            base_currency, quote_currency = self._extract_currencies(symbol)
+            if not base_currency or not quote_currency:
+                continue
+                
+            if not self._has_required_ticker_data(ticker):
+                continue
+                
+            self._add_ticker_to_result(result, base_currency, quote_currency, ticker)
+        
+        return result
+
+    def _extract_currencies(self, symbol: str) -> Tuple[Optional[str], Optional[str]]:
+        """Extract base and quote currencies from symbol."""
+        if '/' not in symbol:
+            return None, None
+        return symbol.split('/', 1)
+
+    def _has_required_ticker_data(self, ticker: Dict[str, Any]) -> bool:
+        """Check if ticker has required data fields."""
+        return 'last' in ticker and ticker['last'] is not None
+
+    def _add_ticker_to_result(self, result: Dict[str, Any], base_currency: str, 
+                            quote_currency: str, ticker: Dict[str, Any]) -> None:
+        """Add processed ticker data to result structure."""
+        # Initialize structure if needed
+        if base_currency not in result["RAW"]:
+            result["RAW"][base_currency] = {}
+        if base_currency not in result["DISPLAY"]:
+            result["DISPLAY"][base_currency] = {}
+        
+        # Add RAW data
+        result["RAW"][base_currency][quote_currency] = self._create_raw_ticker_data(ticker)
+        
+        # Add DISPLAY data
+        result["DISPLAY"][base_currency][quote_currency] = self._create_display_ticker_data(
+            ticker, quote_currency
+        )
+
+    def _create_raw_ticker_data(self, ticker: Dict[str, Any]) -> Dict[str, Any]:
+        """Create raw ticker data structure."""
+        return {
+            "PRICE": ticker.get('last', 0),
+            "CHANGEPCT24HOUR": ticker.get('percentage', 0),
+            "CHANGE24HOUR": ticker.get('change', 0),
+            "VOLUME24HOUR": ticker.get('baseVolume', 0),
+            "MKTCAP": None,  # Market cap not typically available in CCXT ticker
+            "LASTUPDATE": ticker.get('timestamp', 0),
+            "HIGH24HOUR": ticker.get('high', 0),
+            "LOW24HOUR": ticker.get('low', 0),
+            "VWAP": ticker.get('vwap', 0),
+            "BID": ticker.get('bid', 0),
+            "ASK": ticker.get('ask', 0),
+            "BIDVOLUME": ticker.get('bidVolume', 0),
+            "ASKVOLUME": ticker.get('askVolume', 0),
+            "OPEN24HOUR": ticker.get('open', 0),
+            "PREVCLOSE": ticker.get('previousClose', 0),
+            "QUOTEVOLUME24HOUR": ticker.get('quoteVolume', 0),
+            "AVERAGE": ticker.get('average', 0)
+        }
+
+    def _create_display_ticker_data(self, ticker: Dict[str, Any], quote_currency: str) -> Dict[str, Any]:
+        """Create display ticker data structure with formatted values."""
+        is_usd_quote = quote_currency in ("USD", "USDT")
+        
+        def format_price(value: float) -> str:
+            if is_usd_quote:
+                return f"$ {value:,.2f}"
+            return f"{value:,.8f}"
+        
+        return {
+            "PRICE": format_price(ticker.get('last', 0)),
+            "CHANGEPCT24HOUR": f"{ticker.get('percentage', 0):,.2f}",
+            "VOLUME24HOUR": f"{ticker.get('baseVolume', 0):,.2f}",
+            "HIGH24HOUR": format_price(ticker.get('high', 0)),
+            "LOW24HOUR": format_price(ticker.get('low', 0)),
+            "VWAP": format_price(ticker.get('vwap', 0)),
+            "BID": format_price(ticker.get('bid', 0)),
+            "ASK": format_price(ticker.get('ask', 0)),
+        }
+
+    def _cache_ticker_data(self, cache_key: str, data: Dict[str, Any]) -> None:
+        """Store ticker data in cache."""
+        self.ticker_cache[cache_key] = {
+            'timestamp': time.time(),
+            'data': data
+        }
 

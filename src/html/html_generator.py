@@ -202,90 +202,132 @@ class AnalysisHtmlGenerator:
             if not article_urls:
                 return content
 
-            existing_links = [(m.start(), m.end()) for m in re.finditer(r"\[([^\]]+)\]\(([^)]+)\)", content)]
-
-            def is_inside_link(pos):
-                for start, end in existing_links:
-                    if start < pos < end:
-                        return True
-                return False
-
-            validated_urls = {}
-            for title, url in article_urls.items():
-                if isinstance(url, str) and (url.startswith('http://') or url.startswith('https://')):
-                    safe_title = str(title) if title is not None else ""
-                    validated_urls[safe_title] = url
-                else:
-                    self.logger.warning(f"Invalid URL skipped: {url}")
-
+            # Get existing links to avoid nesting
+            existing_links = self._find_existing_links(content)
+            
+            # Validate URLs
+            validated_urls = self._validate_article_urls(article_urls)
             if not validated_urls:
                 return content
 
-            matches_to_process = []
-
-            for title, url in validated_urls.items():
-                if not title: continue
-                safe_title_pattern = re.escape(title)
-                pattern = re.compile(rf"\b({safe_title_pattern})\b", re.IGNORECASE)
-                for match in pattern.finditer(content):
-                    if not is_inside_link(match.start()):
-                        link_text = match.group(1)
-                        title_attr = "Read full article"
-                        replacement = f'[{link_text}]({url} "{title_attr}")'
-                        matches_to_process.append({
-                            "start": match.start(),
-                            "end": match.end(),
-                            "replacement": replacement,
-                            "priority": 2  # Lower priority than indicator links (10)
-                        })
-
-            keywords = ["Trump", "SEC", "regulation", "policy", "options expiry", "Fear & Greed", "Bitcoin", "ETH", "stablecoin", "XRP", "Cardano", "Conflux", "BTC"]
-            linked_urls_for_keywords = set()
-
-            for keyword in keywords:
-                for title, url in validated_urls.items():
-                    if keyword.lower() in title.lower() and url not in linked_urls_for_keywords:
-                        pattern = re.compile(rf"(\b{re.escape(keyword)}['s]?\b)", re.IGNORECASE)
-
-                        for match in pattern.finditer(content):
-                             if not is_inside_link(match.start()):
-                                link_text = match.group(1)
-                                title_attr = f"Source: {html.escape(title)}"
-                                replacement = f'[{link_text}]({url} "{title_attr}")'
-                                matches_to_process.append({
-                                    "start": match.start(),
-                                    "end": match.end(),
-                                    "replacement": replacement,
-                                    "priority": 2  # Lower priority than indicator links (10)
-                                })
-                                linked_urls_for_keywords.add(url)
-
-            matches_to_process.sort(key=lambda x: (x['start'], -x.get('priority', 1)))
-
-            current_pos = 0
-            final_content = ""
-            processed_ranges = []
-
-            for match_info in matches_to_process:
-                is_overlapping = False
-                for p_start, p_end in processed_ranges:
-                    if max(match_info['start'], p_start) < min(match_info['end'], p_end):
-                        is_overlapping = True
-                        break
-
-                if not is_overlapping:
-                    final_content += content[current_pos:match_info['start']]
-                    final_content += match_info['replacement']
-                    current_pos = match_info['end']
-                    processed_ranges.append((match_info['start'], match_info['end']))
-
-            final_content += content[current_pos:]
-
-            return final_content
+            # Find matches to process
+            matches_to_process = self._find_link_matches(content, validated_urls, existing_links)
+            
+            # Process matches and return final content
+            return self._apply_link_replacements(content, matches_to_process)
 
         except Exception as e:
             self.logger.error(f"Error adding news links to Markdown: {e}")
             return content
+    
+    def _find_existing_links(self, content: str) -> list:
+        """Find existing markdown links to avoid nesting"""
+        return [(m.start(), m.end()) for m in re.finditer(r"\[([^\]]+)\]\(([^)]+)\)", content)]
+    
+    def _validate_article_urls(self, article_urls: dict) -> dict:
+        """Validate and sanitize article URLs"""
+        validated_urls = {}
+        for title, url in article_urls.items():
+            if isinstance(url, str) and (url.startswith('http://') or url.startswith('https://')):
+                safe_title = str(title) if title is not None else ""
+                validated_urls[safe_title] = url
+            else:
+                self.logger.warning(f"Invalid URL skipped: {url}")
+        return validated_urls
+    
+    def _find_link_matches(self, content: str, validated_urls: dict, existing_links: list) -> list:
+        """Find all potential link matches for titles and keywords"""
+        matches_to_process = []
+        
+        # Check if position is inside an existing link
+        def is_inside_link(pos):
+            for start, end in existing_links:
+                if start < pos < end:
+                    return True
+            return False
+        
+        # Add matches for exact title matches
+        matches_to_process.extend(
+            self._find_title_matches(content, validated_urls, is_inside_link)
+        )
+        
+        # Add matches for keyword-based linking
+        matches_to_process.extend(
+            self._find_keyword_matches(content, validated_urls, is_inside_link)
+        )
+        
+        return matches_to_process
+    
+    def _find_title_matches(self, content: str, validated_urls: dict, is_inside_link) -> list:
+        """Find matches for exact article titles"""
+        matches = []
+        for title, url in validated_urls.items():
+            if not title:
+                continue
+            safe_title_pattern = re.escape(title)
+            pattern = re.compile(rf"\b({safe_title_pattern})\b", re.IGNORECASE)
+            for match in pattern.finditer(content):
+                if not is_inside_link(match.start()):
+                    link_text = match.group(1)
+                    title_attr = "Read full article"
+                    replacement = f'[{link_text}]({url} "{title_attr}")'
+                    matches.append({
+                        "start": match.start(),
+                        "end": match.end(),
+                        "replacement": replacement,
+                        "priority": 2
+                    })
+        return matches
+    
+    def _find_keyword_matches(self, content: str, validated_urls: dict, is_inside_link) -> list:
+        """Find matches for keywords that appear in article titles"""
+        matches = []
+        keywords = ["Trump", "SEC", "regulation", "policy", "options expiry", "Fear & Greed", 
+                   "Bitcoin", "ETH", "stablecoin", "XRP", "Cardano", "Conflux", "BTC"]
+        linked_urls_for_keywords = set()
+
+        for keyword in keywords:
+            for title, url in validated_urls.items():
+                if keyword.lower() in title.lower() and url not in linked_urls_for_keywords:
+                    pattern = re.compile(rf"(\b{re.escape(keyword)}['s]?\b)", re.IGNORECASE)
+                    for match in pattern.finditer(content):
+                        if not is_inside_link(match.start()):
+                            link_text = match.group(1)
+                            title_attr = f"Source: {html.escape(title)}"
+                            replacement = f'[{link_text}]({url} "{title_attr}")'
+                            matches.append({
+                                "start": match.start(),
+                                "end": match.end(),
+                                "replacement": replacement,
+                                "priority": 2
+                            })
+                            linked_urls_for_keywords.add(url)
+        return matches
+    
+    def _apply_link_replacements(self, content: str, matches_to_process: list) -> str:
+        """Apply link replacements to content, avoiding overlaps"""
+        # Sort matches by position and priority
+        matches_to_process.sort(key=lambda x: (x['start'], -x.get('priority', 1)))
+
+        current_pos = 0
+        final_content = ""
+        processed_ranges = []
+
+        for match_info in matches_to_process:
+            # Check for overlaps with already processed ranges
+            is_overlapping = any(
+                max(match_info['start'], p_start) < min(match_info['end'], p_end)
+                for p_start, p_end in processed_ranges
+            )
+
+            if not is_overlapping:
+                final_content += content[current_pos:match_info['start']]
+                final_content += match_info['replacement']
+                current_pos = match_info['end']
+                processed_ranges.append((match_info['start'], match_info['end']))
+
+        final_content += content[current_pos:]
+        return final_content
 
     def _get_styled_html(self, title: str, html_analysis_content: str, article_urls=None, chart_html="") -> str:
         """Generate styled HTML content using pre-rendered HTML analysis"""

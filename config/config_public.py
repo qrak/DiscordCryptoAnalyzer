@@ -6,9 +6,9 @@ LM_STUDIO_BASE_URL = "http://localhost:1234/v1"
 LM_STUDIO_MODEL = "local-model"
 
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
-OPENROUTER_BASE_MODEL = "google/gemini-2.5-flash-preview-05-20:thinking"
+OPENROUTER_BASE_MODEL = "google/gemini-2.5"
 OPENROUTER_FALLBACK_MODEL = "deepseek/deepseek-r1:free"
-GOOGLE_STUDIO_MODEL = "gemini-2.5-flash-preview-05-20"
+GOOGLE_STUDIO_MODEL = "gemini-2.5-flash"
 
 LOGGER_DEBUG = False
 TEST_ENVIRONMENT = False

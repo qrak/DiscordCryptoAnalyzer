@@ -63,15 +63,37 @@ class MarketMetricsCalculator:
                 
     def _calculate_period_metrics(self, data: List, period_name: str, context) -> Dict:
         """Calculate metrics for a specific time period"""
+        # Extract basic data arrays
         prices = [candle["close"] for candle in data]
         highs = [candle["high"] for candle in data]
         lows = [candle["low"] for candle in data]
         volumes = [candle["volume"] for candle in data]
         
+        # Calculate core metrics
+        basic_metrics = self._calculate_basic_metrics(prices, highs, lows, volumes, period_name)
+        
+        # Calculate indicator changes
         start_idx = -len(data)
         end_idx = -1
+        indicator_changes = self._calculate_indicator_changes_for_period(context, start_idx, end_idx)
         
-        basic_metrics = {
+        # Get key levels
+        levels = self._identify_key_levels(highs + lows, prices[-1])
+        
+        # Calculate divergences
+        divergences = self._calculate_divergences_for_period(context, data, start_idx, period_name)
+        
+        return {
+            "metrics": basic_metrics,
+            "indicator_changes": indicator_changes,
+            "key_levels": levels,
+            "divergences": divergences
+        }
+    
+    def _calculate_basic_metrics(self, prices: List[float], highs: List[float], 
+                                 lows: List[float], volumes: List[float], period_name: str) -> Dict:
+        """Calculate basic price and volume metrics"""
+        return {
             "highest_price": max(highs),
             "lowest_price": min(lows),
             "avg_price": sum(prices) / len(prices),
@@ -81,74 +103,10 @@ class MarketMetricsCalculator:
             "price_change_percent": ((prices[-1] / prices[0]) - 1) * 100,
             "volatility": (max(highs) - min(lows)) / min(lows) * 100,
             "period": period_name,
-            "data_points": len(data)
-        }
-        
-        indicator_changes = {}
-        if hasattr(context, 'technical_history'):
-            history = context.technical_history
-            for ind_name, values in history.items():
-                if len(values) >= abs(start_idx):
-                    try:
-                        start_value = float(values[start_idx])
-                        end_value = float(values[end_idx])
-                        change = end_value - start_value
-                        change_pct = (change / abs(start_value)) * 100 if start_value != 0 else 0
-                        
-                        indicator_changes[f"{ind_name}_start"] = start_value
-                        indicator_changes[f"{ind_name}_end"] = end_value
-                        indicator_changes[f"{ind_name}_change"] = change
-                        indicator_changes[f"{ind_name}_change_pct"] = change_pct
-                    except (IndexError, ValueError):
-                        pass        
-        # Use the common method to identify key levels
-        levels = self._identify_key_levels(highs + lows, prices[-1])
-        
-        divergences = {"bullish": False, "bearish": False}
-        try:
-            if hasattr(context, 'technical_history'):
-                history = context.technical_history
-                if "rsi" in history:
-                    rsi_values = history["rsi"]
-                    
-                    if len(rsi_values) >= abs(start_idx) and len(rsi_values) > 0:
-                        # Try to use PatternRecognizer for advanced divergence detection first
-                        try:
-                            if hasattr(context, 'ohlcv_candles') and context.ohlcv_candles is not None:
-                                # Use advanced pattern detection if OHLCV data is available
-                                patterns = self.indicator_calculator.get_all_patterns(
-                                    context.ohlcv_candles[-len(data):], 
-                                    {k: v[start_idx:] for k, v in history.items()}
-                                )
-                                # Look for divergence patterns in results
-                                for pattern in patterns:
-                                    pattern_type = pattern.get('type', '').lower()
-                                    if 'divergence' in pattern_type:
-                                        if 'bullish' in pattern_type:
-                                            divergences["bullish"] = True
-                                        elif 'bearish' in pattern_type:
-                                            divergences["bearish"] = True
-                            else:
-                                # Fallback to legacy divergence detection
-                                rsi_slice = rsi_values[start_idx:]
-                                if len(rsi_slice) > 0:
-                                    divergences = self._check_divergences(prices[start_idx:], rsi_slice)
-                        except Exception as pattern_error:
-                            # If PatternRecognizer fails, fallback to legacy method
-                            rsi_slice = rsi_values[start_idx:]
-                            if len(rsi_slice) > 0:
-                                divergences = self._check_divergences(prices[start_idx:], rsi_slice)
-        except Exception as e:
-            self.logger.warning(f"Error calculating divergences for {period_name}: {e}")
-            
-        return {
-            "metrics": basic_metrics,
-            "indicator_changes": indicator_changes,
-            "key_levels": levels,
-            "divergences": divergences
+            "data_points": len(prices)
         }
     
-    def _calculate_indicator_changes(self, context, start_idx: int, end_idx: int) -> Dict:
+    def _calculate_indicator_changes_for_period(self, context, start_idx: int, end_idx: int) -> Dict:
         """Calculate changes in technical indicators over the period"""
         indicator_changes = {}
         
@@ -169,10 +127,76 @@ class MarketMetricsCalculator:
                     indicator_changes[f"{ind_name}_end"] = end_value
                     indicator_changes[f"{ind_name}_change"] = change
                     indicator_changes[f"{ind_name}_change_pct"] = change_pct
-                except (IndexError, ValueError, TypeError, ZeroDivisionError):
+                except (IndexError, ValueError):
                     pass
-                    
+        
         return indicator_changes
+    
+    def _calculate_divergences_for_period(self, context, data: List, start_idx: int, period_name: str) -> Dict:
+        """Calculate divergences for the specific period"""
+        divergences = {"bullish": False, "bearish": False}
+        
+        try:
+            if not hasattr(context, 'technical_history') or "rsi" not in context.technical_history:
+                return divergences
+                
+            rsi_values = context.technical_history["rsi"]
+            
+            if len(rsi_values) < abs(start_idx):
+                return divergences
+            
+            # Try advanced pattern detection first
+            if self._try_advanced_divergence_detection(context, data, start_idx, divergences):
+                return divergences
+            
+            # Fallback to legacy divergence detection
+            return self._try_legacy_divergence_detection(context, start_idx, divergences)
+            
+        except Exception as e:
+            self.logger.warning(f"Error calculating divergences for {period_name}: {e}")
+            return divergences
+    
+    def _try_advanced_divergence_detection(self, context, data: List, start_idx: int, divergences: Dict) -> bool:
+        """Try to use advanced pattern detection for divergences"""
+        try:
+            if not (hasattr(context, 'ohlcv_candles') and context.ohlcv_candles is not None):
+                return False
+                
+            # Use advanced pattern detection if OHLCV data is available
+            patterns = self.indicator_calculator.get_all_patterns(
+                context.ohlcv_candles[-len(data):], 
+                {k: v[start_idx:] for k, v in context.technical_history.items()}
+            )
+            
+            # Look for divergence patterns in results
+            for pattern in patterns:
+                pattern_type = pattern.get('type', '').lower()
+                if 'divergence' in pattern_type:
+                    if 'bullish' in pattern_type:
+                        divergences["bullish"] = True
+                    elif 'bearish' in pattern_type:
+                        divergences["bearish"] = True
+            
+            return True
+            
+        except Exception:
+            return False
+    
+    def _try_legacy_divergence_detection(self, context, start_idx: int, divergences: Dict) -> Dict:
+        """Fallback to legacy divergence detection method"""
+        try:
+            rsi_values = context.technical_history["rsi"]
+            rsi_slice = rsi_values[start_idx:]
+            
+            if len(rsi_slice) > 0:
+                # Extract corresponding price data
+                prices = [candle["close"] for candle in context.ohlcv_candles[start_idx:]]
+                return self._check_divergences(prices, rsi_slice)
+                
+        except Exception:
+            pass
+            
+        return divergences
     
     # These methods are kept for backward compatibility if indicator_calculator is not provided
     

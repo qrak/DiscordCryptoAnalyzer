@@ -1,7 +1,7 @@
 import asyncio
 import re
 from datetime import datetime, timedelta
-from typing import Optional, Any, Dict, Union, Set, TYPE_CHECKING
+from typing import Optional, Any, Dict, Union, Set, Tuple, TYPE_CHECKING
 
 import discord
 from discord.ext import commands
@@ -199,67 +199,110 @@ class CommandHandler(commands.Cog):
             self.logger.info(f"Starting analysis: {symbol}, Lang: {language or 'English'}, User: {ctx.author}")
 
         try:
-            if not hasattr(self.bot, 'discord_notifier'):
-                if self.logger:
-                    self.logger.error("Discord notifier not found on bot instance")
-                await self.send_tracked_message(ctx, f"⚠️ System error: Notifier unavailable.")
+            # Validate prerequisites
+            if not await self._validate_analysis_prerequisites(ctx):
                 return
 
-            if not self.symbol_manager:
-                if self.logger:
-                    self.logger.error("Symbol manager not available")
-                await self.send_tracked_message(ctx, f"⚠️ System error: Symbol manager unavailable.")
-                return
-
-            if not self.market_analyzer:
-                if self.logger:
-                    self.logger.error("Market analyzer not available")
-                await self.send_tracked_message(ctx, f"⚠️ System error: Market analyzer unavailable.")
-                return
-
-            exchange, exchange_id = await self.symbol_manager.find_symbol_exchange(symbol)
+            # Find exchange for symbol
+            exchange, exchange_id = await self._find_symbol_exchange(symbol, ctx)
             if not exchange:
-                if self.logger:
-                    self.logger.warning(f"Symbol {symbol} not found on supported exchanges")
-                await self.send_tracked_message(ctx, f"⚠️ Symbol {symbol} not available.")
                 return
 
             if self.logger:
                 self.logger.info(f"Using {exchange_id} for {symbol} analysis")
 
-            self.market_analyzer.initialize_for_symbol(symbol, exchange, language)
-            result = await self.market_analyzer.analyze_market()
-            self.market_analyzer.last_analysis_result = result
+            # Perform analysis
+            success, result = await self._execute_analysis(symbol, exchange, language)
+            
+            # Update cooldowns if not admin
+            if not ctx.author.guild_permissions.administrator:
+                self._update_user_cooldowns(symbol, ctx.author.id)
 
-            is_admin = ctx.author.guild_permissions.administrator
-            if not is_admin:
-                self.coin_cooldowns[symbol] = datetime.now()
-                self.user_cooldowns[ctx.author.id] = datetime.now()
-
-            success = await self.market_analyzer.publish_analysis()
-
-            if not success or (isinstance(result, dict) and "error" in result):
-                error_msg = result.get("error", "Analysis failed") if isinstance(result, dict) else "Analysis failed"
-                await self.send_tracked_message(ctx, f"⚠️ Analysis of {symbol} failed: {error_msg}")
-            else:
-                await self.send_tracked_message(ctx, f"✅ Analysis of {symbol} completed!")
+            # Handle analysis result
+            await self._handle_analysis_result(symbol, success, result, ctx)
 
         except Exception as e:
-            if self.logger:
-                self.logger.error(f"Error analyzing {symbol}: {str(e)}", exc_info=True)
-            await self.send_tracked_message(ctx, f"⚠️ Failed to analyze {symbol}: Error occurred.")
+            await self._handle_analysis_error(symbol, e, ctx)
         finally:
-            self.ongoing_analyses.discard(symbol)
-            if symbol in self.analysis_requests:
-                request_info = self.analysis_requests.pop(symbol)
-                initial_msg = request_info.get("message")
-                if initial_msg:
-                    try:
-                        # Use the retry-enabled method instead of direct deletion
-                        await self._delete_message_with_retry(initial_msg)
-                    except Exception as e_del:
-                        if self.logger:
-                            self.logger.warning(f"Could not delete initial analysis msg for {symbol} after retries: {e_del}")
+            await self._cleanup_analysis(symbol)
+
+    async def _validate_analysis_prerequisites(self, ctx: commands.Context) -> bool:
+        """Validate that all required components are available."""
+        if not hasattr(self.bot, 'discord_notifier'):
+            if self.logger:
+                self.logger.error("Discord notifier not found on bot instance")
+            await self.send_tracked_message(ctx, f"⚠️ System error: Notifier unavailable.")
+            return False
+
+        if not self.symbol_manager:
+            if self.logger:
+                self.logger.error("Symbol manager not available")
+            await self.send_tracked_message(ctx, f"⚠️ System error: Symbol manager unavailable.")
+            return False
+
+        if not self.market_analyzer:
+            if self.logger:
+                self.logger.error("Market analyzer not available")
+            await self.send_tracked_message(ctx, f"⚠️ System error: Market analyzer unavailable.")
+            return False
+
+        return True
+
+    async def _find_symbol_exchange(self, symbol: str, ctx: commands.Context) -> Tuple[Any, str]:
+        """Find exchange for the given symbol."""
+        exchange, exchange_id = await self.symbol_manager.find_symbol_exchange(symbol)
+        if not exchange:
+            if self.logger:
+                self.logger.warning(f"Symbol {symbol} not found on supported exchanges")
+            await self.send_tracked_message(ctx, f"⚠️ Symbol {symbol} not available.")
+            return None, None
+        return exchange, exchange_id
+
+    async def _execute_analysis(self, symbol: str, exchange: Any, language: Optional[str]) -> Tuple[bool, Any]:
+        """Execute the market analysis."""
+        self.market_analyzer.initialize_for_symbol(symbol, exchange, language)
+        result = await self.market_analyzer.analyze_market()
+        self.market_analyzer.last_analysis_result = result
+        
+        success = await self.market_analyzer.publish_analysis()
+        return success, result
+
+    def _update_user_cooldowns(self, symbol: str, user_id: int) -> None:
+        """Update cooldowns for non-admin users."""
+        current_time = datetime.now()
+        self.coin_cooldowns[symbol] = current_time
+        self.user_cooldowns[user_id] = current_time
+
+    async def _handle_analysis_result(self, symbol: str, success: bool, result: Any, ctx: commands.Context) -> None:
+        """Handle the analysis result and send appropriate messages."""
+        if not success or (isinstance(result, dict) and "error" in result):
+            error_msg = result.get("error", "Analysis failed") if isinstance(result, dict) else "Analysis failed"
+            await self.send_tracked_message(ctx, f"⚠️ Analysis of {symbol} failed: {error_msg}")
+        else:
+            await self.send_tracked_message(ctx, f"✅ Analysis of {symbol} completed!")
+
+    async def _handle_analysis_error(self, symbol: str, error: Exception, ctx: commands.Context) -> None:
+        """Handle errors that occur during analysis."""
+        if self.logger:
+            self.logger.error(f"Error analyzing {symbol}: {str(error)}", exc_info=True)
+        await self.send_tracked_message(ctx, f"⚠️ Failed to analyze {symbol}: Error occurred.")
+
+    async def _cleanup_analysis(self, symbol: str) -> None:
+        """Clean up analysis state and resources."""
+        self.ongoing_analyses.discard(symbol)
+        
+        if symbol not in self.analysis_requests:
+            return
+            
+        request_info = self.analysis_requests.pop(symbol)
+        initial_msg = request_info.get("message")
+        
+        if initial_msg:
+            try:
+                await self._delete_message_with_retry(initial_msg)
+            except Exception as e_del:
+                if self.logger:
+                    self.logger.warning(f"Could not delete initial analysis msg for {symbol} after retries: {e_del}")
 
     async def cleanup(self) -> None:
         """Clean up resources like pending analysis tasks during shutdown."""

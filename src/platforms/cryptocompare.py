@@ -203,27 +203,47 @@ class CryptoCompareAPI:
         all_news = await self.get_latest_news(limit=0)  # No limit since we'll filter
         
         # Filter by category
-        category_lower = category.lower()
-        filtered_news = []
-        
-        for article in all_news:
-            categories = article.get('categories', '').lower().split('|')
-            if category_lower in categories:
-                filtered_news.append(article)
-                
-            # Check category-associated words in title and body
-            if len(filtered_news) < limit:
-                title = article.get('title', '').lower()
-                body = article.get('body', '').lower()
-                
-                for word, cat in self.category_word_map.items():
-                    if cat.lower() == category_lower and (word in title or word in body):
-                        if article not in filtered_news:
-                            filtered_news.append(article)
-                            break
+        filtered_news = self._filter_news_by_category(all_news, category, limit)
         
         # Apply limit and return
         return filtered_news[:limit]
+    
+    def _filter_news_by_category(self, articles: List[Dict[str, Any]], category: str, limit: int) -> List[Dict[str, Any]]:
+        """Filter news articles by category and associated words"""
+        category_lower = category.lower()
+        filtered_news = []
+        
+        for article in articles:
+            if len(filtered_news) >= limit:
+                break
+                
+            # Check direct category match
+            if self._article_matches_category_directly(article, category_lower):
+                filtered_news.append(article)
+                continue
+            
+            # Check category-associated words in title and body
+            if self._article_matches_category_words(article, category_lower):
+                if article not in filtered_news:
+                    filtered_news.append(article)
+        
+        return filtered_news
+    
+    def _article_matches_category_directly(self, article: Dict[str, Any], category_lower: str) -> bool:
+        """Check if article categories directly match the target category"""
+        categories = article.get('categories', '').lower().split('|')
+        return category_lower in categories
+    
+    def _article_matches_category_words(self, article: Dict[str, Any], category_lower: str) -> bool:
+        """Check if article content matches category-associated words"""
+        title = article.get('title', '').lower()
+        body = article.get('body', '').lower()
+        
+        for word, cat in self.category_word_map.items():
+            if cat.lower() == category_lower and (word in title or word in body):
+                return True
+        
+        return False
     
     async def _fetch_crypto_news(self) -> List[Dict[str, Any]]:
         """Fetch crypto news from CryptoCompare API"""
@@ -344,70 +364,100 @@ class CryptoCompareAPI:
             
         self.category_word_map = {}
         
-        # Handle different data types that might be received
         try:
             # Debug logging for the received categories data
             self.logger.debug(f"Processing categories data of type: {type(api_categories)}")
             
-            # Handle string data - possible serialized JSON
-            if isinstance(api_categories, str):
-                try:
-                    api_categories = json.loads(api_categories)
-                    self.logger.debug("Converted string to JSON object")
-                except json.JSONDecodeError:
-                    self.logger.warning("Received string data that is not valid JSON")
-                    return
+            # Normalize data format
+            normalized_data = self._normalize_categories_data(api_categories)
+            if normalized_data is None:
+                return
+                
+            # Process the normalized data
+            self._extract_category_mappings(normalized_data)
             
-            # Handle the case when api_categories is a dictionary
-            if isinstance(api_categories, dict):
-                self.logger.debug(f"Processing dictionary with keys: {list(api_categories.keys())}")
-                
-                # Check CoinDesk format with Response, Message, Type, Data structure
-                if "Response" in api_categories and "Data" in api_categories:
-                    if api_categories["Response"] == "Success" or api_categories["Response"] == "success":
-                        api_categories = api_categories["Data"]
-                        self.logger.debug(f"Using data from 'Data' key: {type(api_categories)}")
-                    else:
-                        self.logger.warning(f"API response not successful: {api_categories.get('Message', 'Unknown error')}")
-                        return
-                # Simple Data key structure
-                elif "Data" in api_categories:
-                    api_categories = api_categories["Data"]
-                    self.logger.debug(f"Using data from 'Data' key: {type(api_categories)}")
-            
-            # Process each category if we have a list
-            if isinstance(api_categories, list):
-                self.logger.debug(f"Processing list with {len(api_categories)} items")
-                
-                # Process items based on expected CryptoCompare category structure
-                # Example: {"categoryName": "BTC", "wordsAssociatedWithCategory": ["BTC", "Bitcoin"], "includedPhrases": ["..."]}
-                for cat in api_categories:
-                    if isinstance(cat, dict) and 'categoryName' in cat:
-                        category_name = cat.get('categoryName', '')
-                        if category_name:
-                            # Process wordsAssociatedWithCategory
-                            if 'wordsAssociatedWithCategory' in cat and isinstance(cat['wordsAssociatedWithCategory'], list):
-                                for word in cat['wordsAssociatedWithCategory']:
-                                    if isinstance(word, str) and len(word) > 2:
-                                        self.category_word_map[word.lower()] = category_name
-                            
-                            # Process includedPhrases
-                            if 'includedPhrases' in cat and isinstance(cat['includedPhrases'], list):
-                                for phrase in cat['includedPhrases']:
-                                    if isinstance(phrase, str) and len(phrase) > 2:
-                                        self.category_word_map[phrase.lower()] = category_name
-                    elif isinstance(cat, str):
-                        # For simple string categories, just log them
-                        self.logger.debug(f"Adding string category: {cat}")
-                    else:
-                        self.logger.debug(f"Skipping category with unexpected structure: {type(cat)}")
-                        
-                self.logger.debug(f"Processed {len(self.category_word_map)} category-word associations")
-            else:
-                self.logger.warning(f"Unexpected data type for api_categories: {type(api_categories)}")
-                
         except Exception as e:
             self.logger.error(f"Error processing API categories: {e}")
+    
+    def _normalize_categories_data(self, api_categories: Any) -> Optional[List]:
+        """Normalize various API category data formats to a consistent list structure"""
+        # Handle string data - possible serialized JSON
+        if isinstance(api_categories, str):
+            try:
+                api_categories = json.loads(api_categories)
+                self.logger.debug("Converted string to JSON object")
+            except json.JSONDecodeError:
+                self.logger.warning("Received string data that is not valid JSON")
+                return None
+        
+        # Handle dictionary data with nested structures
+        if isinstance(api_categories, dict):
+            return self._extract_data_from_dict(api_categories)
+        
+        # Handle list data directly
+        if isinstance(api_categories, list):
+            self.logger.debug(f"Processing list with {len(api_categories)} items")
+            return api_categories
+        
+        self.logger.warning(f"Unexpected data type for api_categories: {type(api_categories)}")
+        return None
+    
+    def _extract_data_from_dict(self, data_dict: Dict) -> Optional[List]:
+        """Extract category data from dictionary structures"""
+        self.logger.debug(f"Processing dictionary with keys: {list(data_dict.keys())}")
+        
+        # Check CoinDesk format with Response, Message, Type, Data structure
+        if "Response" in data_dict and "Data" in data_dict:
+            if data_dict["Response"] in ("Success", "success"):
+                self.logger.debug(f"Using data from 'Data' key: {type(data_dict['Data'])}")
+                return data_dict["Data"]
+            else:
+                self.logger.warning(f"API response not successful: {data_dict.get('Message', 'Unknown error')}")
+                return None
+        
+        # Simple Data key structure
+        elif "Data" in data_dict:
+            self.logger.debug(f"Using data from 'Data' key: {type(data_dict['Data'])}")
+            return data_dict["Data"]
+        
+        return None
+    
+    def _extract_category_mappings(self, categories_list: List) -> None:
+        """Extract word-to-category mappings from the categories list"""
+        # Process items based on expected CryptoCompare category structure
+        # Example: {"categoryName": "BTC", "wordsAssociatedWithCategory": ["BTC", "Bitcoin"], "includedPhrases": ["..."]}
+        for cat in categories_list:
+            if isinstance(cat, dict) and 'categoryName' in cat:
+                self._process_category_dict(cat)
+            elif isinstance(cat, str):
+                # For simple string categories, just log them
+                self.logger.debug(f"Adding string category: {cat}")
+            else:
+                self.logger.debug(f"Skipping category with unexpected structure: {type(cat)}")
+        
+        self.logger.debug(f"Processed {len(self.category_word_map)} category-word associations")
+    
+    def _process_category_dict(self, cat: Dict) -> None:
+        """Process a single category dictionary to extract word mappings"""
+        category_name = cat.get('categoryName', '')
+        if not category_name:
+            return
+        
+        # Process wordsAssociatedWithCategory
+        words = cat.get('wordsAssociatedWithCategory', [])
+        if isinstance(words, list):
+            self._add_words_to_mapping(words, category_name)
+        
+        # Process includedPhrases
+        phrases = cat.get('includedPhrases', [])
+        if isinstance(phrases, list):
+            self._add_words_to_mapping(phrases, category_name)
+    
+    def _add_words_to_mapping(self, words: List, category_name: str) -> None:
+        """Add a list of words/phrases to the category mapping"""
+        for word in words:
+            if isinstance(word, str) and len(word) > 2:
+                self.category_word_map[word.lower()] = category_name
 
     @retry_api_call(max_retries=3)
     async def get_multi_price_data(self, coins: List[str] = None, vs_currencies: List[str] = None) -> Dict[str, Any]:

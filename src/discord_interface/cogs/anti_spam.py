@@ -35,11 +35,7 @@ class AntiSpam(commands.Cog):
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message) -> None:
         """Monitors messages for potential spam and applies cooldowns/mutes."""
-        if message.author.bot or not message.guild:
-            return
-        if message.channel.id in self.spam_allowed_channels:
-            return
-        if isinstance(message.author, discord.Member) and message.author.guild_permissions.manage_messages:
+        if not self._should_process_message(message):
             return
 
         bucket = self.spam_cd.get_bucket(message)
@@ -47,37 +43,71 @@ class AntiSpam(commands.Cog):
             return
 
         retry_after = bucket.update_rate_limit()
-
         if retry_after:
-            user_id = message.author.id
-            now = message.created_at
-
-            try:
-                await message.delete()
-            except discord.Forbidden:
-                if self.logger:
-                    self.logger.warning(f"Missing permissions to delete spam message from {user_id}")
-            except discord.NotFound:
-                pass
-
-            if user_id in self.last_msg_time and (now - self.last_msg_time[user_id]).total_seconds() < 5.0:
-                if self.mute_role and isinstance(message.author, discord.Member):
-                    try:
-                        await message.author.add_roles(self.mute_role, reason="Spamming")
-                        await message.channel.send(f"{message.author.mention} muted for spamming.", delete_after=20)
-                    except discord.Forbidden:
-                        if self.logger:
-                            self.logger.warning(f"Missing permissions to assign Muted role to {user_id}")
-                    except discord.HTTPException as e:
-                        if self.logger:
-                            self.logger.error(f"Failed to mute user {user_id}: {e}")
-                if user_id in self.last_msg_time:
-                    del self.last_msg_time[user_id]
-            else:
-                self.last_msg_time[user_id] = now
+            await self._handle_spam_message(message)
         else:
-            if message.author.id in self.last_msg_time:
-                del self.last_msg_time[message.author.id]
+            self._cleanup_user_tracking(message.author.id)
+
+    def _should_process_message(self, message: discord.Message) -> bool:
+        """Determine if a message should be processed for spam detection."""
+        if message.author.bot or not message.guild:
+            return False
+        if message.channel.id in self.spam_allowed_channels:
+            return False
+        if isinstance(message.author, discord.Member) and message.author.guild_permissions.manage_messages:
+            return False
+        return True
+
+    async def _handle_spam_message(self, message: discord.Message) -> None:
+        """Handle a message that triggered spam detection."""
+        user_id = message.author.id
+        now = message.created_at
+
+        await self._delete_spam_message(message, user_id)
+        
+        if self._should_mute_user(user_id, now):
+            await self._mute_user(message)
+            self._cleanup_user_tracking(user_id)
+        else:
+            self.last_msg_time[user_id] = now
+
+    async def _delete_spam_message(self, message: discord.Message, user_id: int) -> None:
+        """Attempt to delete a spam message."""
+        try:
+            await message.delete()
+        except discord.Forbidden:
+            if self.logger:
+                self.logger.warning(f"Missing permissions to delete spam message from {user_id}")
+        except discord.NotFound:
+            pass  # Message already deleted
+
+    def _should_mute_user(self, user_id: int, current_time: datetime) -> bool:
+        """Determine if a user should be muted based on message frequency."""
+        if user_id not in self.last_msg_time:
+            return False
+        
+        time_since_last = (current_time - self.last_msg_time[user_id]).total_seconds()
+        return time_since_last < 5.0
+
+    async def _mute_user(self, message: discord.Message) -> None:
+        """Mute a user for spamming."""
+        if not self.mute_role or not isinstance(message.author, discord.Member):
+            return
+
+        try:
+            await message.author.add_roles(self.mute_role, reason="Spamming")
+            await message.channel.send(f"{message.author.mention} muted for spamming.", delete_after=20)
+        except discord.Forbidden:
+            if self.logger:
+                self.logger.warning(f"Missing permissions to assign Muted role to {message.author.id}")
+        except discord.HTTPException as e:
+            if self.logger:
+                self.logger.error(f"Failed to mute user {message.author.id}: {e}")
+
+    def _cleanup_user_tracking(self, user_id: int) -> None:
+        """Remove user from tracking dictionary."""
+        if user_id in self.last_msg_time:
+            del self.last_msg_time[user_id]
 
     @commands.command(name='unmute')
     @commands.has_permissions(manage_roles=True)

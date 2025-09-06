@@ -213,54 +213,50 @@ class DiscordFileHandler:
         
         Returns the number of successfully deleted messages.
         """
-        # First get the list of expired messages under the lock
+        # Get expired messages to delete
+        expired_messages = await self._get_expired_messages()
+        if not expired_messages:
+            return 0
+
+        self.logger.info(f"Found {len(expired_messages)} expired messages to delete")
+        
+        # Process deletions outside the lock to avoid deadlocks
+        return await self._process_message_deletions(expired_messages)
+
+    async def _get_expired_messages(self) -> list:
+        """Get list of expired messages that need deletion."""
         async with self._tracking_lock:
             tracking_data = await self._load_tracking_data()
             current_time = datetime.now().timestamp()
-            expired_messages_to_delete = []
+            expired_messages = []
             
             # Find expired messages not already being handled by a specific deletion task
             for str_message_id, data in list(tracking_data.items()):
                 message_id = int(str_message_id)
-                if data["expires_at"] < current_time:
-                    # Only add to deletion list if not already being handled by a task
-                    if message_id not in self._message_deletion_tasks or self._message_deletion_tasks[message_id].done():
-                        expired_messages_to_delete.append((message_id, data["channel_id"]))
+                if self._should_delete_message(message_id, data, current_time):
+                    expired_messages.append((message_id, data["channel_id"]))
             
-            if not expired_messages_to_delete:
-                return 0
+            return expired_messages
 
-        # Log how many messages we found for deletion
-        self.logger.info(f"Found {len(expired_messages_to_delete)} expired messages to delete")
-            
-        # Process deletions outside the lock to avoid deadlocks
+    def _should_delete_message(self, message_id: int, data: dict, current_time: float) -> bool:
+        """Check if a message should be deleted."""
+        is_expired = data["expires_at"] < current_time
+        not_being_handled = (message_id not in self._message_deletion_tasks or 
+                           self._message_deletion_tasks[message_id].done())
+        return is_expired and not_being_handled
+
+    async def _process_message_deletions(self, expired_messages: list) -> int:
+        """Process deletion of expired messages and return count of successful deletions."""
         deleted_count = 0
-        for message_id, channel_id in expired_messages_to_delete:
+        
+        for message_id, channel_id in expired_messages:
             try:
-                # Try to delete the message
-                result = await self._delete_message(message_id, channel_id)
-                
-                # If deletion was successful, remove tracking data
-                if result is True:
-                    async with self._tracking_lock:
-                        # Get fresh data in case it changed
-                        tracking_data = await self._load_tracking_data()
-                        str_message_id = str(message_id)
-                        if str_message_id in tracking_data:
-                            del tracking_data[str_message_id]
-                            await self._save_tracking_data(tracking_data)
-                            deleted_count += 1
-                
+                success = await self._try_delete_message(message_id, channel_id)
+                if success:
+                    deleted_count += 1
+                    
             except discord.NotFound:
-                # Message already deleted, remove from tracking
-                deleted_count += 1
-                async with self._tracking_lock:
-                    tracking_data = await self._load_tracking_data()
-                    str_message_id = str(message_id)
-                    if str_message_id in tracking_data:
-                        del tracking_data[str_message_id]
-                        await self._save_tracking_data(tracking_data)
-                        self.logger.debug(f"Removed tracking for already deleted message {message_id}")
+                deleted_count += await self._handle_already_deleted_message(message_id)
             except Exception as e:
                 self.logger.error(f"Error deleting message {message_id}: {e}")
         
@@ -268,6 +264,30 @@ class DiscordFileHandler:
             self.logger.info(f"Successfully deleted {deleted_count} expired messages during cleanup")
         
         return deleted_count
+
+    async def _try_delete_message(self, message_id: int, channel_id: int) -> bool:
+        """Try to delete a message and remove tracking data if successful."""
+        result = await self._delete_message(message_id, channel_id)
+        
+        if result is True:
+            await self._remove_message_tracking(message_id)
+            return True
+        return False
+
+    async def _handle_already_deleted_message(self, message_id: int) -> int:
+        """Handle case where message was already deleted."""
+        await self._remove_message_tracking(message_id)
+        self.logger.debug(f"Removed tracking for already deleted message {message_id}")
+        return 1
+
+    async def _remove_message_tracking(self, message_id: int) -> None:
+        """Remove tracking data for a message."""
+        async with self._tracking_lock:
+            tracking_data = await self._load_tracking_data()
+            str_message_id = str(message_id)
+            if str_message_id in tracking_data:
+                del tracking_data[str_message_id]
+                await self._save_tracking_data(tracking_data)
 
     @retry_async(max_retries=3, initial_delay=1, backoff_factor=2, max_delay=30)
     async def _delete_message(self, message_id: int, channel_id: int):

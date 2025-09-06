@@ -20,8 +20,6 @@ class LMStudioClient(BaseApiClient):
     @retry_api_call(max_retries=3, initial_delay=1, backoff_factor=2, max_delay=30)
     async def chat_completion(self, model: str, messages: list, model_config: Dict[str, Any]) -> Optional[ResponseDict]:
         """Send a chat completion request to the LM Studio API."""
-        session = self._ensure_session()
-
         headers = {
             "Content-Type": "application/json",
         }
@@ -32,36 +30,10 @@ class LMStudioClient(BaseApiClient):
             **model_config
         }
 
-        try:
-            request_id = id(messages)
-            self.logger.debug(f"Sending request #{request_id} to LM Studio API with model: {model}")
-
-            async with session.post(
-                f"{self.base_url}/chat/completions",
-                headers=headers,
-                json=payload,
-                timeout=500
-            ) as response:
-                if response.status != 200:
-                    return await self._handle_error_response(response, model)
-
-                response_json = await response.json()
-                if "error" in response_json:
-                    self.logger.error(f"LM Studio API returned error payload for model {model}: {response_json['error']}")
-                    return cast(ResponseDict, response_json)
-
-                self.logger.debug(f"Received successful response from LM Studio for model {model}")
-                return cast(ResponseDict, response_json)
-
-        except asyncio.TimeoutError as e:
-            self.logger.error(f"Timeout error when requesting LM Studio model {model}: {e}")
-            return {"error": "timeout", "details": str(e)}
-        except aiohttp.ClientError as e:
-            self.logger.error(f"Network error when requesting LM Studio model {model}: {type(e).__name__} - {e}")
-            return None # Network errors are usually not retried by default logic here
-        except Exception as e:
-            self.logger.error(f"Unexpected error when requesting LM Studio model {model}: {type(e).__name__} - {e}")
-            return None
+        url = f"{self.base_url}/chat/completions"
+        response = await self._make_post_request(url, headers, payload, model, timeout=500)
+        
+        return cast(ResponseDict, response) if response else None
 
     @retry_api_call(max_retries=3, initial_delay=1, backoff_factor=2, max_delay=30)
     async def stream_chat_completion(self, model: str, messages: list, model_config: Dict[str, Any], 

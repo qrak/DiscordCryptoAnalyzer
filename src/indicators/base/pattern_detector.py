@@ -147,6 +147,119 @@ class BasePatternDetector(PatternDetectorInterface):
         if self.logger:
             self.logger.debug(f"Detected {pattern.type}: {pattern.description}")
     
+    def _detect_line_crossovers(self, 
+                               line1: List[float], 
+                               line2: List[float],
+                               market_data: MarketData,
+                               original_start_index: int,
+                               lookback: int,
+                               pattern_prefix: str,
+                               value_formatter: str = ":.4f",
+                               additional_data: Optional[Dict[str, Any]] = None) -> List[Pattern]:
+        """
+        Generic utility to detect crossovers between two lines.
+        
+        Args:
+            line1: First line values (recent values)
+            line2: Second line values (recent values) 
+            market_data: Market data for timestamp extraction
+            original_start_index: Starting index in original data
+            lookback: Number of periods to look back
+            pattern_prefix: Prefix for pattern type (e.g., "macd", "di")
+            value_formatter: Format string for values (default: ":.4f")
+            additional_data: Optional additional data to include in pattern
+            
+        Returns:
+            List of detected crossover patterns
+        """
+        patterns = []
+        additional_data = additional_data or {}
+        
+        for i in range(2, lookback):
+            # Bullish crossover (line1 crosses above line2)
+            if line1[-i] <= line2[-i] and line1[-i+1] > line2[-i+1]:
+                timestamp = market_data.get_timestamp_at_index(original_start_index + len(line1) - i + 1)
+                
+                pattern = Pattern(
+                    f"{pattern_prefix}_bullish_crossover",
+                    f"Bullish {pattern_prefix.upper()} crossover {i-1} periods ago with value at {line1[-i+1]:{value_formatter}}.",
+                    timestamp=timestamp,
+                    periods_ago=i-1,
+                    value=line1[-i+1],
+                    **additional_data
+                )
+                self._log_detection(pattern)
+                patterns.append(pattern)
+                
+            # Bearish crossover (line1 crosses below line2)
+            if line1[-i] >= line2[-i] and line1[-i+1] < line2[-i+1]:
+                timestamp = market_data.get_timestamp_at_index(original_start_index + len(line1) - i + 1)
+                
+                pattern = Pattern(
+                    f"{pattern_prefix}_bearish_crossover",
+                    f"Bearish {pattern_prefix.upper()} crossover {i-1} periods ago with value at {line1[-i+1]:{value_formatter}}.",
+                    timestamp=timestamp,
+                    periods_ago=i-1,
+                    value=line1[-i+1],
+                    **additional_data
+                )
+                self._log_detection(pattern)
+                patterns.append(pattern)
+        
+        return patterns
+    
+    def _detect_zero_line_crossovers(self,
+                                   line: List[float],
+                                   market_data: MarketData,
+                                   original_start_index: int,
+                                   lookback: int,
+                                   pattern_prefix: str) -> List[Pattern]:
+        """
+        Generic utility to detect zero line crossovers.
+        
+        Args:
+            line: Line values to check for zero crossovers
+            market_data: Market data for timestamp extraction
+            original_start_index: Starting index in original data
+            lookback: Number of periods to look back
+            pattern_prefix: Prefix for pattern type
+            
+        Returns:
+            List of detected zero line crossover patterns
+        """
+        patterns = []
+        
+        for i in range(2, lookback):
+            # Bullish zero line crossover
+            if line[-i] <= 0 and line[-i+1] > 0:
+                timestamp = market_data.get_timestamp_at_index(original_start_index + len(line) - i + 1)
+                
+                pattern = Pattern(
+                    f"{pattern_prefix}_zero_line_bullish",
+                    f"{pattern_prefix.upper()} crossed above zero line {i-1} periods ago.",
+                    timestamp=timestamp,
+                    periods_ago=i-1,
+                    value=line[-i+1]
+                )
+                self._log_detection(pattern)
+                patterns.append(pattern)
+                
+            # Bearish zero line crossover
+            if line[-i] >= 0 and line[-i+1] < 0:
+                timestamp = market_data.get_timestamp_at_index(original_start_index + len(line) - i + 1)
+                
+                pattern = Pattern(
+                    f"{pattern_prefix}_zero_line_bearish",
+                    f"{pattern_prefix.upper()} crossed below zero line {i-1} periods ago.",
+                    timestamp=timestamp,
+                    periods_ago=i-1,
+                    value=line[-i+1]
+                )
+                self._log_detection(pattern)
+                patterns.append(pattern)
+        
+        return patterns
+    
     def detect(self, data: MarketData) -> List[Pattern]:
         """Default implementation that validates input"""
         if not self._validate_input(data):

@@ -119,56 +119,81 @@ def ichimoku_cloud_numba(high, low, conversion_length, base_length, lagging_span
     return conversion_line, base_line, leading_span_a, leading_span_b
 
 @njit(cache=True)
+def _initialize_sar_state(high, low, step):
+    """Initialize SAR state variables."""
+    trend = -1 if high[0] > low[1] else 1
+    
+    if trend == 1:
+        sar_value = np.min(low[:2])
+        ep_value = high[0]
+    else:
+        sar_value = np.max(high[:2])
+        ep_value = low[0]
+    
+    return trend, sar_value, ep_value, step
+
+
+@njit(cache=True)
+def _update_sar_bullish_trend(i, high, low, sar, ep, af, trend, step, max_step):
+    """Update SAR for bullish trend."""
+    new_sar = sar[i - 1] + af[i - 1] * (ep[i - 1] - sar[i - 1])
+    
+    if low[i] > new_sar:
+        # Continue bullish trend
+        sar[i] = min(new_sar, low[i - 1], low[i])
+        if high[i] > ep[i - 1]:
+            ep[i] = high[i]
+            af[i] = min(af[i - 1] + step, max_step)
+        else:
+            ep[i] = ep[i - 1]
+            af[i] = af[i - 1]
+        return 1
+    else:
+        # Trend reversal to bearish
+        sar[i] = ep[i - 1]
+        ep[i] = low[i]
+        af[i] = step
+        return -1
+
+
+@njit(cache=True)
+def _update_sar_bearish_trend(i, high, low, sar, ep, af, trend, step, max_step):
+    """Update SAR for bearish trend."""
+    new_sar = sar[i - 1] + af[i - 1] * (ep[i - 1] - sar[i - 1])
+    
+    if high[i] < new_sar:
+        # Continue bearish trend
+        sar[i] = max(new_sar, high[i - 1], high[i])
+        if low[i] < ep[i - 1]:
+            ep[i] = low[i]
+            af[i] = min(af[i - 1] + step, max_step)
+        else:
+            ep[i] = ep[i - 1]
+            af[i] = af[i - 1]
+        return -1
+    else:
+        # Trend reversal to bullish
+        sar[i] = ep[i - 1]
+        ep[i] = high[i]
+        af[i] = step
+        return 1
+
+
+@njit(cache=True)
 def parabolic_sar_numba(high, low, step=0.02, max_step=0.2):
     n = len(high)
     sar = np.full(n, np.nan)
     ep = np.full(n, np.nan)
     af = np.full(n, np.nan)
 
-    trend = -1 if high[0] > low[1] else 1
-    if trend == 1:
-        sar[0] = np.min(low[:2])
-        ep[0] = high[0]
-    else:
-        sar[0] = np.max(high[:2])
-        ep[0] = low[0]
-    
-    af[0] = step
+    # Initialize state
+    trend, sar[0], ep[0], af[0] = _initialize_sar_state(high, low, step)
 
     for i in range(1, n):
-        sar[i] = sar[i - 1] + af[i - 1] * (ep[i - 1] - sar[i - 1])
-
         if trend == 1:
-            if low[i] > sar[i]:
-                sar[i] = min(sar[i], low[i - 1], low[i])
-            else:
-                trend = -1
-                sar[i] = ep[i - 1]
-                ep[i] = low[i]
-                af[i] = step
+            trend = _update_sar_bullish_trend(i, high, low, sar, ep, af, trend, step, max_step)
         else:
-            if high[i] < sar[i]:
-                sar[i] = max(sar[i], high[i - 1], high[i])
-            else:
-                trend = 1
-                sar[i] = ep[i - 1]
-                ep[i] = high[i]
-                af[i] = step
-
-        if trend == 1:
-            if high[i] > ep[i - 1]:
-                ep[i] = high[i]
-                af[i] = min(af[i - 1] + step, max_step)
-            else:
-                ep[i] = ep[i - 1]
-                af[i] = af[i - 1]
-        else:
-            if low[i] < ep[i - 1]:
-                ep[i] = low[i]
-                af[i] = min(af[i - 1] + step, max_step)
-            else:
-                ep[i] = ep[i - 1]
-                af[i] = af[i - 1]
+            trend = _update_sar_bearish_trend(i, high, low, sar, ep, af, trend, step, max_step)
 
     return sar
 

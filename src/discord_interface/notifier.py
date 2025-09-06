@@ -264,112 +264,17 @@ class DiscordNotifier:
                             thumbnail_url: Optional[str] = None, image_url: Optional[str] = None, language: Optional[str] = None) -> discord.Embed:
         """Create a Discord embed for market analysis results"""
         analysis = analysis_result.get("analysis", {})
-        summary = analysis.get("summary", "No summary available")
-        trend = analysis.get("observed_trend", "NEUTRAL")
-        trend_strength = analysis.get("trend_strength", 0)
-        confidence = analysis.get("confidence_score", 0)
-        technical_bias = analysis.get("technical_bias", "NEUTRAL")
-        news_summary = analysis.get("news_summary", None)
         
-        # Extract missing fields
-        timeframes = analysis.get("timeframes", {})
-        risk_ratio = analysis.get("risk_ratio", None)
-        market_structure = analysis.get("market_structure", "NEUTRAL")
+        # Create base embed
+        embed = self._create_base_embed(analysis, symbol, language)
         
-        if trend == "BULLISH":
-            color = discord.Colour.green()
-        elif trend == "BEARISH":
-            color = discord.Colour.red()
-        else:
-            color = discord.Colour.light_grey()
+        # Add core analysis fields
+        self._add_core_analysis_fields(embed, analysis)
         
-        # Add language indicator to title if provided
-        language_suffix = f" ({language})" if language else ""
+        # Add optional fields
+        self._add_optional_analysis_fields(embed, analysis)
         
-        embed = discord.Embed(
-            title=f"🚀 {symbol} Market Analysis{language_suffix}",
-            description=summary,
-            color=color
-        )
-        
-        embed.add_field(name="Trend", value=trend, inline=True)
-        embed.add_field(name="Trend Strength", value=f"{trend_strength}/100", inline=True)
-        embed.add_field(name="Analysis Confidence", value=f"{confidence}/100", inline=True)
-        embed.add_field(
-            name="Technical Bias", 
-            value=f"{technical_bias}", 
-            inline=False
-        )
-        
-        # Add market structure field
-        embed.add_field(
-            name="Market Structure",
-            value=market_structure,
-            inline=True
-        )
-        
-        # Add risk ratio if available
-        if risk_ratio is not None:
-            embed.add_field(
-                name="Risk/Reward Ratio",
-                value=f"{risk_ratio:.2f}",
-                inline=True
-            )
-        
-        # Add timeframes analysis if available
-        if timeframes:
-            timeframe_values = []
-            short_term = timeframes.get("short_term", "NEUTRAL")
-            medium_term = timeframes.get("medium_term", "NEUTRAL")
-            long_term = timeframes.get("long_term", "NEUTRAL")
-            
-            timeframe_values.append(f"Short-term: {short_term}")
-            timeframe_values.append(f"Medium-term: {medium_term}")
-            timeframe_values.append(f"Long-term: {long_term}")
-            
-            embed.add_field(
-                name="Timeframe Analysis",
-                value="\n".join(timeframe_values),
-                inline=False
-            )
-        
-        # Add news summary if available
-        if news_summary:
-            embed.add_field(
-                name="📰 News Summary",
-                value=news_summary[:1024],  # Limit length for embed field
-                inline=False
-            )
-        
-        price_scenarios = analysis.get("price_scenarios", {})
-        if price_scenarios:
-            scenario_values = []
-            
-            bullish_scenario = price_scenarios.get('bullish_scenario')
-            bearish_scenario = price_scenarios.get('bearish_scenario')
-            
-            if bullish_scenario is not None:
-                scenario_values.append(f"Bullish: ${bullish_scenario}")
-            else:
-                scenario_values.append(f"Bullish: N/A")
-                
-            if bearish_scenario is not None:
-                scenario_values.append(f"Bearish: ${bearish_scenario}")
-            else:
-                scenario_values.append(f"Bearish: N/A")
-                
-            embed.add_field(name="Price Scenarios", value="\n".join(scenario_values), inline=False)
-        
-        key_levels = analysis.get("key_levels", {})
-        if key_levels:
-            support_values = [f"${level}" for level in key_levels.get("support", [])]
-            resistance_values = [f"${level}" for level in key_levels.get("resistance", [])]
-            
-            if support_values:
-                embed.add_field(name="Support Levels", value="\n".join(support_values), inline=True)
-            if resistance_values:
-                embed.add_field(name="Resistance Levels", value="\n".join(resistance_values), inline=True)
-                
+        # Add detailed analysis link if available
         if analysis_file_url:
             embed.add_field(
                 name="📊 Detailed Analysis",
@@ -378,8 +283,124 @@ class DiscordNotifier:
             )
         
         self._finalize_embed(embed, thumbnail_url, image_url)
-                
         return embed
+    
+    def _create_base_embed(self, analysis: Dict[str, Any], symbol: str, language: Optional[str]) -> discord.Embed:
+        """Create the base embed with title, description, and color"""
+        summary = analysis.get("summary", "No summary available")
+        trend = analysis.get("observed_trend", "NEUTRAL")
+        
+        # Determine embed color based on trend
+        color = self._get_trend_color(trend)
+        
+        # Add language indicator to title if provided
+        language_suffix = f" ({language})" if language else ""
+        
+        return discord.Embed(
+            title=f"🚀 {symbol} Market Analysis{language_suffix}",
+            description=summary,
+            color=color
+        )
+    
+    def _get_trend_color(self, trend: str) -> discord.Colour:
+        """Get the appropriate color for the trend"""
+        if trend == "BULLISH":
+            return discord.Colour.green()
+        elif trend == "BEARISH":
+            return discord.Colour.red()
+        else:
+            return discord.Colour.light_grey()
+    
+    def _add_core_analysis_fields(self, embed: discord.Embed, analysis: Dict[str, Any]) -> None:
+        """Add core analysis fields to the embed"""
+        trend = analysis.get("observed_trend", "NEUTRAL")
+        trend_strength = analysis.get("trend_strength", 0)
+        confidence = analysis.get("confidence_score", 0)
+        technical_bias = analysis.get("technical_bias", "NEUTRAL")
+        market_structure = analysis.get("market_structure", "NEUTRAL")
+        risk_ratio = analysis.get("risk_ratio", None)
+        
+        embed.add_field(name="Trend", value=trend, inline=True)
+        embed.add_field(name="Trend Strength", value=f"{trend_strength}/100", inline=True)
+        embed.add_field(name="Analysis Confidence", value=f"{confidence}/100", inline=True)
+        embed.add_field(name="Technical Bias", value=technical_bias, inline=False)
+        embed.add_field(name="Market Structure", value=market_structure, inline=True)
+        
+        # Add risk ratio if available
+        if risk_ratio is not None:
+            embed.add_field(name="Risk/Reward Ratio", value=f"{risk_ratio:.2f}", inline=True)
+    
+    def _add_optional_analysis_fields(self, embed: discord.Embed, analysis: Dict[str, Any]) -> None:
+        """Add optional analysis fields to the embed"""
+        # Add timeframes analysis
+        timeframes = analysis.get("timeframes", {})
+        if timeframes:
+            self._add_timeframes_field(embed, timeframes)
+        
+        # Add news summary
+        news_summary = analysis.get("news_summary", None)
+        if news_summary:
+            embed.add_field(
+                name="📰 News Summary",
+                value=news_summary[:1024],  # Limit length for embed field
+                inline=False
+            )
+        
+        # Add price scenarios
+        price_scenarios = analysis.get("price_scenarios", {})
+        if price_scenarios:
+            self._add_price_scenarios_field(embed, price_scenarios)
+        
+        # Add key levels
+        key_levels = analysis.get("key_levels", {})
+        if key_levels:
+            self._add_key_levels_fields(embed, key_levels)
+    
+    def _add_timeframes_field(self, embed: discord.Embed, timeframes: Dict[str, Any]) -> None:
+        """Add timeframes analysis field to the embed"""
+        timeframe_values = []
+        short_term = timeframes.get("short_term", "NEUTRAL")
+        medium_term = timeframes.get("medium_term", "NEUTRAL")
+        long_term = timeframes.get("long_term", "NEUTRAL")
+        
+        timeframe_values.append(f"Short-term: {short_term}")
+        timeframe_values.append(f"Medium-term: {medium_term}")
+        timeframe_values.append(f"Long-term: {long_term}")
+        
+        embed.add_field(
+            name="Timeframe Analysis",
+            value="\n".join(timeframe_values),
+            inline=False
+        )
+    
+    def _add_price_scenarios_field(self, embed: discord.Embed, price_scenarios: Dict[str, Any]) -> None:
+        """Add price scenarios field to the embed"""
+        scenario_values = []
+        
+        bullish_scenario = price_scenarios.get('bullish_scenario')
+        bearish_scenario = price_scenarios.get('bearish_scenario')
+        
+        if bullish_scenario is not None:
+            scenario_values.append(f"Bullish: ${bullish_scenario}")
+        else:
+            scenario_values.append(f"Bullish: N/A")
+            
+        if bearish_scenario is not None:
+            scenario_values.append(f"Bearish: ${bearish_scenario}")
+        else:
+            scenario_values.append(f"Bearish: N/A")
+            
+        embed.add_field(name="Price Scenarios", value="\n".join(scenario_values), inline=False)
+    
+    def _add_key_levels_fields(self, embed: discord.Embed, key_levels: Dict[str, Any]) -> None:
+        """Add support and resistance levels fields to the embed"""
+        support_values = [f"${level}" for level in key_levels.get("support", [])]
+        resistance_values = [f"${level}" for level in key_levels.get("resistance", [])]
+        
+        if support_values:
+            embed.add_field(name="Support Levels", value="\n".join(support_values), inline=True)
+        if resistance_values:
+            embed.add_field(name="Resistance Levels", value="\n".join(resistance_values), inline=True)
 
     async def send_context_message(
             self,

@@ -43,8 +43,6 @@ class CrossoverPatternDetector(BasePatternDetector):
                              plus_di: List[float],
                              minus_di: List[float]) -> List[Pattern]:
         """Detect ADX DI+ and DI- crossovers"""
-        patterns = []
-        
         min_length = min(len(adx), len(plus_di), len(minus_di))
         if min_length < 5:
             return []
@@ -56,41 +54,29 @@ class CrossoverPatternDetector(BasePatternDetector):
             original_start_index = max(0, len(market_data.ohlcv) - min_length)
         else:
             original_start_index = 0
-            
-        # Look for DI+ crossing above DI- (bullish)
-        for i in range(1, lookback):
-            if plus_di[-i-1] <= minus_di[-i-1] and plus_di[-i] > minus_di[-i]:
-                # Get timestamp for this pattern using the right index
-                timestamp = market_data.get_timestamp_at_index(original_start_index + min_length - i)
+        
+        # Use the generic crossover detection utility
+        additional_data = {'adx_value': None}  # Will be set per pattern
+        
+        patterns = self._detect_line_crossovers(
+            plus_di, minus_di, market_data, original_start_index,
+            lookback, "di", ":.1f", additional_data
+        )
+        
+        # Update pattern descriptions and data with DI-specific information
+        for pattern in patterns:
+            periods_ago = pattern.periods_ago + 1  # Adjust for indexing
+            if periods_ago < len(adx):
+                pattern.adx_value = adx[-periods_ago]
                 
-                pattern = Pattern(
-                    "di_bullish_cross",
-                    f"Bullish DMI crossover {i} periods ago (DI+ crossed above DI-) with ADX at {adx[-i]:.1f}.",
-                    timestamp=timestamp,  # Added timestamp
-                    periods_ago=i,
-                    adx_value=adx[-i]
-                )
-                self._log_detection(pattern)
-                patterns.append(pattern)
-                break
-                
-        # Look for DI- crossing above DI+ (bearish)
-        for i in range(1, lookback):
-            if minus_di[-i-1] <= plus_di[-i-1] and minus_di[-i] > plus_di[-i]:
-                # Get timestamp for this pattern
-                timestamp = market_data.get_timestamp_at_index(original_start_index + min_length - i)
-                
-                pattern = Pattern(
-                    "di_bearish_cross",
-                    f"Bearish DMI crossover {i} periods ago (DI- crossed above DI+) with ADX at {adx[-i]:.1f}.",
-                    timestamp=timestamp,  # Added timestamp
-                    periods_ago=i,
-                    adx_value=adx[-i]
-                )
-                self._log_detection(pattern)
-                patterns.append(pattern)
-                break
-                
+                # Update pattern types and descriptions to be more specific
+                if "bullish" in pattern.type:
+                    pattern.type = "di_bullish_cross"
+                    pattern.description = f"Bullish DMI crossover {pattern.periods_ago} periods ago (DI+ crossed above DI-) with ADX at {pattern.adx_value:.1f}."
+                else:
+                    pattern.type = "di_bearish_cross"
+                    pattern.description = f"Bearish DMI crossover {pattern.periods_ago} periods ago (DI- crossed above DI+) with ADX at {pattern.adx_value:.1f}."
+        
         return patterns
     
     def _detect_supertrend_changes(self, market_data: MarketData, direction: List[float]) -> List[Pattern]:

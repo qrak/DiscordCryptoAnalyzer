@@ -172,92 +172,132 @@ class DiscordCryptoBot:
         self.logger.info("Shutting down gracefully...")
         self.running = False
 
-        # Cancel active tasks first
+        # Step 1: Cancel and wait for active tasks
+        await self._shutdown_active_tasks()
+        
+        # Step 2: Close keyboard handler
+        await self._shutdown_keyboard_handler()
+        
+        # Step 3: Close components in reverse initialization order
+        await self._shutdown_discord_notifier()
+        await self._shutdown_market_analyzer()
+        await self._shutdown_rag_engine()
+        await self._shutdown_api_clients()
+        await self._shutdown_symbol_manager()
+        
+        self._cleanup_references()
+        self.logger.info("Shutdown complete")
+
+    async def _shutdown_active_tasks(self):
+        """Cancel and wait for active tasks to complete."""
         pending_tasks = list(self._active_tasks)
-        if pending_tasks:
-            self.logger.info(f"Cancelling {len(pending_tasks)} active tasks...")
-            for task in pending_tasks:
-                if not task.done():
-                    task.cancel()
-    
-            try:
-                await asyncio.wait(pending_tasks, timeout=3.0)
-            except asyncio.TimeoutError:
-                self.logger.warning("Some tasks didn't complete in time")
+        if not pending_tasks:
+            return
+            
+        self.logger.info(f"Cancelling {len(pending_tasks)} active tasks...")
+        for task in pending_tasks:
+            if not task.done():
+                task.cancel()
 
-        # Close keyboard handler if it exists
-        if self.keyboard_handler:
-            try:
-                self.logger.info("Closing keyboard handler...")
-                await self.keyboard_handler.stop_listening()
-                self.keyboard_handler = None
-            except Exception as e:
-                self.logger.warning(f"Error closing keyboard handler: {e}")
+        try:
+            await asyncio.wait(pending_tasks, timeout=3.0)
+        except asyncio.TimeoutError:
+            self.logger.warning("Some tasks didn't complete in time")
 
-        # Close components in reverse initialization order
-    
-        # Discord notifier (contains the bot)
-        if self.discord_notifier:
-            try:
-                self.logger.info("Closing Discord notifier...")
-                await asyncio.wait_for(self.discord_notifier.__aexit__(None, None, None), timeout=5.0)
-                self.discord_notifier = None
-            except asyncio.TimeoutError:
-                self.logger.warning("Discord notifier shutdown timed out")
-            except Exception as e:
-                self.logger.warning(f"Error closing Discord notifier: {e}")
-    
-        # Market analyzer
-        if self.market_analyzer:
-            try:
-                self.logger.info("Closing market analyzer...")
-                await asyncio.wait_for(self.market_analyzer.close(), timeout=3.0)
-                self.market_analyzer = None
-            except asyncio.TimeoutError:
-                self.logger.warning("Market analyzer shutdown timed out")
-            except Exception as e:
-                self.logger.warning(f"Error closing market analyzer: {e}")
+    async def _shutdown_keyboard_handler(self):
+        """Close keyboard handler safely."""
+        if not self.keyboard_handler:
+            return
+            
+        try:
+            self.logger.info("Closing keyboard handler...")
+            await self.keyboard_handler.stop_listening()
+            self.keyboard_handler = None
+        except Exception as e:
+            self.logger.warning(f"Error closing keyboard handler: {e}")
 
-        # RAG engine
-        if hasattr(self, 'rag_engine') and self.rag_engine:
-            try:
-                self.logger.info("Closing RAG engine...")
-                await asyncio.wait_for(self.rag_engine.close(), timeout=3.0)
-                self.rag_engine = None
-            except asyncio.TimeoutError:
-                self.logger.warning("RAG engine shutdown timed out")
-            except Exception as e:
-                self.logger.warning(f"Error closing RAG engine: {e}")
-    
-        # API clients
-        for client_name, client in [
+    async def _shutdown_discord_notifier(self):
+        """Close Discord notifier safely."""
+        if not self.discord_notifier:
+            return
+            
+        try:
+            self.logger.info("Closing Discord notifier...")
+            await asyncio.wait_for(self.discord_notifier.__aexit__(None, None, None), timeout=5.0)
+            self.discord_notifier = None
+        except asyncio.TimeoutError:
+            self.logger.warning("Discord notifier shutdown timed out")
+        except Exception as e:
+            self.logger.warning(f"Error closing Discord notifier: {e}")
+
+    async def _shutdown_market_analyzer(self):
+        """Close market analyzer safely."""
+        if not self.market_analyzer:
+            return
+            
+        try:
+            self.logger.info("Closing market analyzer...")
+            await asyncio.wait_for(self.market_analyzer.close(), timeout=3.0)
+            self.market_analyzer = None
+        except asyncio.TimeoutError:
+            self.logger.warning("Market analyzer shutdown timed out")
+        except Exception as e:
+            self.logger.warning(f"Error closing market analyzer: {e}")
+
+    async def _shutdown_rag_engine(self):
+        """Close RAG engine safely."""
+        if not hasattr(self, 'rag_engine') or not self.rag_engine:
+            return
+            
+        try:
+            self.logger.info("Closing RAG engine...")
+            await asyncio.wait_for(self.rag_engine.close(), timeout=3.0)
+            self.rag_engine = None
+        except asyncio.TimeoutError:
+            self.logger.warning("RAG engine shutdown timed out")
+        except Exception as e:
+            self.logger.warning(f"Error closing RAG engine: {e}")
+
+    async def _shutdown_api_clients(self):
+        """Close all API clients safely."""
+        api_clients = [
             ("AlternativeMeAPI", self.alternative_me_api),
             ("CryptoCompareAPI", self.cryptocompare_api),
             ("CoinGeckoAPI", self.coingecko_api)
-        ]:
-            if client and hasattr(client, 'close') and callable(client.close):
-                try:
-                    self.logger.info(f"Closing {client_name}...")
-                    await asyncio.wait_for(client.close(), timeout=3.0)
-                except asyncio.TimeoutError:
-                    self.logger.warning(f"{client_name} shutdown timed out")
-                except Exception as e:
-                    self.logger.warning(f"Error closing {client_name}: {e}")
-    
-        # Symbol manager (should be closed last as other components might depend on it)
-        if self.symbol_manager:
-            try:
-                self.logger.info("Closing SymbolManager...")
-                await asyncio.wait_for(self.symbol_manager.shutdown(), timeout=3.0)
-                self.symbol_manager = None
-            except asyncio.TimeoutError:
-                self.logger.warning("SymbolManager shutdown timed out")
-            except Exception as e:
-                self.logger.warning(f"Error closing SymbolManager: {e}")
+        ]
 
-        # Set all component references to None to help garbage collection
+        for client_name, client in api_clients:
+            await self._shutdown_single_api_client(client_name, client)
+
+    async def _shutdown_single_api_client(self, client_name: str, client):
+        """Close a single API client safely."""
+        if not client or not hasattr(client, 'close') or not callable(client.close):
+            return
+            
+        try:
+            self.logger.info(f"Closing {client_name}...")
+            await asyncio.wait_for(client.close(), timeout=3.0)
+        except asyncio.TimeoutError:
+            self.logger.warning(f"{client_name} shutdown timed out")
+        except Exception as e:
+            self.logger.warning(f"Error closing {client_name}: {e}")
+
+    async def _shutdown_symbol_manager(self):
+        """Close symbol manager safely."""
+        if not self.symbol_manager:
+            return
+            
+        try:
+            self.logger.info("Closing SymbolManager...")
+            await asyncio.wait_for(self.symbol_manager.shutdown(), timeout=3.0)
+            self.symbol_manager = None
+        except asyncio.TimeoutError:
+            self.logger.warning("SymbolManager shutdown timed out")
+        except Exception as e:
+            self.logger.warning(f"Error closing SymbolManager: {e}")
+
+    def _cleanup_references(self):
+        """Set all component references to None to help garbage collection."""
         self.alternative_me_api = None
         self.cryptocompare_api = None
         self.coingecko_api = None
-
-        self.logger.info("Shutdown complete")

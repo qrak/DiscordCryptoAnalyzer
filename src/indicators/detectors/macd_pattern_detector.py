@@ -46,43 +46,32 @@ class MACDPatternDetector(BasePatternDetector):
                            market_data: MarketData,
                            original_start_index: int) -> List[Pattern]:
         """Detect MACD line crossing signal line"""
-        patterns = []
-        
-        # Look for crossovers within the lookback period
         lookback = min(self.signal_lookback, len(recent_line))
         
-        for i in range(2, lookback):
-            # Bullish crossover (MACD line crosses above signal line)
-            if recent_line[-i] <= recent_signal[-i] and recent_line[-i+1] > recent_signal[-i+1]:
-                # Get timestamp for this pattern
-                timestamp = market_data.get_timestamp_at_index(original_start_index + len(recent_line) - i + 1)
+        additional_data = {
+            'macd_value': None,  # Will be set per pattern
+            'signal_value': None  # Will be set per pattern
+        }
+        
+        patterns = self._detect_line_crossovers(
+            recent_line, recent_signal, market_data, original_start_index,
+            lookback, "macd", ":.4f", additional_data
+        )
+        
+        # Update pattern data with MACD-specific values and fix pattern types
+        for pattern in patterns:
+            periods_ago = pattern.periods_ago + 1  # Adjust for indexing
+            if periods_ago < len(recent_line):
+                pattern.macd_value = recent_line[-periods_ago]
+                pattern.signal_value = recent_signal[-periods_ago]
                 
-                pattern = Pattern(
-                    "bullish_crossover",
-                    f"Bullish MACD crossover {i-1} periods ago with MACD at {recent_line[-i+1]:.4f}.",
-                    timestamp=timestamp,  # Add timestamp
-                    periods_ago=i-1,
-                    macd_value=recent_line[-i+1],
-                    signal_value=recent_signal[-i+1]
-                )
-                self._log_detection(pattern)
-                patterns.append(pattern)
-                
-            # Bearish crossover (MACD line crosses below signal line)
-            if recent_line[-i] >= recent_signal[-i] and recent_line[-i+1] < recent_signal[-i+1]:
-                # Get timestamp for this pattern
-                timestamp = market_data.get_timestamp_at_index(original_start_index + len(recent_line) - i + 1)
-                
-                pattern = Pattern(
-                    "bearish_crossover",
-                    f"Bearish MACD crossover {i-1} periods ago with MACD at {recent_line[-i+1]:.4f}.",
-                    timestamp=timestamp,  # Add timestamp
-                    periods_ago=i-1,
-                    macd_value=recent_line[-i+1],
-                    signal_value=recent_signal[-i+1]
-                )
-                self._log_detection(pattern)
-                patterns.append(pattern)
+                # Update pattern types to be MACD-specific
+                if "bullish" in pattern.type:
+                    pattern.type = "bullish_crossover"
+                    pattern.description = f"Bullish MACD crossover {pattern.periods_ago} periods ago with MACD at {pattern.macd_value:.4f}."
+                else:
+                    pattern.type = "bearish_crossover"
+                    pattern.description = f"Bearish MACD crossover {pattern.periods_ago} periods ago with MACD at {pattern.macd_value:.4f}."
         
         return patterns
     
@@ -91,40 +80,17 @@ class MACDPatternDetector(BasePatternDetector):
                                  market_data: MarketData,
                                  original_start_index: int) -> List[Pattern]:
         """Detect MACD line crossing zero line"""
-        patterns = []
-        
-        # Look for zero line crossovers within the lookback period
         lookback = min(self.signal_lookback, len(recent_line))
         
-        for i in range(2, lookback):
-            # Bullish zero line crossover
-            if recent_line[-i] <= 0 and recent_line[-i+1] > 0:
-                # Get timestamp for this pattern
-                timestamp = market_data.get_timestamp_at_index(original_start_index + len(recent_line) - i + 1)
-                
-                pattern = Pattern(
-                    "zero_line_bullish",
-                    f"MACD crossed above zero line {i-1} periods ago.",
-                    timestamp=timestamp,  # Add timestamp
-                    periods_ago=i-1,
-                    value=recent_line[-i+1]
-                )
-                self._log_detection(pattern)
-                patterns.append(pattern)
-                
-            # Bearish zero line crossover
-            if recent_line[-i] >= 0 and recent_line[-i+1] < 0:
-                # Get timestamp for this pattern
-                timestamp = market_data.get_timestamp_at_index(original_start_index + len(recent_line) - i + 1)
-                
-                pattern = Pattern(
-                    "zero_line_bearish",
-                    f"MACD crossed below zero line {i-1} periods ago.",
-                    timestamp=timestamp,  # Add timestamp
-                    periods_ago=i-1,
-                    value=recent_line[-i+1]
-                )
-                self._log_detection(pattern)
-                patterns.append(pattern)
+        patterns = self._detect_zero_line_crossovers(
+            recent_line, market_data, original_start_index, lookback, "macd"
+        )
+        
+        # Update pattern types to be MACD-specific
+        for pattern in patterns:
+            if "bullish" in pattern.type:
+                pattern.type = "zero_line_bullish"
+            else:
+                pattern.type = "zero_line_bearish"
         
         return patterns

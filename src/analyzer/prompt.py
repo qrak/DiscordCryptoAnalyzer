@@ -1,6 +1,6 @@
 import numpy as np
 from datetime import datetime
-from typing import Any, Dict, Optional, TypedDict
+from typing import Any, Dict, List, Optional, TypedDict
 
 from src.logger.logger import Logger
 from src.analyzer.indicator_calculator import IndicatorCalculator, fmt
@@ -103,57 +103,89 @@ Use appropriate {language} terminology for technical analysis concepts."""
             return ""
             
         overview = self.context.market_overview
+        sections = []
         
-        # Format the section header to stand out
-        section = "## MARKET OVERVIEW DATA\n\n"
-        section += "The following market data should be incorporated into your analysis:\n\n"
+        # Add header
+        sections.append("## MARKET OVERVIEW DATA\n")
+        sections.append("The following market data should be incorporated into your analysis:\n")
         
-        # Add formatted top coins summary
-        if "top_coins" in overview:
-            section += "### Top Cryptocurrencies Performance:\n\n"
-            section += "| Coin | Price | 24h Change | 24h Volume |\n"
-            section += "|------|-------|------------|------------|\n"
+        # Add different overview sections
+        sections.extend(self._build_top_coins_section(overview))
+        sections.extend(self._build_global_metrics_section(overview))
+        sections.extend(self._build_dominance_section(overview))
+        sections.extend(self._build_market_stats_section(overview))
+        
+        # Add closing note
+        sections.append("\n**Note:** When formulating your analysis, explicitly incorporate these market metrics to provide context on how the analyzed asset relates to broader market conditions.\n")
+        
+        return "\n".join(sections)
+
+    def _build_top_coins_section(self, overview: Dict[str, Any]) -> List[str]:
+        """Build top cryptocurrencies performance section."""
+        if "top_coins" not in overview:
+            return []
             
-            for coin, data in overview["top_coins"].items():
-                price = f"${data.get('price', 0):,.2f}"
-                change = f"{data.get('change24h', 0):.2f}%"
-                volume = f"{data.get('volume24h', 0):,.2f}"
-                section += f"| {coin} | {price} | {change} | {volume} |\n"
-            section += "\n"
-            
-        # Add market metrics summary
-        section += "### Global Market Metrics:\n\n"
+        sections = [
+            "### Top Cryptocurrencies Performance:\n",
+            "| Coin | Price | 24h Change | 24h Volume |",
+            "|------|-------|------------|------------|"
+        ]
         
+        for coin, data in overview["top_coins"].items():
+            price = f"${data.get('price', 0):,.2f}"
+            change = f"{data.get('change24h', 0):.2f}%"
+            volume = f"{data.get('volume24h', 0):,.2f}"
+            sections.append(f"| {coin} | {price} | {change} | {volume} |")
+            
+        sections.append("")  # Empty line after table
+        return sections
+
+    def _build_global_metrics_section(self, overview: Dict[str, Any]) -> List[str]:
+        """Build global market metrics section."""
+        sections = ["### Global Market Metrics:\n"]
+        
+        # Market cap
         if "market_cap" in overview:
             mcap = overview["market_cap"]
             total_mcap = f"${mcap.get('total_usd', 0):,.2f}" if "total_usd" in mcap else "N/A"
             mcap_change = f"{mcap.get('change_24h', 0):.2f}%" if "change_24h" in mcap else "N/A"
-            section += f"- Total Market Cap: {total_mcap} ({mcap_change} 24h change)\n"
+            sections.append(f"- Total Market Cap: {total_mcap} ({mcap_change} 24h change)")
             
+        # Volume
         if "volume" in overview and "total_usd" in overview["volume"]:
             volume = f"${overview['volume']['total_usd']:,.2f}"
-            section += f"- 24h Trading Volume: {volume}\n"
+            sections.append(f"- 24h Trading Volume: {volume}")
             
-        # Add dominance data - FIX: Loop through the dominance dictionary, not the entire overview
-        if "dominance" in overview:
-            section += "\n### Market Dominance:\n\n"
-            for coin, value in overview["dominance"].items():  # Fixed: use overview["dominance"] instead of overview
-                # Ensure value is numeric before formatting
-                if isinstance(value, (int, float)):
-                    section += f"- {coin.upper()}: {value:.2f}%\n"
-                else:
-                    section += f"- {coin.upper()}: {value}%\n"
-                
-        # Add general market stats
-        if "stats" in overview:
-            active_coins = overview["stats"].get("active_coins", "N/A")
-            active_markets = overview["stats"].get("active_markets", "N/A")
-            section += f"\n- Active Cryptocurrencies: {active_coins}\n"
-            section += f"- Active Markets: {active_markets}\n"
+        return sections
+
+    def _build_dominance_section(self, overview: Dict[str, Any]) -> List[str]:
+        """Build market dominance section."""
+        if "dominance" not in overview:
+            return []
             
-        section += "\n**Note:** When formulating your analysis, explicitly incorporate these market metrics to provide context on how the analyzed asset relates to broader market conditions.\n"
+        sections = ["\n### Market Dominance:\n"]
         
-        return section
+        for coin, value in overview["dominance"].items():
+            if isinstance(value, (int, float)):
+                sections.append(f"- {coin.upper()}: {value:.2f}%")
+            else:
+                sections.append(f"- {coin.upper()}: {value}%")
+                
+        return sections
+
+    def _build_market_stats_section(self, overview: Dict[str, Any]) -> List[str]:
+        """Build general market statistics section."""
+        if "stats" not in overview:
+            return []
+            
+        stats = overview["stats"]
+        active_coins = stats.get("active_coins", "N/A")
+        active_markets = stats.get("active_markets", "N/A")
+        
+        return [
+            f"\n- Active Cryptocurrencies: {active_coins}",
+            f"- Active Markets: {active_markets}"
+        ]
 
     def _build_trading_context(self) -> str:
         # Get the current time to understand candle formation
@@ -304,254 +336,277 @@ Use appropriate {language} terminology for technical analysis concepts."""
 
         td = self.context.technical_data
         patterns_section = self.indicator_calculator.extract_key_patterns(self.context)
-        
-        # --- 2. Format Ichimoku ---
-        ichimoku_section = ""
-        required_ichi_keys = {"ichimoku_conversion", "ichimoku_base", "ichimoku_span_a", "ichimoku_span_b"}
-        # Check if all keys exist and have non-None values before proceeding
-        if required_ichi_keys.issubset(td.keys()) and all(td.get(k) is not None for k in required_ichi_keys):
-            try:
-                tenkan = self.indicator_calculator.get_indicator_value(td, "ichimoku_conversion")
-                kijun = self.indicator_calculator.get_indicator_value(td, "ichimoku_base")
-                span_a = self.indicator_calculator.get_indicator_value(td, "ichimoku_span_a")
-                span_b = self.indicator_calculator.get_indicator_value(td, "ichimoku_span_b")
+        ichimoku_section = self._ta_ichimoku_section(td)
+        advanced_indicators_section = self._ta_advanced_indicators_section(td)
+        key_levels_section = self._ta_key_levels_section(td)
+        pattern_info = self._ta_recent_patterns()
+        cmf_interpretation = self._ta_cmf_interpretation(td)
 
-                cloud_status = "N/A"
-                # Ensure values are numeric before comparison
-                if isinstance(span_a, (int, float)) and isinstance(span_b, (int, float)):
-                    if span_a > span_b:
-                        cloud_status = "Bullish (Span A above Span B)"
-                    elif span_b > span_a:
-                        cloud_status = "Bearish (Span B above Span A)"
-                    else:
-                        cloud_status = "Neutral (Spans Equal)"
+        def fmt_ta(key, precision=8, default='N/A'):
+            val = self.indicator_calculator.get_indicator_value(td, key)
+            if isinstance(val, (int, float)) and not np.isnan(val):
+                return fmt(val, precision)
+            return default
 
-                # Format values for display
-                tenkan_str = fmt(tenkan) if isinstance(tenkan, (int, float)) else "N/A"
-                kijun_str = fmt(kijun) if isinstance(kijun, (int, float)) else "N/A"
-                span_a_str = fmt(span_a) if isinstance(span_a, (int, float)) else "N/A"
-                span_b_str = fmt(span_b) if isinstance(span_b, (int, float)) else "N/A"
+        technical_analysis = f"""\nTECHNICAL ANALYSIS ({self.timeframe}):\n\n## Price Action:\n- Current Price: {fmt(self.context.current_price) if hasattr(self.context, 'current_price') else 0.0}\n- Rolling VWAP (14): {fmt_ta('vwap', 8)}\n- TWAP (14): {fmt_ta('twap', 8)}\n\n## Momentum Indicators:\n- RSI(14): {fmt_ta('rsi', 1)} [<{self.INDICATOR_THRESHOLDS['rsi']['oversold']}=Oversold, {self.INDICATOR_THRESHOLDS['rsi']['oversold']}-{self.INDICATOR_THRESHOLDS['rsi']['overbought']}=Neutral, >{self.INDICATOR_THRESHOLDS['rsi']['overbought']}=Overbought]\n- MACD (12,26,9): [Pattern detector provides crossover analysis]\n  * Line: {fmt_ta('macd_line', 8)}\n  * Signal: {fmt_ta('macd_signal', 8)}\n  * Histogram: {fmt_ta('macd_hist', 8)}\n- Stochastic %K(5,3,3): {fmt_ta('stoch_k', 1)} [<{self.INDICATOR_THRESHOLDS['stoch_k']['oversold']}=Oversold, >{self.INDICATOR_THRESHOLDS['stoch_k']['overbought']}=Overbought]\n- Stochastic %D(5,3,3): {fmt_ta('stoch_d', 1)} [<{self.INDICATOR_THRESHOLDS['stoch_d']['oversold']}=Oversold, >{self.INDICATOR_THRESHOLDS['stoch_d']['overbought']}=Overbought]\n- Williams %R(14): {fmt_ta('williams_r', 1)} [<{self.INDICATOR_THRESHOLDS['williams_r']['oversold']}=Oversold, >{self.INDICATOR_THRESHOLDS['williams_r']['overbought']}=Overbought]\n\n## Trend Indicators:\n- ADX(14): {fmt_ta('adx', 1)} [0-{self.INDICATOR_THRESHOLDS['adx']['weak']}: Weak/No Trend, {self.INDICATOR_THRESHOLDS['adx']['weak']}-{self.INDICATOR_THRESHOLDS['adx']['strong']}: Strong, {self.INDICATOR_THRESHOLDS['adx']['strong']}-{self.INDICATOR_THRESHOLDS['adx']['very_strong']}: Very Strong, >{self.INDICATOR_THRESHOLDS['adx']['very_strong']}: Extremely Strong]\n- +DI(14): {fmt_ta('plus_di', 1)} [Pattern detector analyzes DI crossovers]\n- -DI(14): {fmt_ta('minus_di', 1)}\n- Supertrend(7,3.0) Direction: {'Bullish' if td.get('supertrend_direction', 0) > 0 else 'Bearish' if td.get('supertrend_direction', 0) < 0 else 'Neutral'}\n\n## Volatility Analysis:\n- ATR(14): {fmt_ta('atr', 8)}\n- Bollinger Band Width (%): {self.indicator_calculator.calculate_bb_width(td):.2f}% [<{self.INDICATOR_THRESHOLDS['bb_width']['tight']}%=Tight, >{self.INDICATOR_THRESHOLDS['bb_width']['wide']}%=Wide]\n\n## Volume Analysis:\n- MFI(14): {fmt_ta('mfi', 1)} [<{self.INDICATOR_THRESHOLDS['mfi']['oversold']}=Oversold, >{self.INDICATOR_THRESHOLDS['mfi']['overbought']}=Overbought]\n- On Balance Volume (OBV): {fmt_ta('obv', 0)}\n- Chaikin MF(20): {fmt_ta('cmf', 4)}{cmf_interpretation}\n- Force Index(13): {fmt_ta('force_index', 0)}\n\n## Statistical Metrics:\n- Hurst Exponent(20): {fmt_ta('hurst', 2)} [~0.5: Random Walk, >0.5: Trending, <0.5: Mean Reverting]\n- Z-Score(30): {fmt_ta('zscore', 2)} [Distance from mean in std deviations]\n- Kurtosis(30): {fmt_ta('kurtosis', 2)} [Tail risk indicator; >3 suggests fatter tails]\n{key_levels_section}\n{ichimoku_section}\n{advanced_indicators_section}\n{patterns_section}{pattern_info}"""
 
-                ichimoku_section = f"""
-## Ichimoku Cloud Analysis:
-- Conversion Line (Tenkan-sen): {tenkan_str}
-- Base Line (Kijun-sen): {kijun_str}
-- Leading Span A (Senkou A): {span_a_str}
-- Leading Span B (Senkou B): {span_b_str}
-- Cloud Status: {cloud_status}
-"""
-            except Exception as e:
-                if self.logger:
-                    self.logger.warning(f"Could not format Ichimoku values: {e}")
-                ichimoku_section = "\n## Ichimoku Cloud Analysis:\n- Data unavailable or processing error."
-        else:
-             ichimoku_section = "\n## Ichimoku Cloud Analysis:\n- Data unavailable or insufficient history."
+        return technical_analysis.strip()
 
-        # --- 3. Format Advanced Indicators ---
-        advanced_indicators_section = ""
+    # ---------- Helper sub-builders (extracted to reduce complexity) ----------
+    def _ta_ichimoku_section(self, td: dict) -> str:
+        required = {"ichimoku_conversion", "ichimoku_base", "ichimoku_span_a", "ichimoku_span_b"}
+        if not (required.issubset(td.keys()) and all(td.get(k) is not None for k in required)):
+            return "\n## Ichimoku Cloud Analysis:\n- Data unavailable or insufficient history."
         try:
-            advanced_indicators = []
+            tenkan = self.indicator_calculator.get_indicator_value(td, "ichimoku_conversion")
+            kijun = self.indicator_calculator.get_indicator_value(td, "ichimoku_base")
+            span_a = self.indicator_calculator.get_indicator_value(td, "ichimoku_span_a")
+            span_b = self.indicator_calculator.get_indicator_value(td, "ichimoku_span_b")
+            cloud_status = "N/A"
+            if isinstance(span_a, (int, float)) and isinstance(span_b, (int, float)):
+                cloud_status = ("Bullish (Span A above Span B)" if span_a > span_b else
+                                "Bearish (Span B above Span A)" if span_b > span_a else
+                                "Neutral (Spans Equal)")
+            return (f"\n## Ichimoku Cloud Analysis:\n" \
+                    f"- Conversion Line (Tenkan-sen): {fmt(tenkan) if isinstance(tenkan, (int, float)) else 'N/A'}\n" \
+                    f"- Base Line (Kijun-sen): {fmt(kijun) if isinstance(kijun, (int, float)) else 'N/A'}\n" \
+                    f"- Leading Span A (Senkou A): {fmt(span_a) if isinstance(span_a, (int, float)) else 'N/A'}\n" \
+                    f"- Leading Span B (Senkou B): {fmt(span_b) if isinstance(span_b, (int, float)) else 'N/A'}\n" \
+                    f"- Cloud Status: {cloud_status}\n")
+        except Exception as e:
+            if self.logger:
+                self.logger.warning(f"Could not format Ichimoku values: {e}")
+            return "\n## Ichimoku Cloud Analysis:\n- Data unavailable or processing error."
 
-            # Helper to format value or return N/A - uses imported fmt function
-            def fmt_val(val, precision=8):
-                if isinstance(val, (int, float)) and not np.isnan(val):
-                    return fmt(val, precision)
-                return "N/A"
-
-            # Vortex Indicator
-            vortex = self.indicator_calculator.get_indicator_values(td, "vortex_indicator", 2)
-            if vortex:
-                vi_plus, vi_minus = vortex
-                trend_bias = "bullish" if vi_plus > vi_minus else "bearish" if vi_minus > vi_plus else "neutral"
-                advanced_indicators.append(f"- Vortex Indicator: VI+ {fmt_val(vi_plus)}, VI- {fmt_val(vi_minus)} ({trend_bias} bias)")
-
-            # TRIX
-            trix_value = self.indicator_calculator.get_indicator_value(td, "trix")
-            if trix_value != 'N/A':
-                trix_bias = "bullish" if trix_value > 0 else "bearish" if trix_value < 0 else "neutral"
-                advanced_indicators.append(f"- TRIX(18): {fmt_val(trix_value)} ({trix_bias})")
-
-            # PFE
-            pfe_value = self.indicator_calculator.get_indicator_value(td, "pfe")
-            if pfe_value != 'N/A':
-                pfe_signal = "strong trend" if abs(pfe_value) > 80 else "moderate trend" if abs(pfe_value) > 50 else "weak trend"
-                advanced_indicators.append(f"- PFE(10): {fmt_val(pfe_value)} ({pfe_signal})")
-
-            # TSI
-            tsi_value = self.indicator_calculator.get_indicator_value(td, "tsi")
-            if tsi_value != 'N/A':
-                tsi_bias = "bullish" if tsi_value > 0 else "bearish" if tsi_value < 0 else "neutral"
-                advanced_indicators.append(f"- TSI(25,13): {fmt_val(tsi_value)} ({tsi_bias})")
-
-            # RMI
-            rmi_value = self.indicator_calculator.get_indicator_value(td, "rmi")
-            if rmi_value != 'N/A':
-                rmi_condition = "overbought" if rmi_value > 70 else "oversold" if rmi_value < 30 else "neutral"
-                advanced_indicators.append(f"- RMI(14,5): {fmt_val(rmi_value)} ({rmi_condition})")
-
-            # PPO
-            ppo_value = self.indicator_calculator.get_indicator_value(td, "ppo")
-            if ppo_value != 'N/A':
-                ppo_bias = "bullish" if ppo_value > 0 else "bearish" if ppo_value < 0 else "neutral"
-                advanced_indicators.append(f"- PPO(12,26): {fmt_val(ppo_value)}% ({ppo_bias})")
-
-            # Coppock Curve
-            coppock_value = self.indicator_calculator.get_indicator_value(td, "coppock")
-            if coppock_value != 'N/A':
-                coppock_signal = "bullish" if coppock_value > 0 else "bearish" if coppock_value < 0 else "neutral"
-                advanced_indicators.append(f"- Coppock Curve: {fmt_val(coppock_value)} ({coppock_signal})")
-
-            # Ultimate Oscillator
-            uo_value = self.indicator_calculator.get_indicator_value(td, "uo")
-            if uo_value != 'N/A':
-                uo_condition = "overbought" if uo_value > 70 else "oversold" if uo_value < 30 else "neutral"
-                advanced_indicators.append(f"- Ultimate Oscillator: {fmt_val(uo_value)} ({uo_condition})")
-
-            # KST
-            kst_value = self.indicator_calculator.get_indicator_value(td, "kst")
-            if kst_value != 'N/A':
-                kst_bias = "bullish" if kst_value > 0 else "bearish" if kst_value < 0 else "neutral"
-                advanced_indicators.append(f"- KST: {fmt_val(kst_value)} ({kst_bias})")
-
-            # Chandelier Exit
-            long_exit = self.indicator_calculator.get_indicator_value(td, "chandelier_long")
-            short_exit = self.indicator_calculator.get_indicator_value(td, "chandelier_short")
-            if long_exit != 'N/A' and short_exit != 'N/A' and hasattr(self.context, 'current_price') and self.context.current_price is not None:
-                current_price = float(self.context.current_price)
-                chandelier_signal = "neutral"
-                if current_price > long_exit:
-                    chandelier_signal = f"Price ({fmt(current_price)}) above long exit ({fmt(long_exit)}) - bullish"
-                elif current_price < short_exit:
-                    chandelier_signal = f"Price ({fmt(current_price)}) below short exit ({fmt(short_exit)}) - bearish"
-                else:
-                    chandelier_signal = f"Price ({fmt(current_price)}) between exit levels ({fmt(short_exit)} - {fmt(long_exit)}) - neutral"
-                advanced_indicators.append(f"- Chandelier Exit: {chandelier_signal}")
-
-            if advanced_indicators:
-                advanced_indicators_section = "\n\n## Advanced Technical Indicators:\n" + "\n".join(advanced_indicators)
+    def _ta_advanced_indicators_section(self, td: dict) -> str:
+        try:
+            lines = []
+            
+            # Process vortex indicator
+            lines.extend(self._format_vortex_indicator(td))
+            
+            # Process basic momentum indicators
+            lines.extend(self._format_momentum_indicators(td))
+            
+            # Process oscillators
+            lines.extend(self._format_oscillator_indicators(td))
+            
+            # Process chandelier exit
+            lines.extend(self._format_chandelier_exit(td))
+            
+            return ("\n\n## Advanced Technical Indicators:\n" + "\n".join(lines)) if lines else ""
         except Exception as e:
             if self.logger:
                 self.logger.warning(f"Could not extract/format advanced indicator values: {e}")
-            advanced_indicators_section = "\n\n## Advanced Technical Indicators:\n- Data unavailable or processing error."
+            return "\n\n## Advanced Technical Indicators:\n- Data unavailable or processing error."
+    
+    def _format_vortex_indicator(self, td: dict) -> list[str]:
+        """Format vortex indicator data."""
+        vortex = self.indicator_calculator.get_indicator_values(td, "vortex_indicator", 2)
+        if not vortex:
+            return []
+        
+        vi_plus, vi_minus = vortex
+        if self._is_valid_value(vi_plus) and self._is_valid_value(vi_minus):
+            bias = "bullish" if vi_plus > vi_minus else "bearish" if vi_minus > vi_plus else "neutral"
+            return [f"- Vortex Indicator: VI+ {self._fmt_val(vi_plus)}, VI- {self._fmt_val(vi_minus)} ({bias} bias)"]
+        return []
+    
+    def _format_momentum_indicators(self, td: dict) -> list[str]:
+        """Format basic momentum indicators."""
+        lines = []
+        momentum_indicators = [
+            ("trix", "TRIX(18)", False),
+            ("tsi", "TSI(25,13)", False),
+            ("ppo", "PPO(12,26)", True),  # True means add % suffix
+            ("coppock", "Coppock Curve", False),
+            ("kst", "KST", False)
+        ]
+        
+        for key, label, add_percent in momentum_indicators:
+            lines.extend(self._format_single_momentum_indicator(td, key, label, add_percent))
+        
+        return lines
+    
+    def _format_single_momentum_indicator(self, td: dict, key: str, label: str, add_percent: bool) -> list[str]:
+        """Format a single momentum indicator."""
+        value = self.indicator_calculator.get_indicator_value(td, key)
+        if not self._is_valid_value(value):
+            return []
+        
+        bias = self._get_momentum_bias(value)
+        suffix = '%' if add_percent else ''
+        return [f"- {label}: {self._fmt_val(value)}{suffix} ({bias})"]
+    
+    def _format_oscillator_indicators(self, td: dict) -> list[str]:
+        """Format oscillator indicators (RMI, Ultimate Oscillator)."""
+        lines = []
+        
+        # RMI indicator
+        rmi_value = self.indicator_calculator.get_indicator_value(td, "rmi")
+        if self._is_valid_value(rmi_value):
+            condition = self._get_oscillator_condition(rmi_value)
+            lines.append(f"- RMI(14,5): {self._fmt_val(rmi_value)} ({condition})")
+        
+        # Ultimate Oscillator
+        uo_value = self.indicator_calculator.get_indicator_value(td, "uo")
+        if self._is_valid_value(uo_value):
+            condition = self._get_oscillator_condition(uo_value)
+            lines.append(f"- Ultimate Oscillator: {self._fmt_val(uo_value)} ({condition})")
+        
+        return lines
+    
+    def _format_chandelier_exit(self, td: dict) -> list[str]:
+        """Format chandelier exit indicator."""
+        long_exit = self.indicator_calculator.get_indicator_value(td, "chandelier_long")
+        short_exit = self.indicator_calculator.get_indicator_value(td, "chandelier_short")
+        
+        if (not self._is_valid_value(long_exit) or 
+            not self._is_valid_value(short_exit) or 
+            not hasattr(self.context, 'current_price') or 
+            self.context.current_price is None):
+            return []
+        
+        current_price = float(self.context.current_price)
+        message = self._get_chandelier_message(current_price, long_exit, short_exit)
+        return [f"- Chandelier Exit: {message}"]
+    
+    def _get_chandelier_message(self, price: float, long_exit: float, short_exit: float) -> str:
+        """Generate chandelier exit message based on price position."""
+        if price > long_exit:
+            return f"Price ({fmt(price)}) above long exit ({fmt(long_exit)}) - bullish"
+        elif price < short_exit:
+            return f"Price ({fmt(price)}) below short exit ({fmt(short_exit)}) - bearish"
+        else:
+            return f"Price ({fmt(price)}) between exit levels ({fmt(short_exit)} - {fmt(long_exit)}) - neutral"
+    
+    def _is_valid_value(self, value) -> bool:
+        """Check if a value is valid for formatting."""
+        return isinstance(value, (int, float)) and not np.isnan(value)
+    
+    def _fmt_val(self, value, precision=8) -> str:
+        """Format a value safely."""
+        return fmt(value, precision) if self._is_valid_value(value) else 'N/A'
+    
+    def _get_momentum_bias(self, value) -> str:
+        """Get bias string for momentum indicators."""
+        if not isinstance(value, (int, float)):
+            return "neutral"
+        return "bullish" if value > 0 else "bearish" if value < 0 else "neutral"
+    
+    def _get_oscillator_condition(self, value) -> str:
+        """Get condition string for oscillator indicators."""
+        if value > 70:
+            return "overbought"
+        elif value < 30:
+            return "oversold"
+        else:
+            return "neutral"
 
-        # --- 4. Build Main TA Section ---
-        # Use helper for safe formatting with borrowed fmt function
-        def fmt_ta(key, precision=8, default='N/A'):
-             val = self.indicator_calculator.get_indicator_value(td, key)
-             # Ensure val is numeric before formatting
-             if isinstance(val, (int, float)) and not np.isnan(val):
-                 return fmt(val, precision)
-             return default
-
-        # Build Key Levels Section dynamically
-        key_levels_lines = ["## Key Levels:"]
-        # Basic S/R (Rolling Min/Max)
-        basic_s = self.indicator_calculator.get_indicator_value(td, "basic_support")
-        basic_r = self.indicator_calculator.get_indicator_value(td, "basic_resistance")
-        if basic_s != 'N/A': key_levels_lines.append(f"- Basic Support (Rolling Min): {fmt(basic_s)}")
-        if basic_r != 'N/A': key_levels_lines.append(f"- Basic Resistance (Rolling Max): {fmt(basic_r)}")
-
-        # Bollinger Bands
-        bb_l = self.indicator_calculator.get_indicator_value(td, "bb_lower")
-        bb_m = self.indicator_calculator.get_indicator_value(td, "bb_middle")
-        bb_u = self.indicator_calculator.get_indicator_value(td, "bb_upper")
-        if bb_l != 'N/A': key_levels_lines.append(f"- Bollinger Lower: {fmt(bb_l)}")
-        if bb_m != 'N/A': key_levels_lines.append(f"- Bollinger Middle: {fmt(bb_m)}")
-        if bb_u != 'N/A': key_levels_lines.append(f"- Bollinger Upper: {fmt(bb_u)}")
-
-        # Supertrend
+    def _ta_key_levels_section(self, td: dict) -> str:
+        """Build key levels section with support and resistance data."""
+        lines = ["## Key Levels:"]
+        
+        # Add basic support and resistance
+        self._add_basic_levels(lines, td)
+        
+        # Add Bollinger Bands
+        self._add_bollinger_levels(lines, td)
+        
+        # Add Supertrend level
+        self._add_supertrend_level(lines, td)
+        
+        # Add advanced support/resistance
+        self._add_advanced_levels(lines, td)
+        
+        return "\n" + "\n".join(lines) if len(lines) > 1 else ""
+    
+    def _add_basic_levels(self, lines: list[str], td: dict) -> None:
+        """Add basic support and resistance levels."""
+        basic_support = self.indicator_calculator.get_indicator_value(td, "basic_support")
+        basic_resistance = self.indicator_calculator.get_indicator_value(td, "basic_resistance")
+        
+        if basic_support != 'N/A':
+            lines.append(f"- Basic Support (Rolling Min): {fmt(basic_support)}")
+        if basic_resistance != 'N/A':
+            lines.append(f"- Basic Resistance (Rolling Max): {fmt(basic_resistance)}")
+    
+    def _add_bollinger_levels(self, lines: list[str], td: dict) -> None:
+        """Add Bollinger Band levels."""
+        bollinger_levels = [
+            ("bb_lower", "Bollinger Lower"),
+            ("bb_middle", "Bollinger Middle"),
+            ("bb_upper", "Bollinger Upper")
+        ]
+        
+        for key, label in bollinger_levels:
+            value = self.indicator_calculator.get_indicator_value(td, key)
+            if value != 'N/A':
+                lines.append(f"- {label}: {fmt(value)}")
+    
+    def _add_supertrend_level(self, lines: list[str], td: dict) -> None:
+        """Add Supertrend level and direction."""
         st_val = self.indicator_calculator.get_indicator_value(td, "supertrend")
-        st_dir = td.get("supertrend_direction", None)
-        if st_val != 'N/A':
-            st_dir_str = "(Direction Unknown)"
-            if st_dir is not None:
-                 st_dir_str = "(Currently Bullish)" if st_dir == 1 else "(Currently Bearish)" if st_dir == -1 else ""
-            key_levels_lines.append(f"- Supertrend Level: {fmt(st_val)} {st_dir_str}")
+        if st_val == 'N/A':
+            return
+            
+        st_dir = td.get('supertrend_direction')
+        dir_str = self._get_supertrend_direction_string(st_dir)
+        lines.append(f"- Supertrend Level: {fmt(st_val)} {dir_str}")
+    
+    def _get_supertrend_direction_string(self, direction) -> str:
+        """Get formatted direction string for Supertrend."""
+        if direction is None:
+            return "(Direction Unknown)"
+        elif direction == 1:
+            return "(Currently Bullish)"
+        elif direction == -1:
+            return "(Currently Bearish)"
+        else:
+            return ""
+    
+    def _add_advanced_levels(self, lines: list[str], td: dict) -> None:
+        """Add advanced support and resistance levels."""
+        adv_levels = self.indicator_calculator.get_indicator_values(td, "support_resistance", 2)
+        if len(adv_levels) != 2:
+            return
+            
+        current_price = getattr(self.context, 'current_price', 0) or 0
+        if not current_price:
+            return
+            
+        support_level, resistance_level = adv_levels
+        
+        if support_level != 'N/A':
+            support_distance = ((support_level - current_price) / current_price) * 100
+            lines.append(f"- Advanced Support (Vol-based): {fmt(support_level)} ({support_distance:.2f}% below price)")
+            
+        if resistance_level != 'N/A':
+            resistance_distance = ((resistance_level - current_price) / current_price) * 100
+            lines.append(f"- Advanced Resistance (Vol-based): {fmt(resistance_level)} ({resistance_distance:.2f}% above price)")
 
-        # Advanced S/R (Vol-based)
-        adv_sr = self.indicator_calculator.get_indicator_values(td, "support_resistance", 2)
-        if len(adv_sr) == 2:
-            s_level, r_level = adv_sr
-            current_price = self.context.current_price if hasattr(self.context, 'current_price') and self.context.current_price is not None else 0
-            if s_level != 'N/A':
-                support_distance = ((s_level - current_price) / current_price) * 100 if current_price != 0 else 0
-                key_levels_lines.append(f"- Advanced Support (Vol-based): {fmt(s_level)} ({support_distance:.2f}% below price)")
-            if r_level != 'N/A':
-                resistance_distance = ((r_level - current_price) / current_price) * 100 if current_price != 0 else 0
-                key_levels_lines.append(f"- Advanced Resistance (Vol-based): {fmt(r_level)} ({resistance_distance:.2f}% above price)")
-
-        key_levels_section = "\n" + "\n".join(key_levels_lines) if len(key_levels_lines) > 1 else ""        # Get pattern information from PatternRecognizer
-        pattern_info = ""
+    def _ta_recent_patterns(self) -> str:
         try:
-            # Get patterns using the centralized PatternRecognizer
             if hasattr(self.context, 'ohlcv_candles') and hasattr(self.context, 'technical_data'):
-                ohlcv_data = self.context.ohlcv_candles
-                technical_history = self.context.technical_data.get('history', {})
-                patterns = self.indicator_calculator.get_all_patterns(ohlcv_data, technical_history)
-                
+                ohlcv = self.context.ohlcv_candles
+                history = self.context.technical_data.get('history', {})
+                patterns = self.indicator_calculator.get_all_patterns(ohlcv, history)
                 if patterns:
-                    pattern_descriptions = []
-                    for pattern in patterns[-5:]:  # Show last 5 patterns
-                        description = pattern.get('description', 'Unknown pattern')
-                        pattern_descriptions.append(f"- {description}")
-                    pattern_info = "\n\n## Recent Patterns Detected:\n" + "\n".join(pattern_descriptions)
+                    desc = [f"- {p.get('description', 'Unknown pattern')}" for p in patterns[-5:]]
+                    return "\n\n## Recent Patterns Detected:\n" + "\n".join(desc)
         except Exception as e:
             if self.logger:
                 self.logger.debug(f"Could not retrieve pattern information: {e}")
+        return ""
 
-        # --- Add minimal interpretations for critical indicators only ---
-        cmf_val = self.indicator_calculator.get_indicator_value(td, "cmf")
-        cmf_interpretation = ""
+    def _ta_cmf_interpretation(self, td: dict) -> str:
+        cmf_val = self.indicator_calculator.get_indicator_value(td, 'cmf')
         if isinstance(cmf_val, (int, float)):
             if cmf_val > 0:
-                cmf_interpretation = " (Positive suggests buying pressure)"
-            elif cmf_val < 0:
-                cmf_interpretation = " (Negative suggests selling pressure)"
-
-        technical_analysis = f"""
-TECHNICAL ANALYSIS ({self.timeframe}):
-
-## Price Action:
-- Current Price: {fmt(self.context.current_price) if hasattr(self.context, 'current_price') else 0.0}
-- Rolling VWAP (14): {fmt_ta("vwap", 8)}
-- TWAP (14): {fmt_ta("twap", 8)}
-
-## Momentum Indicators:
-- RSI(14): {fmt_ta("rsi", 1)} [<{self.INDICATOR_THRESHOLDS['rsi']['oversold']}=Oversold, {self.INDICATOR_THRESHOLDS['rsi']['oversold']}-{self.INDICATOR_THRESHOLDS['rsi']['overbought']}=Neutral, >{self.INDICATOR_THRESHOLDS['rsi']['overbought']}=Overbought]
-- MACD (12,26,9): [Pattern detector provides crossover analysis]
-  * Line: {fmt_ta("macd_line", 8)}
-  * Signal: {fmt_ta("macd_signal", 8)}
-  * Histogram: {fmt_ta("macd_hist", 8)}
-- Stochastic %K(5,3,3): {fmt_ta("stoch_k", 1)} [<{self.INDICATOR_THRESHOLDS['stoch_k']['oversold']}=Oversold, >{self.INDICATOR_THRESHOLDS['stoch_k']['overbought']}=Overbought]
-- Stochastic %D(5,3,3): {fmt_ta("stoch_d", 1)} [<{self.INDICATOR_THRESHOLDS['stoch_d']['oversold']}=Oversold, >{self.INDICATOR_THRESHOLDS['stoch_d']['overbought']}=Overbought]
-- Williams %R(14): {fmt_ta("williams_r", 1)} [<{self.INDICATOR_THRESHOLDS['williams_r']['oversold']}=Oversold, >{self.INDICATOR_THRESHOLDS['williams_r']['overbought']}=Overbought]
-
-## Trend Indicators:
-- ADX(14): {fmt_ta("adx", 1)} [0-{self.INDICATOR_THRESHOLDS['adx']['weak']}: Weak/No Trend, {self.INDICATOR_THRESHOLDS['adx']['weak']}-{self.INDICATOR_THRESHOLDS['adx']['strong']}: Strong, {self.INDICATOR_THRESHOLDS['adx']['strong']}-{self.INDICATOR_THRESHOLDS['adx']['very_strong']}: Very Strong, >{self.INDICATOR_THRESHOLDS['adx']['very_strong']}: Extremely Strong]
-- +DI(14): {fmt_ta("plus_di", 1)} [Pattern detector analyzes DI crossovers]
-- -DI(14): {fmt_ta("minus_di", 1)}
-- Supertrend(7,3.0) Direction: {'Bullish' if td.get('supertrend_direction', 0) > 0 else 'Bearish' if td.get('supertrend_direction', 0) < 0 else 'Neutral'}
-
-## Volatility Analysis:
-- ATR(14): {fmt_ta("atr", 8)}
-- Bollinger Band Width (%): {self.indicator_calculator.calculate_bb_width(td):.2f}% [<{self.INDICATOR_THRESHOLDS['bb_width']['tight']}%=Tight, >{self.INDICATOR_THRESHOLDS['bb_width']['wide']}%=Wide]
-
-## Volume Analysis:
-- MFI(14): {fmt_ta("mfi", 1)} [<{self.INDICATOR_THRESHOLDS['mfi']['oversold']}=Oversold, >{self.INDICATOR_THRESHOLDS['mfi']['overbought']}=Overbought]
-- On Balance Volume (OBV): {fmt_ta("obv", 0)}
-- Chaikin MF(20): {fmt_ta("cmf", 4)}{cmf_interpretation}
-- Force Index(13): {fmt_ta("force_index", 0)}
-
-## Statistical Metrics:
-- Hurst Exponent(20): {fmt_ta("hurst", 2)} [~0.5: Random Walk, >0.5: Trending, <0.5: Mean Reverting]
-- Z-Score(30): {fmt_ta("zscore", 2)} [Distance from mean in std deviations]
-- Kurtosis(30): {fmt_ta("kurtosis", 2)} [Tail risk indicator; >3 suggests fatter tails]
-{key_levels_section}
-{ichimoku_section}
-{advanced_indicators_section}
-{patterns_section}{pattern_info}"""
-
-        return technical_analysis.strip()
+                return " (Positive suggests buying pressure)"
+            if cmf_val < 0:
+                return " (Negative suggests selling pressure)"
+        return ""
 
     def _build_market_period_metrics(self) -> str:
         """Build market period metrics section using the indicator calculator"""

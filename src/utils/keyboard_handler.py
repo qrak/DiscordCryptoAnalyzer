@@ -45,31 +45,46 @@ class KeyboardHandler:
             
         while self.running:
             try:
-                # Non-blocking check for keypress (Windows)
-                if msvcrt.kbhit():
-                    # Read a single character
-                    key = msvcrt.getch().decode('utf-8', errors='ignore').lower()
-                    
-                    # Process the key
-                    if key in self._commands:
-                        callback, description = self._commands[key]
-                        try:
-                            await callback()
-                        except Exception as e:
-                            if self.logger:
-                                self.logger.error(f"Error executing keyboard command '{key}': {e}")
-                
-                # Short sleep to prevent CPU hogging
-                await asyncio.sleep(0.1)
+                await self._process_keyboard_input()
+                await asyncio.sleep(0.1)  # Prevent CPU hogging
                 
             except asyncio.CancelledError:
                 if self.logger:
                     self.logger.debug("Keyboard listener task cancelled")
                 break
             except Exception as e:
-                if self.logger:
-                    self.logger.error(f"Error in keyboard handler: {e}")
-                await asyncio.sleep(1)  # Longer sleep on error
+                await self._handle_keyboard_error(e)
+
+    async def _process_keyboard_input(self) -> None:
+        """Process keyboard input if available."""
+        if not msvcrt.kbhit():
+            return
+            
+        key = self._read_key()
+        if key and key in self._commands:
+            await self._execute_command(key)
+
+    def _read_key(self) -> Optional[str]:
+        """Read a single character from keyboard input."""
+        try:
+            return msvcrt.getch().decode('utf-8', errors='ignore').lower()
+        except Exception:
+            return None
+
+    async def _execute_command(self, key: str) -> None:
+        """Execute a keyboard command."""
+        callback, description = self._commands[key]
+        try:
+            await callback()
+        except Exception as e:
+            if self.logger:
+                self.logger.error(f"Error executing keyboard command '{key}': {e}")
+
+    async def _handle_keyboard_error(self, error: Exception) -> None:
+        """Handle errors in keyboard processing."""
+        if self.logger:
+            self.logger.error(f"Error in keyboard handler: {error}")
+        await asyncio.sleep(1)  # Longer sleep on error
     
     async def stop_listening(self) -> None:
         """Stop listening for keyboard input"""

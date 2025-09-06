@@ -48,8 +48,6 @@ class GoogleAIClient(BaseApiClient):
     @retry_api_call(max_retries=3, initial_delay=1, backoff_factor=2, max_delay=30)
     async def chat_completion(self, messages: List[Dict[str, Any]], model_config: Dict[str, Any]) -> Optional[ResponseDict]:
         """Send a chat completion request to the Google AI API."""
-        session = self._ensure_session()
-        
         # Convert messages to Google format
         google_messages = self._convert_messages_to_google_format(messages)
         
@@ -64,50 +62,37 @@ class GoogleAIClient(BaseApiClient):
         }
         
         url = f"{self.base_url}/{self.model}:generateContent?key={self.api_key}"
+        headers = {"Content-Type": "application/json"}
         
         try:
-            self.logger.debug(f"Sending request to Google Studio API with model: {self.model}")
-            async with session.post(
-                url, 
-                json=payload,
-                headers={"Content-Type": "application/json"},
-                timeout=300
-            ) as response:
-                if response.status != 200:
-                    return await self._handle_error_response(response, self.model)
-                    
-                response_data = await response.json()
+            response_data = await self._make_post_request(url, headers, payload, self.model)
+            
+            if not response_data:
+                return None
                 
-                # Check for empty response
-                if not response_data or "candidates" not in response_data or not response_data["candidates"]:
-                    self.logger.error(f"Empty response from Google API: {response_data}")
-                    return None
-                
-                candidate = response_data["candidates"][0]
-                
-                # Check for truncation due to token limits
-                if "finishReason" in candidate and candidate["finishReason"] == "MAX_TOKENS":
-                    self.logger.warning(f"Response truncated due to token limit for model {self.model}")
-                
-                # Format response to match OpenRouter format
-                content = candidate["content"]["parts"][0]["text"]
-                self.logger.debug(f"Received successful response from Google API")
-                
-                return {
-                    "choices": [{
-                        "message": {
-                            "content": content,
-                            "role": "assistant"
-                        }
-                    }]
-                }
-                
-        except asyncio.TimeoutError as e:
-            self.logger.error(f"Timeout error when requesting Google API: {e}")
-            return {"error": "timeout", "details": str(e)}
-        except aiohttp.ClientError as e:
-            self.logger.error(f"Network error when requesting Google API: {type(e).__name__} - {e}")
-            return None
-        except Exception as e:
-            self.logger.error(f"Unexpected error when requesting Google API: {type(e).__name__} - {e}")
-            return None
+            # Check for empty response
+            if "candidates" not in response_data or not response_data["candidates"]:
+                self.logger.error(f"Empty response from Google API: {response_data}")
+                return None
+            
+            candidate = response_data["candidates"][0]
+            
+            # Check for truncation due to token limits
+            if "finishReason" in candidate and candidate["finishReason"] == "MAX_TOKENS":
+                self.logger.warning(f"Response truncated due to token limit for model {self.model}")
+            
+            # Format response to match OpenRouter format
+            content = candidate["content"]["parts"][0]["text"]
+            self.logger.debug(f"Received successful response from Google API")
+            
+            return {
+                "choices": [{
+                    "message": {
+                        "content": content,
+                        "role": "assistant"
+                    }
+                }]
+            }
+            
+        except Exception:
+            return await self._handle_common_exceptions(self.model, "requesting Google API")

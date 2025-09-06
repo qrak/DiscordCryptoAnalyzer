@@ -179,20 +179,29 @@ class ResponseFormatter:
     def _process_nested_dict(self, obj):
         """Process numbers in nested dictionary structures."""
         if isinstance(obj, dict):
-            for key, value in obj.items():
-                if isinstance(value, (int, float)) and abs(value) < 0.01:
-                    if value < 0.0001:
-                        obj[key] = f"{value:.8f}".rstrip('0').rstrip('.')
-                    else:
-                        obj[key] = f"{value:.6f}".rstrip('0').rstrip('.')
-                elif isinstance(value, list):
-                    for i, item in enumerate(value):
-                        if isinstance(item, (int, float)) and abs(item) < 0.01:
-                            if item < 0.0001:
-                                value[i] = f"{item:.8f}".rstrip('0').rstrip('.')
-                            else:
-                                value[i] = f"{item:.6f}".rstrip('0').rstrip('.')
-                        elif isinstance(item, (dict, list)):
-                            self._process_nested_dict(item)
-                elif isinstance(value, (dict, list)):
-                    self._process_nested_dict(value)
+            self._process_dict_values(obj)
+        elif isinstance(obj, list):
+            self._process_list_items(obj)
+    
+    def _process_dict_values(self, obj_dict: dict):
+        """Process values in a dictionary"""
+        for key, value in obj_dict.items():
+            if isinstance(value, (int, float)) and abs(value) < 0.01:
+                obj_dict[key] = self._format_small_number(value)
+            elif isinstance(value, (dict, list)):
+                self._process_nested_dict(value)
+    
+    def _process_list_items(self, obj_list: list):
+        """Process items in a list"""
+        for i, item in enumerate(obj_list):
+            if isinstance(item, (int, float)) and abs(item) < 0.01:
+                obj_list[i] = self._format_small_number(item)
+            elif isinstance(item, (dict, list)):
+                self._process_nested_dict(item)
+    
+    def _format_small_number(self, value: float) -> str:
+        """Format a small number to appropriate decimal places"""
+        if abs(value) < 0.0001:
+            return f"{value:.8f}".rstrip('0').rstrip('.')
+        else:
+            return f"{value:.6f}".rstrip('0').rstrip('.')

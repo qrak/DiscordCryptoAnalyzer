@@ -93,12 +93,14 @@ class DivergencePatternDetector(BasePatternDetector):
         
         return patterns
     
-    def _detect_stochastic_divergences(self, 
-                                      recent_prices: List[float], 
-                                      recent_stoch: List[float],
+    def _detect_short_term_divergences(self,
+                                      recent_prices: List[float],
+                                      recent_indicator: List[float],
                                       market_data: MarketData,
-                                      original_start_index: int) -> List[Pattern]:
-        """Detect divergences between price and Stochastic"""
+                                      indicator_name: str,
+                                      bullish_message: str,
+                                      bearish_message: str) -> List[Pattern]:
+        """Generic method to detect short-term divergences between price and an indicator"""
         patterns = []
         
         # Recent price movement (for short-term divergences)
@@ -106,34 +108,46 @@ class DivergencePatternDetector(BasePatternDetector):
         price_short_term_higher = recent_prices[-1] > recent_prices[-self.short_term_lookback]
         
         # Recent indicator movements (for short-term divergences)
-        stoch_short_term_lower = recent_stoch[-1] < recent_stoch[-self.short_term_lookback]
-        stoch_short_term_higher = recent_stoch[-1] > recent_stoch[-self.short_term_lookback]
+        indicator_short_term_lower = recent_indicator[-1] < recent_indicator[-self.short_term_lookback]
+        indicator_short_term_higher = recent_indicator[-1] > recent_indicator[-self.short_term_lookback]
         
         # Get current timestamp
         timestamp = market_data.get_timestamp_at_index(len(market_data.ohlcv) - 1)
         
-        # Stochastic divergences
-        if price_short_term_lower and stoch_short_term_higher:
+        # Check for divergence patterns
+        if price_short_term_lower and indicator_short_term_higher:
             pattern = Pattern(
                 "bullish_divergence",
-                "Bullish stochastic divergence: price making lower lows while stochastic making higher lows.",
-                timestamp=timestamp,  # Add timestamp
-                indicator="Stochastic"
+                bullish_message,
+                timestamp=timestamp,
+                indicator=indicator_name
             )
             self._log_detection(pattern)
             patterns.append(pattern)
 
-        if price_short_term_higher and stoch_short_term_lower:
+        if price_short_term_higher and indicator_short_term_lower:
             pattern = Pattern(
                 "bearish_divergence",
-                "Bearish stochastic divergence: price making higher highs while stochastic making lower highs.",
-                timestamp=timestamp,  # Add timestamp
-                indicator="Stochastic"
+                bearish_message,
+                timestamp=timestamp,
+                indicator=indicator_name
             )
             self._log_detection(pattern)
             patterns.append(pattern)
         
         return patterns
+    
+    def _detect_stochastic_divergences(self, 
+                                      recent_prices: List[float], 
+                                      recent_stoch: List[float],
+                                      market_data: MarketData,
+                                      original_start_index: int) -> List[Pattern]:
+        """Detect divergences between price and Stochastic"""
+        return self._detect_short_term_divergences(
+            recent_prices, recent_stoch, market_data, "Stochastic",
+            "Bullish stochastic divergence: price making lower lows while stochastic making higher lows.",
+            "Bearish stochastic divergence: price making higher highs while stochastic making lower highs."
+        )
     
     def _detect_macd_divergences(self, 
                                 recent_prices: List[float], 
@@ -141,38 +155,8 @@ class DivergencePatternDetector(BasePatternDetector):
                                 market_data: MarketData,
                                 original_start_index: int) -> List[Pattern]:
         """Detect divergences between price and MACD"""
-        patterns = []
-        
-        # Recent price movement (for short-term divergences)
-        price_short_term_lower = recent_prices[-1] < recent_prices[-self.short_term_lookback]
-        price_short_term_higher = recent_prices[-1] > recent_prices[-self.short_term_lookback]
-        
-        # Recent indicator movements (for short-term divergences)
-        macd_short_term_lower = recent_macd[-1] < recent_macd[-self.short_term_lookback]
-        macd_short_term_higher = recent_macd[-1] > recent_macd[-self.short_term_lookback]
-        
-        # Get current timestamp
-        timestamp = market_data.get_timestamp_at_index(len(market_data.ohlcv) - 1)
-        
-        # MACD divergences
-        if price_short_term_higher and macd_short_term_lower:
-            pattern = Pattern(
-                "bearish_divergence",
-                "Bearish MACD divergence: price moving up while MACD trending down.",
-                timestamp=timestamp,  # Add timestamp
-                indicator="MACD"
-            )
-            self._log_detection(pattern)
-            patterns.append(pattern)
-
-        if price_short_term_lower and macd_short_term_higher:
-            pattern = Pattern(
-                "bullish_divergence",
-                "Bullish MACD divergence: price moving down while MACD trending up.",
-                timestamp=timestamp,  # Add timestamp
-                indicator="MACD"
-            )
-            self._log_detection(pattern)
-            patterns.append(pattern)
-        
-        return patterns
+        return self._detect_short_term_divergences(
+            recent_prices, recent_macd, market_data, "MACD",
+            "Bullish MACD divergence: price moving down while MACD trending up.",
+            "Bearish MACD divergence: price moving up while MACD trending down."
+        )

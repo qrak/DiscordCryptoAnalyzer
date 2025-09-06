@@ -1,4 +1,5 @@
-from typing import Optional, Dict, Any
+import asyncio
+from typing import Optional, Dict, Any, List, cast
 
 import aiohttp
 
@@ -63,3 +64,61 @@ class BaseApiClient:
             return {"error": "timeout", "details": error_text}
                 
         return {"error": f"http_{response.status}", "details": error_text}
+    
+    async def _handle_common_exceptions(self, model: str, operation: str = "request") -> Optional[Dict[str, Any]]:
+        """
+        Common exception handling for all API clients.
+        Returns a dictionary for specific exceptions that should be handled differently,
+        None for exceptions that should be re-raised.
+        """
+        try:
+            raise  # Re-raise the current exception
+        except asyncio.TimeoutError as e:
+            self.logger.error(f"Timeout error when {operation} for model {model}: {e}")
+            return {"error": "timeout", "details": str(e)}
+        except aiohttp.ClientError as e:
+            self.logger.error(f"Network error when {operation} for model {model}: {type(e).__name__} - {e}")
+            return None  # Network errors usually not retried
+        except Exception as e:
+            self.logger.error(f"Unexpected error when {operation} for model {model}: {type(e).__name__} - {e}")
+            return None
+    
+    async def _make_post_request(self, 
+                                url: str,
+                                headers: Dict[str, str], 
+                                payload: Dict[str, Any],
+                                model: str,
+                                timeout: int = 300) -> Optional[Dict[str, Any]]:
+        """
+        Common POST request method with standardized error handling.
+        
+        Args:
+            url: The URL to send the request to
+            headers: Request headers
+            payload: Request payload
+            model: Model name for logging
+            timeout: Request timeout in seconds
+            
+        Returns:
+            Response data or error dictionary
+        """
+        session = self._ensure_session()
+        
+        try:
+            request_id = id(payload.get('messages', payload))
+            self.logger.debug(f"Sending request #{request_id} to {self.__class__.__name__} with model: {model}")
+
+            async with session.post(url, headers=headers, json=payload, timeout=timeout) as response:
+                if response.status != 200:
+                    return await self._handle_error_response(response, model)
+                
+                response_json = await response.json()
+                if "error" in response_json:
+                    self.logger.error(f"API returned error payload for model {model}: {response_json['error']}")
+                    return response_json
+                    
+                self.logger.debug(f"Received successful response for model {model}")
+                return response_json
+                    
+        except Exception:
+            return await self._handle_common_exceptions(model, "requesting")
