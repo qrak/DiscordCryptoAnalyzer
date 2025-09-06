@@ -475,6 +475,20 @@ class SupportResistanceIndicators(IndicatorCategory['SupportResistanceIndicators
             required_length=lookback
         )
 
+    def pivot_points(self) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        """Calculate standard pivot points and support/resistance levels
+        
+        Returns:
+            Tuple of (pivot_point, r1, r2, s1, s2) arrays
+        """
+        return self._base.calculate_indicator(
+            pivot_points_numba,
+            self.high,
+            self.low,
+            self.close,
+            required_length=1
+        )
+
 
 class TrendIndicators(IndicatorCategory['TrendIndicators']):
     def adx(self, length: int = 14) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:

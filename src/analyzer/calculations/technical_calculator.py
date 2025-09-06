@@ -113,6 +113,33 @@ class TechnicalCalculator:
         )
         indicators["support_resistance"] = [adv_support[-1], adv_resistance[-1]]
         
+        # Add Fibonacci retracement levels
+        fib_levels = self.ti.support_resistance.fibonacci_retracement(length=20)
+        if fib_levels is not None and len(fib_levels) > 0:
+            # Extract specific Fibonacci levels expected by formatter
+            # Fibonacci levels are typically [0.0, 0.236, 0.382, 0.5, 0.618, 0.786, 1.0]
+            latest_fib = fib_levels[-1]  # Get latest values
+            if len(latest_fib) >= 7:  # Ensure we have enough levels
+                indicators["fib_236"] = latest_fib[1]  # 23.6%
+                indicators["fib_382"] = latest_fib[2]  # 38.2%
+                indicators["fib_500"] = latest_fib[3]  # 50%
+                indicators["fib_618"] = latest_fib[4]  # 61.8%
+        
+        # Add Pivot Points using the proper numba implementation
+        pivot_point, r1, r2, s1, s2 = self.ti.support_resistance.pivot_points()
+        indicators["pivot_point"] = pivot_point[-1] if len(pivot_point) > 0 and not np.isnan(pivot_point[-1]) else np.nan
+        indicators["pivot_r1"] = r1[-1] if len(r1) > 0 and not np.isnan(r1[-1]) else np.nan
+        indicators["pivot_r2"] = r2[-1] if len(r2) > 0 and not np.isnan(r2[-1]) else np.nan
+        indicators["pivot_s1"] = s1[-1] if len(s1) > 0 and not np.isnan(s1[-1]) else np.nan
+        indicators["pivot_s2"] = s2[-1] if len(s2) > 0 and not np.isnan(s2[-1]) else np.nan
+        
+        # Add Parabolic SAR
+        sar_values = self.ti.trend.parabolic_sar()
+        indicators["sar"] = sar_values[-1] if len(sar_values) > 0 and not np.isnan(sar_values[-1]) else np.nan
+        
+        # Add signal interpretations
+        self._add_signal_interpretations(indicators, ohlcv_data)
+        
         # Add advanced trend indicators
         vortex_plus, vortex_minus = self.ti.trend.vortex_indicator(length=14)
         indicators["vortex_indicator"] = [vortex_plus, vortex_minus]
@@ -311,6 +338,63 @@ class TechnicalCalculator:
             span_valid = np.where(~np.isnan(span_data))[0]
             if len(span_valid) > 0:
                 out[key] = float(span_data[span_valid[-1]])
+
+    def _add_signal_interpretations(self, indicators: dict, ohlcv_data: np.ndarray) -> None:
+        """Add signal interpretations for various indicators.
+        
+        Args:
+            indicators: Dictionary to add signal interpretations to
+            ohlcv_data: OHLCV data array for current price
+        """
+        if ohlcv_data is None or len(ohlcv_data) == 0:
+            return
+            
+        current_price = float(ohlcv_data[-1, 4])  # Close price
+        
+        # Ichimoku Signal
+        if all(key in indicators for key in ['ichimoku_span_a', 'ichimoku_span_b']):
+            span_a = indicators.get('ichimoku_span_a')
+            span_b = indicators.get('ichimoku_span_b')
+            
+            if isinstance(span_a, (int, float)) and isinstance(span_b, (int, float)):
+                cloud_top = max(span_a, span_b)
+                cloud_bottom = min(span_a, span_b)
+                
+                if current_price > cloud_top:
+                    indicators["ichimoku_signal"] = 1  # Bullish
+                elif current_price < cloud_bottom:
+                    indicators["ichimoku_signal"] = -1  # Bearish
+                else:
+                    indicators["ichimoku_signal"] = 0  # In cloud
+            else:
+                indicators["ichimoku_signal"] = 0
+        else:
+            indicators["ichimoku_signal"] = 0
+            
+        # Bollinger Bands Signal
+        if all(key in indicators for key in ['bb_upper', 'bb_middle', 'bb_lower']):
+            bb_upper = indicators.get('bb_upper')
+            bb_middle = indicators.get('bb_middle')
+            bb_lower = indicators.get('bb_lower')
+            
+            if all(isinstance(val, (int, float)) for val in [bb_upper, bb_middle, bb_lower]):
+                # Calculate distance to each band as percentage
+                upper_dist = abs(current_price - bb_upper) / bb_upper
+                middle_dist = abs(current_price - bb_middle) / bb_middle
+                lower_dist = abs(current_price - bb_lower) / bb_lower
+                
+                # Find closest band (threshold of 2% to determine "near")
+                threshold = 0.02
+                if upper_dist < threshold:
+                    indicators["bb_signal"] = 1  # Near upper band
+                elif lower_dist < threshold:
+                    indicators["bb_signal"] = -1  # Near lower band
+                else:
+                    indicators["bb_signal"] = 0  # Near middle or between bands
+            else:
+                indicators["bb_signal"] = 0
+        else:
+            indicators["bb_signal"] = 0
 
     def _hash_data(self, data: np.ndarray) -> str:
         """Create a simple hash of the data for caching"""

@@ -132,6 +132,34 @@ def fibonacci_retracement_numba(length, high, low):
     return retracement_values
 
 @njit(cache=True)
+def pivot_points_numba(high, low, close):
+    """Calculate standard pivot points and support/resistance levels
+    
+    Returns:
+        Tuple of (pivot_point, r1, r2, s1, s2) arrays
+    """
+    n = len(high)
+    pivot_point = np.full(n, np.nan)
+    r1 = np.full(n, np.nan)
+    r2 = np.full(n, np.nan)
+    s1 = np.full(n, np.nan)
+    s2 = np.full(n, np.nan)
+    
+    for i in range(1, n):
+        # Calculate pivot point as simple average of H, L, C from previous period
+        pivot_point[i] = (high[i - 1] + low[i - 1] + close[i - 1]) / 3
+        
+        # Calculate resistance levels
+        r1[i] = (2 * pivot_point[i]) - low[i - 1]
+        r2[i] = pivot_point[i] + (high[i - 1] - low[i - 1])
+        
+        # Calculate support levels  
+        s1[i] = (2 * pivot_point[i]) - high[i - 1]
+        s2[i] = pivot_point[i] - (high[i - 1] - low[i - 1])
+    
+    return pivot_point, r1, r2, s1, s2
+
+@njit(cache=True)
 def floating_levels_numba(high: np.ndarray, low: np.ndarray, close: np.ndarray,
                          length: int, multiplier: float, lookback: int,
                          level_up: float, level_down: float):
