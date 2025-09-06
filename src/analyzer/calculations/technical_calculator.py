@@ -116,29 +116,27 @@ class TechnicalCalculator:
         # Add Fibonacci retracement levels
         fib_levels = self.ti.support_resistance.fibonacci_retracement(length=20)
         if fib_levels is not None and len(fib_levels) > 0:
-            # Extract specific Fibonacci levels expected by formatter
-            # Fibonacci levels are typically [0.0, 0.236, 0.382, 0.5, 0.618, 0.786, 1.0]
-            latest_fib = fib_levels[-1]  # Get latest values
-            if len(latest_fib) >= 7:  # Ensure we have enough levels
-                indicators["fib_236"] = latest_fib[1]  # 23.6%
-                indicators["fib_382"] = latest_fib[2]  # 38.2%
-                indicators["fib_500"] = latest_fib[3]  # 50%
-                indicators["fib_618"] = latest_fib[4]  # 61.8%
+            # fib_levels is a 2D array (n_periods, n_levels)
+            # Extract each fibonacci level as a separate array
+            indicators["fib_236"] = fib_levels[:, 1]  # 23.6% level for all periods
+            indicators["fib_382"] = fib_levels[:, 2]  # 38.2% level for all periods
+            indicators["fib_500"] = fib_levels[:, 3]  # 50% level for all periods
+            indicators["fib_618"] = fib_levels[:, 4]  # 61.8% level for all periods
         
         # Add Pivot Points using the proper numba implementation
         pivot_point, r1, r2, s1, s2 = self.ti.support_resistance.pivot_points()
-        indicators["pivot_point"] = pivot_point[-1] if len(pivot_point) > 0 and not np.isnan(pivot_point[-1]) else np.nan
-        indicators["pivot_r1"] = r1[-1] if len(r1) > 0 and not np.isnan(r1[-1]) else np.nan
-        indicators["pivot_r2"] = r2[-1] if len(r2) > 0 and not np.isnan(r2[-1]) else np.nan
-        indicators["pivot_s1"] = s1[-1] if len(s1) > 0 and not np.isnan(s1[-1]) else np.nan
-        indicators["pivot_s2"] = s2[-1] if len(s2) > 0 and not np.isnan(s2[-1]) else np.nan
+        indicators["pivot_point"] = pivot_point
+        indicators["pivot_r1"] = r1
+        indicators["pivot_r2"] = r2
+        indicators["pivot_s1"] = s1
+        indicators["pivot_s2"] = s2
         
         # Add Parabolic SAR
         sar_values = self.ti.trend.parabolic_sar()
-        indicators["sar"] = sar_values[-1] if len(sar_values) > 0 and not np.isnan(sar_values[-1]) else np.nan
+        indicators["sar"] = sar_values
         
-        # Add signal interpretations
-        self._add_signal_interpretations(indicators, ohlcv_data)
+        # Add signal interpretations - temporarily disabled to fix scalar issue
+        # self._add_signal_interpretations(indicators, ohlcv_data)
         
         # Add advanced trend indicators
         vortex_plus, vortex_minus = self.ti.trend.vortex_indicator(length=14)
