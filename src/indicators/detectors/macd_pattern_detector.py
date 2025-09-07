@@ -31,11 +31,11 @@ class MACDPatternDetector(BasePatternDetector):
         original_start_index = max(0, len(data.ohlcv) - len(recent_line))
         
         # Detect crossovers
-        crossover_patterns = self._detect_crossovers(recent_line, recent_signal, data, original_start_index)
+        crossover_patterns = self._detect_crossovers(recent_line.tolist(), recent_signal.tolist(), data, original_start_index)
         patterns.extend(crossover_patterns)
         
         # Detect zero line crossovers
-        zero_line_patterns = self._detect_zero_line_crosses(recent_line, data, original_start_index)
+        zero_line_patterns = self._detect_zero_line_crosses(recent_line.tolist(), data, original_start_index)
         patterns.extend(zero_line_patterns)
         
         return patterns

@@ -99,8 +99,7 @@ class CommandHandler(commands.Cog):
             self._perform_analysis_workflow(symbol, ctx, language),
             name=f"Analysis-{symbol}"
         )
-        self.analysis_handler._analysis_tasks.add(analysis_task)
-        analysis_task.add_done_callback(self.analysis_handler._analysis_tasks.discard)
+        # Task will complete on its own, no need to track it here
 
     async def _validate_analysis_request(self, ctx: commands.Context):
         """Validate analysis request and return ValidationResult."""

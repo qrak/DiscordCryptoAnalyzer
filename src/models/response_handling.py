@@ -29,14 +29,18 @@ class ResponseParser:
             
             # Try parsing as direct JSON
             try:
-                return json.loads(cleaned_text)
+                result = json.loads(cleaned_text)
+                # Normalize numeric fields after parsing
+                return self._normalize_numeric_fields(result)
             except json.JSONDecodeError:
                 pass
 
             # Try extracting JSON from markdown code block
             if "```json" in cleaned_text:
                 json_content = cleaned_text.split("```json")[1].split("```")[0].strip()
-                return json.loads(json_content)
+                result = json.loads(json_content)
+                # Normalize numeric fields after parsing
+                return self._normalize_numeric_fields(result)
 
             self.logger.warning(f"Unable to parse response as JSON, creating fallback response")
             
@@ -120,6 +124,36 @@ class ResponseParser:
                 # Removed "trading_recommendation" as it's not used
             }
         }
+    
+    def _normalize_numeric_fields(self, data):
+        """Ensure numeric fields are properly typed"""
+        if not isinstance(data, dict):
+            return data
+            
+        # List of fields that should be numeric
+        numeric_fields = [
+            'risk_ratio', 'trend_strength', 'confidence_score',
+            'bullish_scenario', 'bearish_scenario'
+        ]
+        
+        # Check analysis section
+        analysis = data.get('analysis', {})
+        for field in numeric_fields:
+            if field in analysis and isinstance(analysis[field], str):
+                try:
+                    analysis[field] = float(analysis[field])
+                except ValueError:
+                    pass  # Keep as string if conversion fails
+        
+        # Check root level
+        for field in numeric_fields:
+            if field in data and isinstance(data[field], str):
+                try:
+                    data[field] = float(data[field])
+                except ValueError:
+                    pass  # Keep as string if conversion fails
+        
+        return data
 
 
 class ResponseFormatter:

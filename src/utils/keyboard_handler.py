@@ -1,5 +1,4 @@
 import asyncio
-import sys
 import msvcrt
 from typing import Dict, Callable, Awaitable, Optional, Tuple
 
@@ -17,7 +16,7 @@ class KeyboardHandler:
         """
         self.logger = logger
         self.running = False
-        self._commands: Dict[str, Tuple[Awaitable, str]] = {}
+        self._commands: Dict[str, Tuple[Callable, str]] = {}
         self._listening_task = None
     
     def register_command(self, key: str, callback: Callable[[], Awaitable], description: str) -> None:

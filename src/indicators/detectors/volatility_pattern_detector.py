@@ -34,16 +34,16 @@ class VolatilityPatternDetector(BasePatternDetector):
         current_timestamp = data.get_timestamp_at_index(len(data.ohlcv) - 1)
         
         # Detect volatility trend patterns
-        trend_patterns = self._detect_volatility_trend(recent_atr, data, original_start_index)
+        trend_patterns = self._detect_volatility_trend(recent_atr.tolist(), data, original_start_index)
         patterns.extend(trend_patterns)
         
         # Detect volatility spikes
-        spike_patterns = self._detect_volatility_spikes(recent_atr, data, original_start_index)
+        spike_patterns = self._detect_volatility_spikes(recent_atr.tolist(), data, original_start_index)
         patterns.extend(spike_patterns)
         
         # Detect abnormal volatility levels compared to longer history
         if len(atr_values) >= 50:
-            level_patterns = self._detect_volatility_levels(atr_values, data)
+            level_patterns = self._detect_volatility_levels(atr_values.tolist(), data)
             patterns.extend(level_patterns)
         
         return patterns

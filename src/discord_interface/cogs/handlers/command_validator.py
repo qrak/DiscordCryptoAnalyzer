@@ -7,7 +7,6 @@ from datetime import datetime, timedelta
 from typing import Dict, Optional, Tuple, Union
 from dataclasses import dataclass
 from discord.ext import commands
-import discord
 
 from config.config import MAIN_CHANNEL_ID, SUPPORTED_LANGUAGES
 

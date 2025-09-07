@@ -196,10 +196,12 @@ class AnalysisEngine:
             if config.TEST_ENVIRONMENT:
                 self.logger.debug(f"TEST_ENVIRONMENT is True - using mock analysis")
                 analysis_result = self.result_processor.process_mock_analysis(
-                    self.symbol, 
+                    self.symbol,
                     self.context.current_price,
                     self.language,
-                    self.article_urls
+                    self.article_urls,
+                    technical_history=getattr(self.context, 'technical_history', None),
+                    technical_data=getattr(self.context, 'technical_data', None)
                 )
             else:
                 analysis_result = await self.result_processor.process_analysis(

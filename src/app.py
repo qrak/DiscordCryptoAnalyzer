@@ -141,7 +141,7 @@ class DiscordCryptoBot:
         """Refresh market overview data"""
         self.logger.info("Manually refreshing market overview data...")
         try:
-            market_overview = await self.rag_engine._fetch_market_overview()
+            market_overview = await self.rag_engine.market_data_manager.fetch_market_overview()
             if market_overview:
                 market_overview_file = self.rag_engine.file_handler.get_market_overview_path()
                 self.rag_engine.file_handler.save_json_file(market_overview_file, market_overview)
@@ -270,7 +270,7 @@ class DiscordCryptoBot:
 
     async def _shutdown_single_api_client(self, client_name: str, client):
         """Close a single API client safely."""
-        if not client or not hasattr(client, 'close') or not callable(client.close):
+        if not client or not hasattr(client, 'close'):
             return
             
         try:

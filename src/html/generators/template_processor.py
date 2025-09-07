@@ -49,7 +49,7 @@ class TemplateProcessor:
         """
         
         for title_text, url in article_urls.items():
-            if isinstance(url, str) and (url.startswith('http://') or url.startswith('https://')):
+            if isinstance(url, str) and url.startswith('https://'):
                 safe_title = html.escape(str(title_text) if title_text is not None else "Source")
                 sources_section += f'<li><a href="{url}" target="_blank">{safe_title}</a></li>'
 

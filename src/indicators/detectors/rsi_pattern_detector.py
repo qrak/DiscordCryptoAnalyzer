@@ -117,7 +117,7 @@ class RSIPatternDetector(BasePatternDetector):
         return patterns
     
     def _find_matching_extreme(self, rsi_array: np.ndarray, first_idx: int, config: DoublePatternConfig,
-                              market_data: MarketData, original_start_index: int, min_separation: int) -> Pattern:
+                              market_data: MarketData, original_start_index: int, min_separation: int) -> Pattern | None:
         """Find a matching second extreme using configuration."""
         search_start = first_idx + min_separation
         search_end = min(first_idx + 15, len(rsi_array) - 3)
@@ -133,7 +133,7 @@ class RSIPatternDetector(BasePatternDetector):
                     )
                     
                     if validate_intermediate_value(
-                        intermediate_val, rsi_array[first_idx], rsi_array[j], 
+                        intermediate_val, float(rsi_array[first_idx]), float(rsi_array[j]), 
                         config.intermediate_ratio, config.is_bottom_pattern
                     ):
                         return create_double_pattern(

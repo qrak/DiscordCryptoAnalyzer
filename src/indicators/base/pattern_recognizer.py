@@ -29,8 +29,8 @@ class PatternRecognizer:
         return {
             'rsi': RSIPatternDetector(
                 RSISettings(
-                    overbought=70.0, oversold=30.0,
-                    w_bottom_threshold=30.0, bottom_similarity=2.0
+                    overbought=70, oversold=30,
+                    w_bottom_threshold=30, bottom_similarity=2.0
                 ), logger=self.logger
             ),
             'macd': MACDPatternDetector(

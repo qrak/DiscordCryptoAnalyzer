@@ -117,7 +117,7 @@ def find_threshold_periods(recent_rsi: np.ndarray, condition: ThresholdCondition
 def get_extreme_value_in_range(rsi_values: np.ndarray, start: int, end: int, is_maximum: bool) -> float:
     """Get extreme value (max or min) in a range."""
     segment = rsi_values[start:end]
-    return np.max(segment) if is_maximum else np.min(segment)
+    return float(np.max(segment) if is_maximum else np.min(segment))
 
 
 def create_threshold_pattern(condition: ThresholdCondition, periods: List[dict], 
@@ -187,7 +187,7 @@ def get_intermediate_extreme(intermediate_segment: np.ndarray, first_idx: int,
         intermediate_extreme_idx = local_idx + first_idx + 1
         intermediate_val = intermediate_segment[local_idx]
     
-    return intermediate_val, intermediate_extreme_idx
+    return float(intermediate_val), intermediate_extreme_idx
 
 
 def validate_intermediate_value(intermediate_val: float, first_val: float, second_val: float,
@@ -217,7 +217,7 @@ def create_double_pattern(config: DoublePatternConfig, rsi_array: np.ndarray,
             config.pattern_type, description, timestamp=timestamp,
             first_bottom_idx=original_start_index + first_idx,
             second_bottom_idx=original_start_index + second_idx,
-            value1=rsi_array[first_idx], value2=rsi_array[second_idx],
+            value1=float(rsi_array[first_idx]), value2=float(rsi_array[second_idx]),
             intermediate_peak=intermediate_val
         )
     else:
@@ -228,7 +228,7 @@ def create_double_pattern(config: DoublePatternConfig, rsi_array: np.ndarray,
             config.pattern_type, description, timestamp=timestamp,
             first_peak_idx=original_start_index + first_idx,
             second_peak_idx=original_start_index + second_idx,
-            value1=rsi_array[first_idx], value2=rsi_array[second_idx],
+            value1=float(rsi_array[first_idx]), value2=float(rsi_array[second_idx]),
             intermediate_trough=intermediate_val
         )
 

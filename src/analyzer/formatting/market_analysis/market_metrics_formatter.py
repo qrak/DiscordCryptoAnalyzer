@@ -80,8 +80,7 @@ class MarketMetricsFormatter:
         if not indicator_changes:
             return []
         
-        changes_sections = []
-        changes_sections.append(f"  📊 {period_name.capitalize()} Indicator Changes:")
+        changes_sections = [f"  📊 {period_name.capitalize()} Indicator Changes:"]
         
         # RSI changes
         rsi_change = indicator_changes.get('rsi_change')

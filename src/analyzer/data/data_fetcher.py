@@ -203,7 +203,8 @@ class DataFetcher:
         """Extract base and quote currencies from symbol."""
         if '/' not in symbol:
             return None, None
-        return symbol.split('/', 1)
+        parts = symbol.split('/', 1)
+        return parts[0], parts[1]
 
     def _has_required_ticker_data(self, ticker: Dict[str, Any]) -> bool:
         """Check if ticker has required data fields."""

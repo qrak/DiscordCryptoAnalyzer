@@ -38,15 +38,15 @@ class DivergencePatternDetector(BasePatternDetector):
         original_start_index = len(data.ohlcv) - period_length
         
         # Detect RSI divergences
-        rsi_patterns = self._detect_rsi_divergences(recent_prices, recent_rsi, data, original_start_index)
+        rsi_patterns = self._detect_rsi_divergences(recent_prices, recent_rsi.tolist(), data, original_start_index)
         patterns.extend(rsi_patterns)
         
         # Detect Stochastic divergences
-        stoch_patterns = self._detect_stochastic_divergences(recent_prices, recent_stoch, data, original_start_index)
+        stoch_patterns = self._detect_stochastic_divergences(recent_prices, recent_stoch.tolist(), data, original_start_index)
         patterns.extend(stoch_patterns)
         
         # Detect MACD divergences
-        macd_patterns = self._detect_macd_divergences(recent_prices, recent_macd, data, original_start_index)
+        macd_patterns = self._detect_macd_divergences(recent_prices, recent_macd.tolist(), data, original_start_index)
         patterns.extend(macd_patterns)
         
         return patterns

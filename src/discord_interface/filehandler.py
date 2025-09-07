@@ -37,9 +37,9 @@ class DiscordFileHandler:
         if not self.is_initialized:
             self.logger.debug("FileHandler not yet initialized, waiting for ready event...")
             # Wait for the bot to be ready and FileHandler to be initialized
-            if hasattr(self.bot, 'discord_notifier') and hasattr(self.bot.discord_notifier, '_ready_event'):
+            if hasattr(self.bot, 'discord_notifier') and hasattr(self.bot.discord_notifier, 'wait_until_ready'):
                 try:
-                    await asyncio.wait_for(self.bot.discord_notifier._ready_event.wait(), timeout=10.0)
+                    await asyncio.wait_for(self.bot.discord_notifier.wait_until_ready(), timeout=10.0)
                 except asyncio.TimeoutError:
                     self.logger.warning("Timeout waiting for FileHandler initialization, cannot track message")
                     return False
@@ -115,7 +115,3 @@ class DiscordFileHandler:
     async def cleanup_all_expired_messages(self):
         """Backward compatibility wrapper for cleanup."""
         return await self.check_and_delete_expired_messages()
-    
-    async def _wait_task_cancelled(self, task: asyncio.Task):
-        """Backward compatibility for task cancellation."""
-        return await self.scheduler._wait_task_cancelled(task)

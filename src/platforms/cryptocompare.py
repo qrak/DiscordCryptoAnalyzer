@@ -82,7 +82,7 @@ class CryptoCompareAPI:
         return self.news_api.news_cache_file
     
     @property
-    def OHLCV_API_URL_TEMPLATE(self) -> str:
+    def ohlcv_api_url_template(self) -> str:
         """Get OHLCV API URL template"""
         return self.market_api.get_ohlcv_url_template()
     
@@ -175,8 +175,7 @@ class CryptoCompareAPI:
         return await self.market_api.get_multi_price_data(coins=coins, vs_currencies=vs_currencies)
     
     # Delegate static methods to appropriate components
-    @staticmethod
-    async def detect_coins_in_article(article: Dict[str, Any], known_tickers: Set[str]) -> Set[str]:
+    async def detect_coins_in_article(self, article: Dict[str, Any], known_tickers: Set[str]) -> Set[str]:
         """
         Detect cryptocurrency mentions in article content
         
@@ -187,73 +186,4 @@ class CryptoCompareAPI:
         Returns:
             Set of detected coin tickers
         """
-        return await CryptoCompareNewsAPI.detect_coins_in_article(article, known_tickers)
-    
-    # Backward compatibility methods that delegate to specialized components
-    async def _load_cached_categories(self) -> None:
-        """Load cached categories data - maintained for backward compatibility"""
-        await self.categories_api._load_cached_categories()
-    
-    async def _get_cached_news(self, limit: int, cutoff_time: datetime) -> List[Dict[str, Any]]:
-        """Get news from cache - maintained for backward compatibility"""
-        return await self.news_api._get_cached_news(limit, cutoff_time)
-    
-    def _cache_news_data(self, articles: List[Dict[str, Any]]) -> None:
-        """Save news data to cache - maintained for backward compatibility"""
-        self.news_api._cache_news_data(articles)
-    
-    async def _fetch_crypto_news(self) -> List[Dict[str, Any]]:
-        """Fetch crypto news from API - maintained for backward compatibility"""
-        return await self.news_api._fetch_crypto_news(
-            session=self.session,
-            api_categories=self.categories_api.get_api_categories()
-        )
-    
-    def _filter_news_by_category(self, articles: List[Dict[str, Any]], category: str, limit: int) -> List[Dict[str, Any]]:
-        """Filter news by category - maintained for backward compatibility"""
-        return self.news_api._filter_news_by_category(
-            articles, category, limit, self.categories_api.get_category_word_map()
-        )
-    
-    def _article_matches_category_directly(self, article: Dict[str, Any], category_lower: str) -> bool:
-        """Check direct category match - maintained for backward compatibility"""
-        return self.news_api._article_matches_category_directly(article, category_lower)
-    
-    def _article_matches_category_words(self, article: Dict[str, Any], category_lower: str) -> bool:
-        """Check category word match - maintained for backward compatibility"""
-        return self.news_api._article_matches_category_words(
-            article, category_lower, self.categories_api.get_category_word_map()
-        )
-    
-    def _get_article_timestamp(self, article: Dict[str, Any]) -> float:
-        """Get article timestamp - maintained for backward compatibility"""
-        return self.news_api._get_article_timestamp(article)
-    
-    def _process_api_categories(self, api_categories: Any) -> None:
-        """Process API categories - maintained for backward compatibility"""
-        self.categories_api._process_api_categories(api_categories)
-    
-    def _normalize_categories_data(self, api_categories: Any) -> Optional[List]:
-        """Normalize categories data - maintained for backward compatibility"""
-        return self.data_processor.normalize_categories_data(api_categories)
-    
-    def _extract_data_from_dict(self, data_dict: Dict) -> Optional[List]:
-        """Extract data from dict - maintained for backward compatibility"""
-        return self.data_processor._extract_data_from_dict(data_dict)
-    
-    def _extract_category_mappings(self, categories_list: List) -> None:
-        """Extract category mappings - maintained for backward compatibility"""
-        self.categories_api._extract_category_mappings(categories_list)
-    
-    def _process_category_dict(self, cat: Dict) -> None:
-        """Process category dict - maintained for backward compatibility"""
-        self.categories_api._process_category_dict(cat)
-    
-    def _add_words_to_mapping(self, words: List, category_name: str) -> None:
-        """Add words to mapping - maintained for backward compatibility"""
-        self.categories_api._add_words_to_mapping(words, category_name)
-    
-    @staticmethod
-    def _get_important_categories() -> List[str]:
-        """Get important categories - maintained for backward compatibility"""
-        return CryptoCompareDataProcessor.get_important_categories()
+        return await self.news_api.detect_coins_in_article(article, known_tickers)

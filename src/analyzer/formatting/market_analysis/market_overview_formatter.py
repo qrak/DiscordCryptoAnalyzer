@@ -31,11 +31,10 @@ class MarketOverviewFormatter:
         if not market_overview:
             return ""
             
-        sections = []
-        
-        # Add header
-        sections.append("## MARKET OVERVIEW DATA\n")
-        sections.append("The following market data should be incorporated into your analysis:\n")
+        sections = [
+            "## MARKET OVERVIEW DATA\n",
+            "The following market data should be incorporated into your analysis:\n"
+        ]
         
         # Add different overview sections
         sections.extend(self._build_top_coins_section(market_overview))

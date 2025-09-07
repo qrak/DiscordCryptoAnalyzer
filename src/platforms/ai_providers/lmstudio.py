@@ -64,7 +64,8 @@ class LMStudioClient(BaseApiClient):
                 timeout=500
             ) as response:
                 if response.status != 200:
-                    return await self._handle_error_response(response, model)
+                    error_response = await self._handle_error_response(response, model)
+                    return cast(ResponseDict, error_response)
 
                 # Iterate through streaming response chunks
                 async for chunk in response.content:
@@ -106,7 +107,7 @@ class LMStudioClient(BaseApiClient):
 
         except asyncio.TimeoutError as e:
             self.logger.error(f"Timeout error when requesting streaming from LM Studio: {e}")
-            return {"error": "timeout", "details": str(e)}
+            return cast(ResponseDict, {"error": "timeout", "details": str(e)})
         except aiohttp.ClientError as e:
             self.logger.error(f"Network error in streaming request: {type(e).__name__} - {e}")
             return None

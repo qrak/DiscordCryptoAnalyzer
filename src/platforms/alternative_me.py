@@ -181,3 +181,9 @@ class AlternativeMeAPI:
         trend = "Stable"
         
         return (value, classification, trend)
+    
+    async def close(self) -> None:
+        """Close method for consistency with other API clients."""
+        # AlternativeMeAPI doesn't maintain persistent connections
+        # so this is a no-op for consistency
+        pass

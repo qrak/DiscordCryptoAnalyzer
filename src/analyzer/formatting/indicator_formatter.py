@@ -2,14 +2,13 @@
 Refactored Indicator Formatter with reduced complexity.
 Orchestrates specialized formatting components for maintainability.
 """
-from typing import Dict, Any, Optional
+from typing import Optional
 
 from ..data.data_processor import DataProcessor
 from src.logger.logger import Logger
 from .basic_formatter import BasicFormatter
 from .market_analysis.market_metrics_formatter import MarketMetricsFormatter
 from .market_analysis.long_term_formatter import LongTermFormatter
-from .technical_analysis.technical_formatter import TechnicalAnalysisFormatter
 
 
 class IndicatorFormatter:
@@ -81,25 +80,3 @@ class IndicatorFormatter:
     def _format_ichimoku_section(self, long_term_data: dict, current_price: float) -> str:
         """Format Ichimoku Cloud analysis section."""
         return self.indicator_section_formatter.format_ichimoku_section(long_term_data, current_price)
-    
-    # Legacy method support for backward compatibility
-    def _format_no_data_analysis(self) -> str:
-        """Format message when no long-term data is available."""
-        return self.long_term_formatter._format_no_data_analysis()
-    
-    def _format_new_token_analysis(self, long_term_data: dict) -> str:
-        """Format analysis for tokens with limited historical data."""
-        return self.long_term_formatter._format_new_token_analysis(long_term_data)
-    
-    # Legacy methods for backward compatibility (delegated to new formatters)
-    def _format_period_price_section(self, metrics: dict) -> list:
-        """Legacy method: Format price-related metrics for a period."""
-        return self.market_metrics_formatter._format_period_price_section(metrics)
-    
-    def _format_period_volume_section(self, metrics: dict) -> list:
-        """Legacy method: Format volume-related metrics for a period."""
-        return self.market_metrics_formatter._format_period_volume_section(metrics)
-    
-    def _format_indicator_changes_section(self, indicator_changes: dict, period_name: str) -> list:
-        """Legacy method: Format indicator changes for a period."""
-        return self.market_metrics_formatter._format_indicator_changes_section(indicator_changes, period_name)

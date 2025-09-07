@@ -26,7 +26,7 @@ def rsi_numba(close: np.ndarray, length: int) -> np.ndarray:
     losses = np.zeros(n)
 
     for i in range(1, n):
-        diff = close[i] - close[i - 1]
+        diff = float(close[i] - close[i - 1])
         gains[i] = max(0, diff)
         losses[i] = max(0, -diff)
 
@@ -255,10 +255,10 @@ def calculate_relative_strength_numba(pair_close, benchmark_close, window=14):
         benchmark_return = np.log(benchmark_close[i] / benchmark_close[i - window])
 
         # Calculate relative strength
-        rs_array[i] = pair_return - benchmark_return
+        rs_value = pair_return - benchmark_return
 
         # Cap the value to prevent extreme scores
-        rs_array[i] = min(max(rs_array[i], -0.5), 0.5)  # Cap at ±0.5
+        rs_array[i] = min(max(float(rs_value), -0.5), 0.5)  # Cap at ±0.5
 
     return rs_array
 

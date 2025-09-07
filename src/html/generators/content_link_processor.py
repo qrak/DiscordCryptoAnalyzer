@@ -114,18 +114,22 @@ class ContentLinkProcessor:
     
     def _find_existing_links(self, content: str) -> List[Tuple[int, int]]:
         """Find existing markdown links to avoid nesting."""
-        return [(m.start(), m.end()) for m in re.finditer(r"\[([^\]]+)\]\(([^)]+)\)", content)]
-    
+        return [(m.start(), m.end()) for m in re.finditer(r"\[([^]]+)]\(([^)]+)\)", content)]
+
     def _validate_article_urls(self, article_urls: dict) -> dict:
-        """Validate and sanitize article URLs."""
+        """Validate and sanitize article URLs: accept HTTPS only."""
         validated_urls = {}
         for title, url in article_urls.items():
-            if isinstance(url, str) and (url.startswith('http://') or url.startswith('https://')):
-                safe_title = str(title) if title is not None else ""
-                validated_urls[safe_title] = url
+            if isinstance(url, str):
+                if url.startswith('https://'):
+                    safe_title = str(title) if title is not None else ""
+                    validated_urls[safe_title] = url
+                else:
+                    if self.logger:
+                        self.logger.debug(f"Non-HTTPS URL skipped: {url}")
             else:
                 if self.logger:
-                    self.logger.warning(f"Invalid URL skipped: {url}")
+                    self.logger.debug(f"Invalid URL skipped: {url}")
         return validated_urls
     
     def _find_link_matches(self, content: str, validated_urls: dict, existing_links: List[Tuple[int, int]]) -> List[dict]:

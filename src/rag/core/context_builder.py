@@ -5,7 +5,7 @@ Handles building analysis context from news articles and search results.
 """
 
 import re
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import List, Dict, Any, Optional, Tuple, Set
 from src.logger.logger import Logger
 from src.utils.token_counter import TokenCounter

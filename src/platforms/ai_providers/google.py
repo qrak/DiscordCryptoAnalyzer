@@ -1,7 +1,4 @@
-import asyncio
-from typing import Optional, Dict, Any, List
-
-import aiohttp
+from typing import Optional, Dict, Any, List, cast
 
 from src.logger.logger import Logger
 from src.platforms.ai_providers.base import BaseApiClient
@@ -85,14 +82,14 @@ class GoogleAIClient(BaseApiClient):
             content = candidate["content"]["parts"][0]["text"]
             self.logger.debug(f"Received successful response from Google API")
             
-            return {
+            return cast(ResponseDict, {
                 "choices": [{
                     "message": {
                         "content": content,
                         "role": "assistant"
                     }
                 }]
-            }
+            })
             
         except Exception:
             return await self._handle_common_exceptions(self.model, "requesting Google API")

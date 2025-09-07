@@ -8,7 +8,7 @@ from datetime import datetime
 def fmt(val, precision=8):
     """Format a value with appropriate precision based on its magnitude"""
     if isinstance(val, (int, float)) and not np.isnan(val):
-        if abs(val) > 0 and abs(val) < 0.000001:
+        if 0 < abs(val) < 0.000001:
             return f"{val:.{precision}e}"  # Scientific notation for very small values
         elif abs(val) < 0.001:
             return f"{val:.{max(precision, 8)}f}"  # More decimal places for small values

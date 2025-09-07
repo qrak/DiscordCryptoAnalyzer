@@ -70,54 +70,6 @@ class AnalysisHandler:
         success = await self.market_analyzer.publish_analysis()
         return success, result
     
-    def create_analysis_task(self, bot, symbol: str, ctx: commands.Context, language: Optional[str]) -> asyncio.Task:
-        """Create and track analysis task."""
-        analysis_task = bot.loop.create_task(
-            self.perform_analysis(bot, symbol, ctx, language),
-            name=f"Analysis-{symbol}"
-        )
-        self._analysis_tasks.add(analysis_task)
-        analysis_task.add_done_callback(self._analysis_tasks.discard)
-        return analysis_task
-    
-    async def perform_analysis(self, bot, symbol: str, ctx: commands.Context, 
-                             language: Optional[str], validator, error_handler, send_message_func) -> None:
-        """Perform the complete analysis workflow."""
-        if self.logger:
-            self.logger.info(f"Starting analysis: {symbol}, Lang: {language or 'English'}, User: {ctx.author}")
-        
-        try:
-            # Validate prerequisites
-            is_valid, error_msg = await self.validate_analysis_prerequisites(bot)
-            if not is_valid:
-                await error_handler.handle_prerequisite_validation_error(error_msg, ctx, send_message_func)
-                return
-            
-            # Find exchange for symbol
-            exchange, exchange_id = await self.find_symbol_exchange(symbol)
-            if not exchange:
-                await error_handler.handle_symbol_not_found_error(symbol, ctx, send_message_func)
-                return
-            
-            if self.logger:
-                self.logger.info(f"Using {exchange_id} for {symbol} analysis")
-            
-            # Perform analysis
-            success, result = await self.execute_analysis(symbol, exchange, language)
-            
-            # Update cooldowns if not admin
-            if not validator.is_admin(ctx):
-                validator.update_cooldowns(symbol, ctx.author.id)
-            
-            # Handle analysis result
-            await self._handle_analysis_result(symbol, success, result, ctx, send_message_func)
-            
-        except Exception as e:
-            await error_handler.handle_analysis_error(symbol, e, send_message_func, ctx)
-        finally:
-            validator.remove_ongoing_analysis(symbol)
-            await self._cleanup_analysis(symbol, error_handler)
-    
     async def _handle_analysis_result(self, symbol: str, success: bool, result: Any, 
                                     ctx: commands.Context, send_message_func) -> None:
         """Handle the analysis result and send appropriate messages."""

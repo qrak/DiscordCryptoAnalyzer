@@ -3,7 +3,6 @@ Error handling utilities for Discord bot commands.
 Handles exceptions, logging, and error recovery.
 """
 import asyncio
-from typing import Any, Optional
 import discord
 from discord.ext import commands
 

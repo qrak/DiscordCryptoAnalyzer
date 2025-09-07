@@ -110,7 +110,7 @@ class Logger(logging.Logger):
         file_handler.setLevel(self.level)
         file_handler.setFormatter(self._plain_formatter())
         file_handler.namer = lambda name: name.replace(".log", "") + ".log"
-        file_handler.rotator = self._log_rotator
+        file_handler.rotator = lambda source, dest: self._log_rotator(source, is_error=False)
         self.addHandler(file_handler)
 
     def _add_error_file_handler(self, error_log_dir):

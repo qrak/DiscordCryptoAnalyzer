@@ -1,6 +1,6 @@
 import asyncio
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Dict, List, Optional, Set, Tuple, Any
 
 import ccxt.async_support as ccxt
 import aiohttp
@@ -17,12 +17,12 @@ class ExchangeManager:
         self.last_update: Optional[datetime] = None
         self._update_task: Optional[asyncio.Task] = None
         self._shutdown_in_progress = False
-        self.exchange_config = {
+        self.exchange_config: Dict[str, Any] = {
             'enableRateLimit': True,
             'options': {'defaultType': 'spot'}
         }
         self.exchange_names = ["binance", "kucoin", "gateio"]
-        self.session = None
+        self.session: Optional[aiohttp.ClientSession] = None
     
     async def initialize(self) -> None:
         """Initialize exchanges and load markets"""

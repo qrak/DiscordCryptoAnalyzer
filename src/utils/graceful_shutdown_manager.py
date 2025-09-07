@@ -10,9 +10,9 @@ class GracefulShutdownManager:
     def setup_signal_handlers(self):
         if sys.platform != 'win32':
             for sig in (signal.SIGINT, signal.SIGTERM):
-                self.loop.add_signal_handler(sig, lambda s=sig: self.handle_signal(s))
+                self.loop.add_signal_handler(sig, lambda s=sig, *args: self.handle_signal(s))
         else:
-            signal.signal(signal.SIGINT, lambda s, f: self.handle_signal(s))
+            signal.signal(signal.SIGINT, lambda s, f, *args: self.handle_signal(s))
 
     def handle_signal(self, sig: int):
         print(f"Received signal {sig}, initiating shutdown...")

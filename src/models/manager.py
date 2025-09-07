@@ -1,5 +1,5 @@
 import json
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Union, cast
 
 from config.config import (
     OPENROUTER_API_KEY, OPENROUTER_BASE_URL, OPENROUTER_BASE_MODEL,
@@ -9,6 +9,7 @@ from config.config import (
 from src.logger.logger import Logger
 from src.models.config import ModelConfigManager
 from src.models.response_handling import ResponseParser, ResponseFormatter
+from src.platforms.ai_providers.openrouter import ResponseDict
 from src.platforms.ai_providers import OpenRouterClient, GoogleAIClient, LMStudioClient
 from src.utils.token_counter import TokenCounter
 
@@ -156,7 +157,7 @@ class ModelManager:
         # Finally try OpenRouter as last resort
         return await self._try_openrouter(messages)
 
-    async def _try_openrouter(self, messages: List[Dict[str, str]]) -> Dict[str, Any]:
+    async def _try_openrouter(self, messages: List[Dict[str, str]]) -> Optional[ResponseDict]:
         """Use OpenRouter as fallback"""
         self.logger.warning("Google AI Studio and LM Studio (if enabled) failed. Falling back to OpenRouter...")
         
@@ -166,7 +167,7 @@ class ModelManager:
         if not self._is_valid_response(response_json) or self._rate_limited(response_json):
             self.logger.error("OpenRouter request failed or returned invalid response")
             error_detail = response_json.get("error", "Unknown OpenRouter failure") if response_json else "No response from OpenRouter"
-            return {"error": f"All models failed. Last attempt (OpenRouter): {error_detail}"}
+            return cast(ResponseDict, {"error": f"All models failed. Last attempt (OpenRouter): {error_detail}"})
 
         return response_json
 
@@ -182,7 +183,7 @@ class ModelManager:
                 "choices" in response and 
                 response["choices"])
 
-    async def _try_google_api(self, messages: List[Dict[str, str]]) -> Dict[str, Any]:
+    async def _try_google_api(self, messages: List[Dict[str, str]]) -> Optional[ResponseDict]:
         """Use Google Studio API as fallback"""
         self.logger.warning("OpenRouter rate limit hit or LM Studio/OpenRouter failed. Switching to Google Studio API...")
         google_config = self.config_manager.get_config(GOOGLE_STUDIO_MODEL)
@@ -191,11 +192,11 @@ class ModelManager:
         if not response_json or not self._is_valid_response(response_json):
             self.logger.error("Google Studio API request failed or returned invalid response")
             error_detail = response_json.get("error", "Unknown Google API failure") if response_json else "No response from Google API"
-            return {"error": f"All models failed. Last attempt (Google): {error_detail}"}
+            return cast(ResponseDict, {"error": f"All models failed. Last attempt (Google): {error_detail}"})
 
         return response_json
 
-    def _process_response(self, response_json: Dict[str, Any]) -> str:
+    def _process_response(self, response_json: Union[Dict[str, Any], ResponseDict]) -> str:
         """Extract and process content from the response"""
         try:
             if response_json is None:

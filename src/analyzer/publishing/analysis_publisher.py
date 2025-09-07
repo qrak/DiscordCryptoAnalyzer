@@ -59,7 +59,7 @@ class AnalysisPublisher:
                 
                 if ohlcv_data:  # Only generate HTML if we have data
                     html_content = self.html_generator.generate_html_content(
-                        f"{symbol} Detailed Analysis{' in ' + language if language else ''}",
+                        f"{symbol} Detailed Analysis{(' in ' + language) if language else ''}",
                         detailed_text,
                         article_urls=article_urls,
                         ohlcv_data=ohlcv_data

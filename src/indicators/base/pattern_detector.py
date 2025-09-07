@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 
@@ -13,7 +13,7 @@ class PatternConfig:
 
 
 @dataclass
-class RSISettings:
+class RSISettings(PatternConfig):
     """Settings specific to RSI pattern detection"""
     overbought: int = 70
     oversold: int = 30

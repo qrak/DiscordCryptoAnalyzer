@@ -5,7 +5,6 @@ Orchestrates category fetching, processing, ticker management, and news analysis
 with reduced complexity through specialized components.
 """
 
-from datetime import datetime
 from typing import List, Dict, Any, Optional, Set
 from src.logger.logger import Logger
 from ..data.file_handler import RagFileHandler

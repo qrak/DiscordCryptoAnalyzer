@@ -340,7 +340,7 @@ class DiscordNotifier:
             self._add_timeframes_field(embed, timeframes)
         
         # Add news summary
-        news_summary = analysis.get("news_summary", None)
+        news_summary = analysis.get("news_summary")
         if news_summary:
             embed.add_field(
                 name="📰 News Summary",

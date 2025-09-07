@@ -26,6 +26,7 @@ class CryptoCompareNewsAPI:
     ) -> None:
         self.logger = logger
         self.update_interval = timedelta(hours=update_interval_hours)
+        self.last_news_update: Optional[datetime] = None
         
         # Initialize specialized components
         self.client = CryptoCompareNewsClient(logger)
@@ -123,6 +124,8 @@ class CryptoCompareNewsAPI:
         articles = await self.client.fetch_news(session, api_categories)
         
         if articles:
+            # Update timestamp when fresh news is successfully fetched
+            self.last_news_update = datetime.now()
             return self._process_fresh_articles(articles, limit, cutoff_time)
         else:
             # If API fetch failed, try to use cached data
