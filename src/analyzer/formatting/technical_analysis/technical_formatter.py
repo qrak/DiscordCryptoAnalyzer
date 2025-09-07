@@ -55,7 +55,7 @@ class TechnicalAnalysisFormatter:
         crypto_data = {'current_price': getattr(context, 'current_price', 0)}
         
         # Build all sections using specialized formatters
-        patterns_section = self.indicator_calculator.extract_key_patterns(context)
+        patterns_section = self._format_patterns_section(context)
         momentum_section = self.momentum_formatter.format_momentum_section(td)
         trend_section = self.trend_formatter.format_trend_section(td)
         volume_section = self.volume_formatter.format_volume_section(td)
@@ -68,6 +68,35 @@ class TechnicalAnalysisFormatter:
         technical_analysis = f"""\nTECHNICAL ANALYSIS ({timeframe}):\n\n## Price Action:\n- Current Price: {fmt(context.current_price) if hasattr(context, 'current_price') else 0.0}\n- Rolling VWAP (14): {self._fmt_ta('vwap', td, 8)}\n- TWAP (14): {self._fmt_ta('twap', td, 8)}\n\n{momentum_section}\n\n{trend_section}\n\n{volatility_section}\n\n{volume_section}\n\n## Statistical Metrics:\n- Hurst Exponent(20): {self._fmt_ta('hurst', td, 2)} [~0.5: Random Walk, >0.5: Trending, <0.5: Mean Reverting]\n- Z-Score(30): {self._fmt_ta('zscore', td, 2)} [Distance from mean in std deviations]\n- Kurtosis(30): {self._fmt_ta('kurtosis', td, 2)} [Tail risk indicator; >3 suggests fatter tails]\n\n{key_levels_section}\n\n{advanced_section}\n\n{patterns_section}{pattern_info}"""
         
         return technical_analysis
+    
+    def _format_patterns_section(self, context) -> str:
+        """Format patterns section using the modern PatternRecognizer.
+        
+        Args:
+            context: Analysis context containing technical data
+            
+        Returns:
+            str: Formatted patterns section
+        """
+        try:
+            if hasattr(context, 'ohlcv_candles') and hasattr(context, 'technical_data'):
+                ohlcv_data = context.ohlcv_candles
+                technical_history = context.technical_data.get('history', {})
+                patterns = self.indicator_calculator.get_all_patterns(ohlcv_data, technical_history)
+                
+                if patterns:
+                    pattern_summaries = []
+                    for pattern in patterns[-5:]:  # Show last 5 patterns
+                        description = pattern.get('description', 'Unknown pattern')
+                        pattern_summaries.append(f"- {description}")
+                    
+                    if pattern_summaries:
+                        return "## Key Patterns (PatternRecognizer):\n" + "\n".join(pattern_summaries)
+        except Exception as e:
+            if self.logger:
+                self.logger.debug(f"Could not use PatternRecognizer for patterns: {e}")
+        
+        return ""
     
     def _fmt_ta(self, key: str, td: dict, precision: int = 8, default: str = 'N/A') -> str:
         """Format technical analysis value safely.

@@ -15,6 +15,7 @@ Key Components:
 - IndicatorCalculator: Technical indicator calculations
 - TechnicalAnalysisFormatter: Technical analysis output formatting
 - PromptBuilder: AI prompt construction (formerly prompt.py)
+ - PromptBuilder: AI prompt construction
 """
 
 # Core analysis components
@@ -33,7 +34,6 @@ from .formatting.market_analysis import MarketOverviewFormatter, MarketMetricsFo
 
 # Prompt components
 from .prompts import PromptBuilder, ContextBuilder, TemplateManager
-
 # Publishing components
 from .publishing import AnalysisPublisher
 
@@ -66,6 +66,7 @@ __all__ = [
     'PromptBuilder',
     'ContextBuilder',
     'TemplateManager',
+
     
     # Publishing
     'AnalysisPublisher'

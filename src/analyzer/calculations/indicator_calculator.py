@@ -1,4 +1,4 @@
-from typing import Dict, Any, Optional, List, Union
+from typing import Dict, Any, Optional, List
 
 import numpy as np
 
@@ -48,25 +48,6 @@ class IndicatorCalculator:
         """Centralized pattern detection using PatternRecognizer"""
         return self.pattern_analyzer.get_all_patterns(ohlcv_data, technical_history)
 
-    def extract_key_patterns(self, context) -> str:
-        """Extract key technical patterns from context data (DEPRECATED)"""
-        return self.pattern_analyzer.extract_key_patterns(context)
-    def get_indicator_value(self, td: dict, key: str) -> Union[float, str]:
-        """Get indicator value with proper type checking and error handling"""
-        return self.data_processor.get_indicator_value(td, key)
-        
-    def get_indicator_values(self, td: dict, key: str, expected_count: int = 2) -> List[float]:
-        """Get multiple indicator values with proper type checking"""
-        return self.data_processor.get_indicator_values(td, key, expected_count)
-    
-    def calculate_bb_width(self, td: dict) -> float:
-        """Calculate Bollinger Band width percentage."""
-        return self.data_processor.calculate_bb_width(td)
-
-    def format_timestamp(self, timestamp_ms) -> str:
-        """Format a timestamp from milliseconds since epoch to a human-readable string"""
-        return self.formatter.format_timestamp(timestamp_ms)
-            
     def format_market_period_metrics(self, market_metrics: dict) -> str:
         """Format market metrics for different time periods"""
         return self.formatter.format_market_period_metrics(market_metrics)
