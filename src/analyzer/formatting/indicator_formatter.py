@@ -26,9 +26,6 @@ class IndicatorFormatter:
         self.basic_formatter = BasicFormatter()
         self.market_metrics_formatter = MarketMetricsFormatter()
         self.long_term_formatter = LongTermFormatter()
-        # Note: TechnicalAnalysisFormatter requires indicator_calculator, will be set later if needed
-        
-        # Maintain backward compatibility with threshold definitions
         self.INDICATOR_THRESHOLDS = self.long_term_formatter.INDICATOR_THRESHOLDS
         
     def format_timestamp(self, timestamp_ms) -> str:
@@ -55,28 +52,3 @@ class IndicatorFormatter:
     def format_long_term_analysis(self, long_term_data: dict, current_price: float = None) -> str:
         """Format comprehensive long-term analysis from historical data."""
         return self.long_term_formatter.format_long_term_analysis(long_term_data, current_price)
-    
-    # Delegate specific section formatting to the indicator section formatter
-    def _format_sma_section(self, long_term_data: dict) -> str:
-        """Format Simple Moving Average analysis section."""
-        return self.indicator_section_formatter.format_sma_section(long_term_data)
-    
-    def _format_volume_sma_section(self, long_term_data: dict) -> str:
-        """Format Volume Simple Moving Average analysis section."""
-        return self.indicator_section_formatter.format_volume_sma_section(long_term_data)
-    
-    def _format_price_position_section(self, long_term_data: dict, current_price: float) -> str:
-        """Format price position relative to moving averages."""
-        return self.indicator_section_formatter.format_price_position_section(long_term_data, current_price)
-    
-    def _format_daily_indicators_section(self, long_term_data: dict, current_price: float) -> str:
-        """Format current daily indicators section with detailed analysis."""
-        return self.indicator_section_formatter.format_daily_indicators_section(long_term_data, current_price)
-    
-    def _format_adx_section(self, long_term_data: dict) -> str:
-        """Format ADX (Average Directional Index) analysis section."""
-        return self.indicator_section_formatter.format_adx_section(long_term_data)
-    
-    def _format_ichimoku_section(self, long_term_data: dict, current_price: float) -> str:
-        """Format Ichimoku Cloud analysis section."""
-        return self.indicator_section_formatter.format_ichimoku_section(long_term_data, current_price)

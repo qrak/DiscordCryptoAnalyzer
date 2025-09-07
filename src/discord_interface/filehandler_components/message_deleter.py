@@ -1,5 +1,6 @@
 import discord
 from src.utils.decorators import retry_async
+from typing import Any, cast
 
 
 class MessageDeleter:
@@ -13,7 +14,7 @@ class MessageDeleter:
         """Try to delete a message, handling all error cases."""
         try:
             result = await self._delete_message(message_id, channel_id)
-            if result is True:
+            if result:
                 self.logger.debug(f"Successfully deleted message {message_id}")
                 return True
             return False
@@ -42,7 +43,7 @@ class MessageDeleter:
         channel = self.bot.get_channel(channel_id)
         if not channel:
             self.logger.warning(f"Channel {channel_id} not found for message {message_id}")
-            raise discord.NotFound(f"Channel {channel_id} not found")
+            raise discord.NotFound(response=None, message=f"Channel {channel_id} not found")
         return channel
     
     async def _delete_from_channel(self, message_id: int, channel) -> bool:

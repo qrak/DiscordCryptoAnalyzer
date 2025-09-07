@@ -163,25 +163,6 @@ class AlternativeMeAPI:
         # Return empty list if API call fails
         return []
     
-    def get_sentiment_data(self) -> Tuple[int, str, str]:
-        """
-        Get current sentiment data for analytics
-        
-        Returns:
-            Tuple of (value, classification, trend)
-        """
-        if not self.current_index:
-            return (50, "Neutral", "Stable")
-        
-        value = self.current_index.get("value", 50)
-        classification = self.current_index.get("value_classification", "Neutral")
-        
-        # Ideally we would calculate trend based on historical data
-        # For simplicity, we'll return "Stable" for now
-        trend = "Stable"
-        
-        return (value, classification, trend)
-    
     async def close(self) -> None:
         """Close method for consistency with other API clients."""
         # AlternativeMeAPI doesn't maintain persistent connections

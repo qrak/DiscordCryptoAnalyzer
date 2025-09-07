@@ -1,25 +1,13 @@
 import numpy as np
-from typing import Any, Dict, Optional, TypedDict
+from typing import Any, Dict, Optional
 
 from src.logger.logger import Logger
+from ..core.analysis_context import AnalysisContext
 from ..calculations.indicator_calculator import IndicatorCalculator
 from .template_manager import TemplateManager
 from ..formatting.market_analysis.market_overview_formatter import MarketOverviewFormatter
 from ..formatting.technical_analysis.technical_formatter import TechnicalAnalysisFormatter
 from .context_builder import ContextBuilder
-
-
-class AnalysisContext(TypedDict):
-    """Expected structure for the analysis context passed to PromptBuilder"""
-    symbol: str
-    current_price: float
-    sentiment: Dict[str, Any]
-    market_overview: Optional[Dict[str, Any]]
-    technical_data: Dict[str, Any]
-    market_metrics: Dict[str, Any]
-    long_term_data: Dict[str, Any]
-    ohlcv_candles: np.ndarray
-    technical_patterns: Optional[Dict[str, Any]]
 
 
 class PromptBuilder:
