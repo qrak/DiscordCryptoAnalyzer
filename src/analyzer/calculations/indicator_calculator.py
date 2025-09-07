@@ -55,3 +55,28 @@ class IndicatorCalculator:
     def format_long_term_analysis(self, long_term_data: dict, current_price: float = None) -> str:
         """Format long-term analysis from historical data"""
         return self.formatter.format_long_term_analysis(long_term_data, current_price)
+
+    def get_indicator_value(self, td: dict, key: str):
+        """Get indicator value with proper type checking and error handling
+        
+        Args:
+            td: Technical data dictionary
+            key: Indicator key to retrieve
+            
+        Returns:
+            float or str: Indicator value or 'N/A' if invalid
+        """
+        return self.data_processor.get_indicator_value(td, key)
+    
+    def get_indicator_values(self, td: dict, key: str, expected_count: int = 2):
+        """Get multiple indicator values with proper type checking
+        
+        Args:
+            td: Technical data dictionary
+            key: Indicator key to retrieve
+            expected_count: Number of values expected
+            
+        Returns:
+            list[float]: List of indicator values or empty list if invalid
+        """
+        return self.data_processor.get_indicator_values(td, key, expected_count)
