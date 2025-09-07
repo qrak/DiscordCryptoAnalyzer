@@ -1,7 +1,3 @@
-"""
-Message deletion handler with retry logic.
-Handles the actual deletion of Discord messages with proper error handling.
-"""
 import discord
 from src.utils.decorators import retry_async
 
@@ -46,7 +42,7 @@ class MessageDeleter:
         channel = self.bot.get_channel(channel_id)
         if not channel:
             self.logger.warning(f"Channel {channel_id} not found for message {message_id}")
-            raise discord.NotFound(None, f"Channel {channel_id} not found")
+            raise discord.NotFound(f"Channel {channel_id} not found")
         return channel
     
     async def _delete_from_channel(self, message_id: int, channel) -> bool:
