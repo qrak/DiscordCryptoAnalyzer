@@ -14,6 +14,9 @@ LOGGER_DEBUG = False
 TEST_ENVIRONMENT = False
 TIMEFRAME = "1h"
 
+# Logging Configuration
+LOG_DIR = "logs"
+
 CANDLE_LIMIT = 999 
 
 ANALYSIS_COOLDOWN_COIN = 3600

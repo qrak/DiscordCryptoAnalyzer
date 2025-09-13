@@ -2,11 +2,11 @@
 
 <p align="left">
   <img src="https://img.shields.io/badge/python-3.13-blue.svg" />
-  <img src="https://img.shields.io/badge/discord.py-2.4.0-blue.svg" />
-  <img src="https://img.shields.io/badge/numpy-2.1.3-blue.svg" />
-  <img src="https://img.shields.io/badge/pandas-2.2.3-blue.svg" />
-  <img src="https://img.shields.io/badge/plotly-6.0.1-blue.svg" />
-  <img src="https://img.shields.io/badge/ccxt-4.4.69-blue.svg" />
+  <img src="https://img.shields.io/badge/discord.py-2.6.3-blue.svg" />
+  <img src="https://img.shields.io/badge/numpy-2.2.3-blue.svg" />
+  <img src="https://img.shields.io/badge/pandas-2.3.2-blue.svg" />
+  <img src="https://img.shields.io/badge/plotly-6.3.0-blue.svg" />
+  <img src="https://img.shields.io/badge/ccxt-4.5.3-blue.svg" />
 </p>
 
 A powerful Discord Crypto Analyzer for real-time cryptocurrency market analysis using AI models.
@@ -52,7 +52,7 @@ Discord Crypto Analyzer is a powerful bot that provides real-time cryptocurrency
 - Discord Bot Token
 - OpenRouter API Key or Local LM Studio setup
 - CryptoCompare API Key (for market data)
-- Google Studio API Key (optional, for Gemini models)
+- Google Studio API Key (optional, for Gemini models via official Google GenAI SDK)
 
 ### Steps
 
@@ -115,7 +115,6 @@ Contains sensitive information that should not be committed to version control:
 - `CRYPTOCOMPARE_API_KEY`: API key for CryptoCompare data
 - `GUILD_ID_DISCORD`: ID of your Discord server
 - `MAIN_CHANNEL_ID`: Main channel for bot communication
-- `IMAGE_CHANNEL_ID`: Channel where images will be posted
 - `TEMPORARY_CHANNEL_ID_DISCORD`: Channel for temporary file uploads
 
 ### `config_public.py`
@@ -125,6 +124,7 @@ Contains non-sensitive configuration that can be safely committed:
 - `USE_LM_STUDIO`: Toggle for using local LM Studio instead of cloud models
 - `LM_STUDIO_BASE_URL`: URL for LM Studio (default: "http://localhost:1234/v1")
 - `TIMEFRAME`: Default timeframe for analysis (default: "1h")
+- `LOG_DIR`: Directory for log files (default: "logs")
 - `LOGGER_DEBUG`: Enable debug logging
 - `ANALYSIS_COOLDOWN_COIN`: Time between analyses of the same coin (in seconds)
 - `ANALYSIS_COOLDOWN_USER`: Time between user requests (in seconds)
@@ -190,6 +190,7 @@ The bot is structured into a well-organized architecture with several key compon
   - Alternative.me API: Fear & Greed index for sentiment analysis
 - **AI Model Management**: 
   - Multi-Provider Strategy: Uses local and cloud-based AI models
+  - Official Google GenAI SDK: Integrated official Google AI SDK for enhanced reliability
   - Fallback Chain: Gracefully handles API failures and rate limits
   - Response Parsing: Transforms raw AI output to structured data
   - Token Tracking: Monitors and optimizes token usage

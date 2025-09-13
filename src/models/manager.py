@@ -32,7 +32,6 @@ class ModelManager:
         self.google_client = GoogleAIClient(
             api_key=GOOGLE_STUDIO_API_KEY,
             model=GOOGLE_STUDIO_MODEL,
-            base_url="https://generativelanguage.googleapis.com/v1beta/models",
             logger=logger
         )
 

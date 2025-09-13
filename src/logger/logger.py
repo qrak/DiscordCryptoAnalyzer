@@ -12,19 +12,39 @@ install_rich_traceback()
 
 
 class DailyRotatingFileHandler(TimedRotatingFileHandler):
-    def __init__(self, filename, log_dir, log_filename_prefix, logger_name, *args, **kwargs):
+    def __init__(self, filename, log_dir, log_filename_prefix, logger_name, is_error_handler=False, *args, **kwargs):
         self.log_dir = log_dir
         self.log_filename_prefix = log_filename_prefix
         self.logger_name = logger_name
+        self.is_error_handler = is_error_handler
         super().__init__(filename, *args, **kwargs)
 
     def emit(self, record):
         current_date = datetime.now().strftime("%Y_%m_%d")
-        current_log_dir = os.path.join(self.log_dir, self.logger_name, current_date)
-        current_filename = f"{current_log_dir}/{self.log_filename_prefix}{self.logger_name}.log"
+        
+        if self.is_error_handler:
+            current_log_dir = os.path.join(self.log_dir, "errors", current_date)
+        else:
+            current_log_dir = os.path.join(self.log_dir, self.logger_name, current_date)
+            
+        current_filename = os.path.join(current_log_dir, f"{self.log_filename_prefix}{self.logger_name}.log")
 
-        if self.baseFilename != current_filename:
-            self.baseFilename = current_filename
+        # Normalize paths for consistent comparison across platforms
+        current_filename_norm = os.path.normpath(current_filename)
+        basefilename_norm = os.path.normpath(self.baseFilename) if getattr(self, 'baseFilename', None) else None
+
+        if basefilename_norm != current_filename_norm:
+            # Close previous stream if it exists before opening a new one
+            try:
+                if getattr(self, 'stream', None):
+                    try:
+                        self.stream.close()
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+
+            self.baseFilename = current_filename_norm
             if not os.path.exists(current_log_dir):
                 os.makedirs(current_log_dir, exist_ok=True)
             self.stream = self._open()
@@ -43,12 +63,9 @@ class Logger(logging.Logger):
         self.log_filename_prefix = log_filename_prefix
         
         if log_dir is None:
-            current_file = os.path.abspath(__file__)
-            # current_file is inside src/logger; go up four levels to reach project root
-            src_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(current_file))))
-            self.log_dir = os.path.join(src_dir, 'logs')
-        else:
-            self.log_dir = log_dir
+            raise ValueError("log_dir is required and must be specified explicitly")
+        
+        self.log_dir = log_dir
             
         self.date_format = "%d.%m.%Y %H:%M:%S"
         
@@ -73,7 +90,7 @@ class Logger(logging.Logger):
         return log_dir
 
     def _get_log_filename(self, log_dir: str, suffix: str = '') -> str:
-        return f"{log_dir}/{self.log_filename_prefix}{self.name}{suffix}.log"
+        return os.path.join(log_dir, f"{self.log_filename_prefix}{self.name}{suffix}.log")
 
     def _plain_formatter(self) -> logging.Formatter:
         format_string = "[{asctime}] {filename}.{funcName} - {message}" if self.level == logging.DEBUG else "[{asctime}] - {message}"
@@ -102,6 +119,7 @@ class Logger(logging.Logger):
             self.log_dir,
             self.log_filename_prefix,
             self.name,
+            is_error_handler=False,
             when='midnight',
             interval=1,
             backupCount=30,
@@ -120,6 +138,7 @@ class Logger(logging.Logger):
             self.log_dir,
             self.log_filename_prefix,
             self.name,
+            is_error_handler=True,
             when='midnight',
             interval=1,
             backupCount=30,

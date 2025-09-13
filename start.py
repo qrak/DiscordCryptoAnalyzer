@@ -1,7 +1,7 @@
 import asyncio
 import sys
 
-from config.config import LOGGER_DEBUG
+from config.config import LOGGER_DEBUG, LOG_DIR
 from src.app import DiscordCryptoBot
 from src.logger.logger import Logger
 from src.utils.graceful_shutdown_manager import GracefulShutdownManager
@@ -9,7 +9,7 @@ from src.utils.graceful_shutdown_manager import GracefulShutdownManager
 
 async def main_async():
     """Async entry point for the application"""
-    logger = Logger(logger_name="Bot", logger_debug=LOGGER_DEBUG)
+    logger = Logger(logger_name="Bot", logger_debug=LOGGER_DEBUG, log_dir=LOG_DIR)
     bot = DiscordCryptoBot(logger)
     try:
         await bot.initialize()

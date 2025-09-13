@@ -1,95 +1,243 @@
-from typing import Optional, Dict, Any, List, cast
+"""
+Google GenAI client implementation using the official Google GenAI SDK.
+Replaces the previous custom HTTP-based implementation with the official SDK.
+"""
+
+from typing import Optional, Dict, Any, List, Union, cast
+
+from google import genai
+from google.genai import types
+from PIL import Image
 
 from src.logger.logger import Logger
-from src.platforms.ai_providers.base import BaseApiClient
 from src.platforms.ai_providers.openrouter import ResponseDict
 from src.utils.decorators import retry_api_call
 
 
-class GoogleAIClient(BaseApiClient):
-    """Client for handling Google AI API requests."""
+class GoogleAIClient:
+    """Client for handling Google AI API requests using the official Google GenAI SDK."""
     
-    def __init__(self, api_key: str, model: str, base_url: str, logger: Logger) -> None:
-        super().__init__(api_key, base_url, logger)
+    def __init__(self, api_key: str, model: str, logger: Logger) -> None:
+        """
+        Initialize the GoogleAIClient.
+        
+        Args:
+            api_key: Google AI API key
+            model: Model name (e.g., 'gemini-2.5-flash')
+            logger: Logger instance
+        """
+        self.api_key = api_key
         self.model = model
+        self.logger = logger
+        self.client: Optional[genai.Client] = None
     
-    def _convert_messages_to_google_format(self, messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """Convert OpenAI format messages to Google API format."""
-        google_messages = []
-        for msg in messages:
-            role = msg.get("role", "user")
-            content = msg.get("content", "")
-            
-            if isinstance(content, list):
-                parts = []
-                for part in content:
-                    if part.get("type") == "text":
-                        parts.append({"text": part.get("text", "")})
-                if parts:
-                    google_messages.append({"role": "user" if role != "assistant" else "model", "parts": parts})
-                continue
+    async def __aenter__(self):
+        """Async context manager entry."""
+        self.client = genai.Client(api_key=self.api_key)
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """Async context manager exit."""
+        await self.close()
+    
+    async def close(self) -> None:
+        """Close the client."""
+        try:
+            if self.client:
+                # The Google GenAI client doesn't require explicit closing
+                # but we set it to None for consistency
+                self.client = None
+                self.logger.debug("GoogleAIClient closed successfully")
+        except Exception as e:
+            self.logger.error(f"Error during Google AI client cleanup: {e}")
+    
+    def _ensure_client(self) -> genai.Client:
+        """Ensure a client exists and return it."""
+        if not self.client:
+            self.client = genai.Client(api_key=self.api_key)
+        return self.client
+    
+    def _extract_text_from_messages(self, messages: List[Dict[str, Any]]) -> str:
+        """
+        Extract combined text content from OpenAI-style messages.
+        The Google GenAI SDK works better with simple string prompts.
+        """
+        text_parts = []
+        
+        for message in messages:
+            role = message["role"]
+            content = message["content"]
             
             if role == "system":
-                role = "user"
-                content = f"System: {content}"
-            elif role == "assistant":
-                role = "model"
-                
-            google_messages.append({
-                "role": role,
-                "parts": [{"text": content}]
-            })
+                text_parts.append(f"System: {content}")
+            else:
+                text_parts.append(content)
         
-        return google_messages
+        return "\n\n".join(text_parts)
     
     @retry_api_call(max_retries=3, initial_delay=1, backoff_factor=2, max_delay=30)
     async def chat_completion(self, messages: List[Dict[str, Any]], model_config: Dict[str, Any]) -> Optional[ResponseDict]:
-        """Send a chat completion request to the Google AI API."""
-        # Convert messages to Google format
-        google_messages = self._convert_messages_to_google_format(messages)
+        """
+        Send a chat completion request to the Google AI API using the official SDK.
         
-        payload = {
-            "contents": google_messages,
-            "generationConfig": {
-                "temperature": model_config.get("temperature", 0.7),
-                "topP": model_config.get("top_p", 0.9),
-                "topK": model_config.get("top_k", 40),
-                "maxOutputTokens": model_config.get("max_tokens", 32768), # Increased default
-            }
-        }
-        
-        url = f"{self.base_url}/{self.model}:generateContent?key={self.api_key}"
-        headers = {"Content-Type": "application/json"}
-        
+        Args:
+            messages: List of OpenAI-style messages
+            model_config: Configuration parameters for the model
+            
+        Returns:
+            Response in OpenRouter-compatible format or None if failed
+        """
         try:
-            response_data = await self._make_post_request(url, headers, payload, self.model)
+            client = self._ensure_client()
             
-            if not response_data:
-                return None
-                
-            # Check for empty response
-            if "candidates" not in response_data or not response_data["candidates"]:
-                self.logger.error(f"Empty response from Google API: {response_data}")
-                return None
+            # Convert messages to simple text prompt
+            prompt = self._extract_text_from_messages(messages)
             
-            candidate = response_data["candidates"][0]
+            # Create generation config
+            generation_config = types.GenerateContentConfig(
+                temperature=model_config.get("temperature", 0.7),
+                top_p=model_config.get("top_p", 0.9),
+                top_k=model_config.get("top_k", 40),
+                max_output_tokens=model_config.get("max_tokens", 32768),
+            )
             
-            # Check for truncation due to token limits
-            if "finishReason" in candidate and candidate["finishReason"] == "MAX_TOKENS":
-                self.logger.warning(f"Response truncated due to token limit for model {self.model}")
+            self.logger.debug(f"Sending request to Google AI with model: {self.model}")
             
-            # Format response to match OpenRouter format
-            content = candidate["content"]["parts"][0]["text"]
-            self.logger.debug(f"Received successful response from Google API")
+            # Generate content using the async client
+            response = await client.aio.models.generate_content(
+                model=self.model,
+                contents=prompt,
+                config=generation_config
+            )
             
+            # Extract content directly - the SDK guarantees response structure
+            content_text = response.text
+            
+            self.logger.debug("Received successful response from Google AI")
+            
+            # Format response to match OpenRouter format for compatibility
             return cast(ResponseDict, {
                 "choices": [{
                     "message": {
-                        "content": content,
+                        "content": content_text,
                         "role": "assistant"
                     }
                 }]
             })
             
-        except Exception:
-            return await self._handle_common_exceptions(self.model, "requesting Google API")
+        except Exception as e:
+            self.logger.error(f"Error during Google AI request: {str(e)}")
+            return self._handle_exception(e)
+    
+    async def chat_completion_with_images(self, 
+                                        messages: List[Dict[str, Any]], 
+                                        images: List[Union[Image.Image, bytes, str]], 
+                                        model_config: Dict[str, Any]) -> Optional[ResponseDict]:
+        """
+        Send a chat completion request with image inputs.
+        
+        Args:
+            messages: List of OpenAI-style messages
+            images: List of images (PIL Images, bytes, or file paths)
+            model_config: Configuration parameters for the model
+            
+        Returns:
+            Response in OpenRouter-compatible format or None if failed
+        """
+        try:
+            client = self._ensure_client()
+            
+            # Extract text prompt
+            prompt = self._extract_text_from_messages(messages)
+            
+            # Process images - trust that the correct types are passed
+            image_parts = []
+            for image in images:
+                if isinstance(image, Image.Image):
+                    # PIL Image - the SDK handles this directly
+                    image_parts.append(image)
+                elif isinstance(image, bytes):
+                    # Raw bytes
+                    image_parts.append(types.Part.from_bytes(
+                        data=image,
+                        mime_type='image/jpeg'
+                    ))
+                elif isinstance(image, str):
+                    # File path or URL
+                    if image.startswith(('http://', 'https://', 'gs://')):
+                        # URL or Cloud Storage URI
+                        image_parts.append(types.Part.from_uri(
+                            file_uri=image,
+                            mime_type='image/jpeg'
+                        ))
+                    else:
+                        # Local file path
+                        with open(image, 'rb') as f:
+                            img_data = f.read()
+                        image_parts.append(types.Part.from_bytes(
+                            data=img_data,
+                            mime_type='image/jpeg'
+                        ))
+            
+            # Combine prompt and images
+            contents = [prompt] + image_parts
+            
+            # Create generation config
+            generation_config = types.GenerateContentConfig(
+                temperature=model_config.get("temperature", 0.7),
+                top_p=model_config.get("top_p", 0.9),
+                top_k=model_config.get("top_k", 40),
+                max_output_tokens=model_config.get("max_tokens", 32768),
+            )
+            
+            self.logger.debug(f"Sending multimodal request to Google AI with {len(images)} images")
+            
+            # Generate content
+            response = await client.aio.models.generate_content(
+                model=self.model,
+                contents=contents,
+                config=generation_config
+            )
+            
+            # Extract content directly
+            content_text = response.text
+            
+            self.logger.debug("Received successful multimodal response from Google AI")
+            
+            return cast(ResponseDict, {
+                "choices": [{
+                    "message": {
+                        "content": content_text,
+                        "role": "assistant"
+                    }
+                }]
+            })
+            
+        except Exception as e:
+            self.logger.error(f"Error during Google AI multimodal request: {str(e)}")
+            return self._handle_exception(e)
+    
+    def _handle_exception(self, exception: Exception) -> Optional[ResponseDict]:
+        """
+        Handle exceptions from Google AI API.
+        
+        Args:
+            exception: The exception that occurred
+            
+        Returns:
+            Error response dictionary or None
+        """
+        error_message = str(exception)
+        
+        if "quota" in error_message.lower() or "rate limit" in error_message.lower():
+            self.logger.error(f"Rate limit or quota exceeded: {error_message}")
+            return cast(ResponseDict, {"error": "rate_limit", "details": error_message})
+        elif "authentication" in error_message.lower() or "api key" in error_message.lower():
+            self.logger.error(f"Authentication error: {error_message}")
+            return cast(ResponseDict, {"error": "authentication", "details": error_message})
+        elif "timeout" in error_message.lower():
+            self.logger.error(f"Timeout error: {error_message}")
+            return cast(ResponseDict, {"error": "timeout", "details": error_message})
+        else:
+            self.logger.error(f"Unexpected error: {error_message}")
+            return None
