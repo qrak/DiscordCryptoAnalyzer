@@ -34,6 +34,6 @@ class OpenRouterClient(BaseApiClient):
         }
         
         url = f"{self.base_url}/chat/completions"
-        response = await self._make_post_request(url, headers, payload, model, timeout=300)
+        response = await self._make_post_request(url, headers, payload, model, timeout=600)
         
         return cast(ResponseDict, response) if response else None

@@ -3,7 +3,7 @@ Volume indicators formatting for technical analysis.
 Handles MFI, OBV, CMF, Force Index and related volume indicators.
 """
 import numpy as np
-from ..basic_formatter import fmt
+from ..basic_formatter import fmt, fmt_ta
 
 
 class VolumeSectionFormatter:
@@ -18,18 +18,13 @@ class VolumeSectionFormatter:
         """Format the volume indicators section."""
         cmf_interpretation = self._get_cmf_interpretation(td)
         
-        return f"""## Volume Analysis:
-- MFI(14): {self._fmt_ta('mfi', td, 1)} [<{self.INDICATOR_THRESHOLDS['mfi']['oversold']}=Oversold, >{self.INDICATOR_THRESHOLDS['mfi']['overbought']}=Overbought]
-- On Balance Volume (OBV): {self._fmt_ta('obv', td, 0)}
-- Chaikin MF(20): {self._fmt_ta('cmf', td, 4)}{cmf_interpretation}
-- Force Index(13): {self._fmt_ta('force_index', td, 0)}"""
-    
-    def _fmt_ta(self, key: str, td: dict, precision: int = 8, default: str = 'N/A') -> str:
-        """Format technical analysis value safely."""
-        val = self.indicator_calculator.get_indicator_value(td, key)
-        if isinstance(val, (int, float)) and not np.isnan(val):
-            return fmt(val, precision)
-        return default
+        return (
+            "## Volume Analysis:\n"
+            f"- MFI(14): {fmt_ta(self.indicator_calculator, td, 'mfi', 1)} [<{self.INDICATOR_THRESHOLDS['mfi']['oversold']}=Oversold, >{self.INDICATOR_THRESHOLDS['mfi']['overbought']}=Overbought]\n"
+            f"- On Balance Volume (OBV): {fmt_ta(self.indicator_calculator, td, 'obv', 0)}\n"
+            f"- Chaikin MF(20): {fmt_ta(self.indicator_calculator, td, 'cmf', 4)}{cmf_interpretation}\n"
+            f"- Force Index(13): {fmt_ta(self.indicator_calculator, td, 'force_index', 0)}"
+        )
     
     def _get_cmf_interpretation(self, td: dict) -> str:
         """Get Chaikin Money Flow interpretation."""

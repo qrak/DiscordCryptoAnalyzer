@@ -423,21 +423,25 @@ class DiscordNotifier:
         )
 
     async def upload_analysis_content(self, html_content: str, symbol: str, channel_id: int):
-        self.logger.debug(f"Preparing to upload analysis for {symbol}")
+        self.logger.debug(f"Preparing to upload analysis for {symbol} to channel {channel_id}")
+        self.logger.debug(f"HTML content length: {len(html_content)} characters")
         
         # Create filename with symbol
         timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
         filename = f"{symbol.replace('/', '')}_analysis_{timestamp}.html"
+        self.logger.debug(f"Generated filename: {filename}")
         
         try:
             # Convert HTML content to bytes
             content_bytes = html_content.encode('utf-8')
+            self.logger.debug(f"Encoded content to {len(content_bytes)} bytes")
             
             # Create Discord file object from bytes
             file = discord.File(
                 fp=io.BytesIO(content_bytes),
                 filename=filename
             )
+            self.logger.debug(f"Created Discord file object: {filename}")
             
             # Use existing send_message method which handles tracking
             message = await self.send_message(
@@ -448,12 +452,16 @@ class DiscordNotifier:
             
             if message and message.attachments:
                 url = message.attachments[0].url
-                self.logger.debug(f"Uploaded analysis for {symbol}: {url}")
+                self.logger.info(f"Successfully uploaded analysis for {symbol}: {url}")
                 return url
             else:
-                self.logger.error(f"Failed to upload analysis for {symbol}: No attachments found")
+                self.logger.error(f"Failed to upload analysis for {symbol}: No attachments found in message")
+                if message:
+                    self.logger.error(f"Message ID: {message.id}, Content: {message.content}")
                 return None
                 
         except Exception as e:
-            self.logger.error(f"Error uploading analysis for {symbol}: {e}")
+            self.logger.error(f"Error uploading analysis for {symbol}: {type(e).__name__} - {e}")
+            import traceback
+            self.logger.error(f"Upload traceback: {traceback.format_exc()}")
             return None

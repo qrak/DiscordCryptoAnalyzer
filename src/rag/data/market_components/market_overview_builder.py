@@ -24,8 +24,15 @@ class MarketOverviewBuilder:
         
         try:
             # Add CoinGecko global data if available
-            if coingecko_data and 'data' in coingecko_data:
-                overview['global_data'] = coingecko_data['data']
+            if coingecko_data:
+                # Handle both direct global data and wrapped data
+                if 'data' in coingecko_data:
+                    overview['global_data'] = coingecko_data['data']
+                elif any(key in coingecko_data for key in ['market_cap', 'volume', 'dominance', 'stats']):
+                    # Direct global data format
+                    overview['global_data'] = coingecko_data
+                else:
+                    self.logger.warning(f"Unexpected CoinGecko data format: {list(coingecko_data.keys())}")
             
             # Add price data if available
             if price_data:

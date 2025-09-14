@@ -106,41 +106,6 @@ class NewsManager:
         """Detect cryptocurrency mentions in article content - delegates to ArticleProcessor."""
         return self.article_processor.detect_coins_in_article(article, known_crypto_tickers)
     
-    def get_articles_by_indices(self, indices: List[int]) -> List[Dict[str, Any]]:
-        """Get articles by their indices in the database."""
-        articles = []
-        for idx in indices:
-            if 0 <= idx < len(self.news_database):
-                articles.append(self.news_database[idx])
-        return articles
-    
-    def search_articles_by_coin(self, coin: str) -> List[int]:
-        """Search for article indices mentioning a specific coin."""
-        coin_lower = coin.lower()
-        results = []
-        
-        for i, article in enumerate(self.news_database):
-            # Check detected coins
-            detected_coins = article.get('detected_coins_str', '').lower()
-            if coin_lower in detected_coins:
-                results.append(i)
-                continue
-                
-            # Check categories
-            categories = article.get('categories', '').lower()
-            if coin_lower in categories:
-                results.append(i)
-                continue
-                
-            # Check title and body
-            title = article.get('title', '').lower()
-            body = article.get('body', '').lower()
-            
-            if coin_lower in title or f" {coin_lower} " in f" {body} ":
-                results.append(i)
-
-        return results
-    
     def format_article_date(self, article: Dict[str, Any]) -> str:
         """Format article date in a consistent way."""
         return self.article_processor.format_article_date(article)

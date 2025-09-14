@@ -1,12 +1,16 @@
-# Public configuration
-# Contains non-sensitive settings that can be safely committed to public repositories
+# AI Provider Configuration
+# Options: "local", "googleai", "openrouter", "all"
+# - "local": Use LM Studio only
+# - "googleai": Use Google AI Studio only  
+# - "openrouter": Use OpenRouter only
+# - "all": Use fallback system
+PROVIDER = "googleai"
 
-USE_LM_STUDIO = False
 LM_STUDIO_BASE_URL = "http://localhost:1234/v1"
 LM_STUDIO_MODEL = "local-model"
 
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
-OPENROUTER_BASE_MODEL = "google/gemini-2.5-flash"
+OPENROUTER_BASE_MODEL = "google/gemini-2.5-pro"
 OPENROUTER_FALLBACK_MODEL = "deepseek/deepseek-r1:free"
 GOOGLE_STUDIO_MODEL = "gemini-2.5-flash"
 
@@ -31,28 +35,6 @@ RAG_UPDATE_INTERVAL_HOURS = 1
 RAG_CATEGORIES_UPDATE_INTERVAL_HOURS = 24
 RAG_COINGECKO_UPDATE_INTERVAL_HOURS = 24
 RAG_COINGECKO_GLOBAL_API_URL = "https://api.coingecko.com/api/v3/global"
-RAG_INITIAL_KNOWN_TICKERS = {
-    'BTC', 'ETH', 'BNB', 'SOL', 'XRP', 'ADA', 'DOGE', 'DOT', 'AVAX', 'SHIB',
-    'MATIC', 'LTC', 'LINK', 'UNI', 'XLM', 'ATOM', 'ICP', 'FIL', 'VET', 'NEAR',
-    'EOS', 'XTZ', 'AAVE', 'GRT', 'ALGO', 'XMR', 'CRO', 'EGLD', 'FLOW', 'HBAR',
-    'MATIC', 'ARBITRUM', 'ARB', 'OP', 'BASE', 'TON', 'AVAX', 'FTM', 'ONE',
-    'MKR', 'COMP', 'YFI', 'SNX', 'SUSHI', 'BAL', 'CRV', 'UNI', '1INCH', 'AAVE',
-    'USDT', 'USDC', 'BUSD', 'DAI', 'TUSD', 'FRAX', 'PYUSD', 'FDUSD', 'USDD',
-    'PEPE', 'SHIB', 'DOGE', 'FLOKI', 'BONK', 'WIF', 'MOG', 'TURBO', 'BRETT',
-    'CATS', 'MEME', 'PEPU', 'SLERF', 'DOG', 'BOME', 'PONKE', 'TOSHI',
-    'AXS', 'SAND', 'MANA', 'ENJ', 'GALA', 'ILV', 'SLP', 'APE'
-}
-RAG_IMPORTANT_CATEGORIES = {
-    'MINING', 'REGULATION', 'BUSINESS', 'MARKET', 'BLOCKCHAIN', 'NFT', 'DEFI',
-    'SECURITY', 'TECHNOLOGY', 'ADOPTION', 'EXCHANGE', 'BTC', 'ETH', 'ALTCOIN'
-}
-RAG_NON_TICKER_CATEGORIES = {
-    'OVERVIEW', 'MARKET', 'BLOCKCHAIN', 'TECHNOLOGY', 'EXCHANGE', 'MINING',
-    'TRADING', 'REGULATION', 'BUSINESS', 'RESEARCH', 'AIRDROP', 'COMMODITY',
-    'FIAT', 'WALLET', 'DATA', 'TOKEN SALE', 'SPONSORED', 'OTHER', 'ASIA',
-    'ALTCOIN', 'ICO', 'SECURITY', 'NFT', 'DEFI', 'ADOPTION', 'FORKS',
-    'TECHNOLOGY', 'BITTENSOR'
-}
 
 SUPPORTED_LANGUAGES = {
     "English": "en",

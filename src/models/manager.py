@@ -4,7 +4,7 @@ from typing import Optional, Dict, Any, List, Union, cast
 from config.config import (
     OPENROUTER_API_KEY, OPENROUTER_BASE_URL, OPENROUTER_BASE_MODEL,
     GOOGLE_STUDIO_API_KEY, GOOGLE_STUDIO_MODEL,
-    USE_LM_STUDIO, LM_STUDIO_BASE_URL, LM_STUDIO_MODEL
+    PROVIDER, LM_STUDIO_BASE_URL, LM_STUDIO_MODEL
 )
 from src.logger.logger import Logger
 from src.models.config import ModelConfigManager
@@ -20,24 +20,29 @@ class ModelManager:
     def __init__(self, logger: Logger) -> None:
         """Initialize the ModelManager with its component parts"""
         self.logger = logger
-        self.use_lm_studio = USE_LM_STUDIO
+        self.provider = PROVIDER.lower()
 
-        # Create API clients
-        self.openrouter_client = OpenRouterClient(
-            api_key=OPENROUTER_API_KEY,
-            base_url=OPENROUTER_BASE_URL,
-            logger=logger
-        )
-
-        self.google_client = GoogleAIClient(
-            api_key=GOOGLE_STUDIO_API_KEY,
-            model=GOOGLE_STUDIO_MODEL,
-            logger=logger
-        )
-
-        # Conditionally create LM Studio client
+        # Create API clients based on provider configuration
+        self.openrouter_client: Optional[OpenRouterClient] = None
+        self.google_client: Optional[GoogleAIClient] = None
         self.lm_studio_client: Optional[LMStudioClient] = None
-        if self.use_lm_studio:
+
+        # Initialize clients based on provider setting
+        if self.provider in ["openrouter", "all"]:
+            self.openrouter_client = OpenRouterClient(
+                api_key=OPENROUTER_API_KEY,
+                base_url=OPENROUTER_BASE_URL,
+                logger=logger
+            )
+
+        if self.provider in ["googleai", "all"]:
+            self.google_client = GoogleAIClient(
+                api_key=GOOGLE_STUDIO_API_KEY,
+                model=GOOGLE_STUDIO_MODEL,
+                logger=logger
+            )
+
+        if self.provider in ["local", "all"]:
             self.lm_studio_client = LMStudioClient(
                 base_url=LM_STUDIO_BASE_URL,
                 logger=logger
@@ -53,11 +58,16 @@ class ModelManager:
         self.token_counter = TokenCounter()
 
         # Set up models and their configurations
-        self.model = LM_STUDIO_MODEL if self.use_lm_studio else OPENROUTER_BASE_MODEL
+        if self.provider == "local":
+            self.model = LM_STUDIO_MODEL
+        else:
+            self.model = OPENROUTER_BASE_MODEL
 
     async def __aenter__(self):
-        await self.openrouter_client.__aenter__()
-        await self.google_client.__aenter__()
+        if self.openrouter_client:
+            await self.openrouter_client.__aenter__()
+        if self.google_client:
+            await self.google_client.__aenter__()
         if self.lm_studio_client:
             await self.lm_studio_client.__aenter__()
         return self
@@ -91,10 +101,11 @@ class ModelManager:
         """Send a prompt to the model and get a streaming response"""
         messages = self._prepare_messages(prompt, system_message)
         
-        if self.use_lm_studio and self.lm_studio_client:
+        # Only try streaming if using local provider (LM Studio) or all providers
+        if (self.provider == "local" or self.provider == "all") and self.lm_studio_client:
             try:
-                model_config = self.config_manager.get_config(self.model)
-                response_json = await self.lm_studio_client.console_stream(self.model, messages, model_config)
+                model_config = self.config_manager.get_config(LM_STUDIO_MODEL)
+                response_json = await self.lm_studio_client.console_stream(LM_STUDIO_MODEL, messages, model_config)
                 if response_json is not None:  # Check for valid response before processing
                     return self._process_response(response_json)
                 else:
@@ -102,6 +113,7 @@ class ModelManager:
             except Exception as e:
                 self.logger.warning(f"LM Studio streaming failed: {str(e)}. Falling back to non-streaming mode.")
         
+        # Fallback to regular prompt for other providers or if streaming fails
         return await self.send_prompt(prompt, system_message, prepared_messages=messages)
         
     def _prepare_messages(self, prompt: str, system_message: Optional[str] = None) -> List[Dict[str, str]]:
@@ -126,35 +138,100 @@ class ModelManager:
         return messages
 
     async def _get_model_response(self, messages: List[Dict[str, str]]) -> Dict[str, Any]:
-        """Try models in sequence until we get a valid response, starting with Google AI Studio"""
-
-        # Start with Google AI Studio
-        self.logger.info(f"Attempting request with Google AI Studio model: {GOOGLE_STUDIO_MODEL}")
-        google_config = self.config_manager.get_config(GOOGLE_STUDIO_MODEL)
-        response_json = await self.google_client.chat_completion(messages, google_config)
-
-        if self._is_valid_response(response_json):
-            return response_json
+        """Get response from the selected provider(s)"""
+        
+        # If provider is "all", use fallback system (current behavior)
+        if self.provider == "all":
+            return await self._get_fallback_response(messages)
+        
+        # Use single provider only
+        if self.provider == "googleai" and self.google_client:
+            return await self._try_google_only(messages)
+        elif self.provider == "local" and self.lm_studio_client:
+            return await self._try_lm_studio_only(messages)
+        elif self.provider == "openrouter" and self.openrouter_client:
+            return await self._try_openrouter_only(messages)
         else:
-            self.logger.warning(f"Google AI Studio model {GOOGLE_STUDIO_MODEL} failed. Trying alternatives...")
+            # Fallback if provider is misconfigured or client not available
+            self.logger.error(f"Provider '{self.provider}' is not properly configured or client not available")
+            return cast(ResponseDict, {"error": f"Provider '{self.provider}' is not available"})
 
-        # Try LM Studio if enabled (as second priority)
-        if self.use_lm_studio and self.lm_studio_client:
+    async def _get_fallback_response(self, messages: List[Dict[str, str]]) -> Dict[str, Any]:
+        """Original fallback logic when provider is 'all'"""
+        # Start with Google AI Studio
+        if self.google_client:
+            self.logger.info(f"Attempting request with Google AI Studio model: {GOOGLE_STUDIO_MODEL}")
+            google_config = self.config_manager.get_config(GOOGLE_STUDIO_MODEL)
+            response_json = await self.google_client.chat_completion(messages, google_config)
+
+            if self._is_valid_response(response_json):
+                return response_json
+            else:
+                self.logger.warning(f"Google AI Studio model {GOOGLE_STUDIO_MODEL} failed. Trying alternatives...")
+
+        # Try LM Studio if available (as second priority)
+        if self.lm_studio_client:
             try:
-                self.logger.info(f"Attempting request with LM Studio model: {self.model}")
-                model_config = self.config_manager.get_config(self.model)
-                response_json = await self.lm_studio_client.chat_completion(self.model, messages, model_config)
+                self.logger.info(f"Attempting request with LM Studio model: {LM_STUDIO_MODEL}")
+                model_config = self.config_manager.get_config(LM_STUDIO_MODEL)
+                response_json = await self.lm_studio_client.chat_completion(LM_STUDIO_MODEL, messages, model_config)
 
                 if self._is_valid_response(response_json):
                     return response_json
                 else:
-                    self.logger.warning(f"LM Studio model {self.model} failed. Falling back to OpenRouter.")
+                    self.logger.warning(f"LM Studio model {LM_STUDIO_MODEL} failed. Falling back to OpenRouter.")
             except Exception as e:
                 # Catch connection errors and other exceptions
                 self.logger.warning(f"LM Studio connection failed: {str(e)}. Falling back to OpenRouter.")
 
         # Finally try OpenRouter as last resort
-        return await self._try_openrouter(messages)
+        if self.openrouter_client:
+            return await self._try_openrouter(messages)
+        else:
+            return cast(ResponseDict, {"error": "No providers available"})
+
+    async def _try_google_only(self, messages: List[Dict[str, str]]) -> Dict[str, Any]:
+        """Use Google AI Studio only"""
+        self.logger.info(f"Using Google AI Studio model: {GOOGLE_STUDIO_MODEL}")
+        google_config = self.config_manager.get_config(GOOGLE_STUDIO_MODEL)
+        response_json = await self.google_client.chat_completion(messages, google_config)
+
+        if not self._is_valid_response(response_json):
+            self.logger.error("Google AI Studio request failed or returned invalid response")
+            error_detail = response_json.get("error", "Unknown Google API failure") if response_json else "No response from Google API"
+            return cast(ResponseDict, {"error": f"Google AI Studio failed: {error_detail}"})
+
+        return response_json
+
+    async def _try_lm_studio_only(self, messages: List[Dict[str, str]]) -> Dict[str, Any]:
+        """Use LM Studio only"""
+        try:
+            self.logger.info(f"Using LM Studio model: {LM_STUDIO_MODEL}")
+            model_config = self.config_manager.get_config(LM_STUDIO_MODEL)
+            response_json = await self.lm_studio_client.chat_completion(LM_STUDIO_MODEL, messages, model_config)
+
+            if not self._is_valid_response(response_json):
+                self.logger.error("LM Studio request failed or returned invalid response")
+                error_detail = response_json.get("error", "Unknown LM Studio failure") if response_json else "No response from LM Studio"
+                return cast(ResponseDict, {"error": f"LM Studio failed: {error_detail}"})
+
+            return response_json
+        except Exception as e:
+            self.logger.error(f"LM Studio connection failed: {str(e)}")
+            return cast(ResponseDict, {"error": f"LM Studio connection failed: {str(e)}"})
+
+    async def _try_openrouter_only(self, messages: List[Dict[str, str]]) -> Dict[str, Any]:
+        """Use OpenRouter only"""
+        self.logger.info(f"Using OpenRouter model: {OPENROUTER_BASE_MODEL}")
+        model_config = self.config_manager.get_config(OPENROUTER_BASE_MODEL)
+        response_json = await self.openrouter_client.chat_completion(OPENROUTER_BASE_MODEL, messages, model_config)
+
+        if not self._is_valid_response(response_json) or self._rate_limited(response_json):
+            self.logger.error("OpenRouter request failed or returned invalid response")
+            error_detail = response_json.get("error", "Unknown OpenRouter failure") if response_json else "No response from OpenRouter"
+            return cast(ResponseDict, {"error": f"OpenRouter failed: {error_detail}"})
+
+        return response_json
 
     async def _try_openrouter(self, messages: List[Dict[str, str]]) -> Optional[ResponseDict]:
         """Use OpenRouter as fallback"""

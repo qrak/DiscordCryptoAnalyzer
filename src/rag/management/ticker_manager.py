@@ -29,9 +29,6 @@ class TickerManager:
     async def update_known_tickers(self, news_database: List[Dict[str, Any]]) -> None:
         """Update known tickers from news database and validation."""
         try:
-            # Start with existing tickers
-            all_coins = set(self.known_tickers)
-            
             # Extract coins from news database
             detected_coins = self._extract_detected_coins(news_database)
             category_coins = self._extract_category_coins(news_database)

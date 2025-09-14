@@ -68,9 +68,3 @@ class DataProcessor:
              except (ZeroDivisionError, TypeError):
                  return 0.0
          return 0.0
-    
-    def format_numeric_value(self, value, precision: int = 2) -> str:
-        """Helper to safely format numeric values with fallback to 'N/A'"""
-        if isinstance(value, (int, float)):
-            return f"{value:.{precision}f}"
-        return "N/A"

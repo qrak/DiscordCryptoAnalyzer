@@ -166,8 +166,8 @@ class ContentLinkProcessor:
     def _find_keyword_matches(self, content: str, validated_urls: dict, is_inside_link) -> List[dict]:
         """Find matches for keywords that appear in article titles."""
         matches = []
-        keywords = ["Trump", "SEC", "regulation", "policy", "options expiry", "Fear & Greed", 
-                   "Bitcoin", "ETH", "stablecoin", "XRP", "Cardano", "Conflux", "BTC"]
+        # Dynamic keywords from categories and known tickers
+        keywords = self._get_dynamic_keywords()
         linked_urls_for_keywords = set()
 
         for keyword in keywords:
@@ -187,6 +187,51 @@ class ContentLinkProcessor:
                             })
                             linked_urls_for_keywords.add(url)
         return matches
+    
+    def _get_dynamic_keywords(self) -> List[str]:
+        """Get dynamic keywords from known tickers and important categories."""
+        keywords = []
+        
+        # Add hardcoded important terms that are always relevant
+        static_keywords = ["Trump", "SEC", "regulation", "policy", "options expiry", "Fear & Greed", "stablecoin"]
+        keywords.extend(static_keywords)
+        
+        # Try to load known tickers from file
+        try:
+            import os
+            import json
+            from config.config import DATA_DIR
+            
+            tickers_file = os.path.join(DATA_DIR, "known_tickers.json")
+            if os.path.exists(tickers_file):
+                with open(tickers_file, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    tickers = data.get('tickers', [])
+                    keywords.extend(tickers)
+                    
+                    # Add common names for major cryptocurrencies
+                    ticker_names = {
+                        'BTC': 'Bitcoin',
+                        'ETH': 'Ethereum', 
+                        'XRP': 'Ripple',
+                        'ADA': 'Cardano',
+                        'DOT': 'Polkadot',
+                        'AVAX': 'Avalanche',
+                        'MATIC': 'Polygon',
+                        'LTC': 'Litecoin',
+                        'LINK': 'Chainlink',
+                        'UNI': 'Uniswap',
+                        'ATOM': 'Cosmos'
+                    }
+                    for ticker in tickers:
+                        if ticker in ticker_names:
+                            keywords.append(ticker_names[ticker])
+        except Exception:
+            # Fallback to basic set if loading fails
+            fallback_keywords = ["Bitcoin", "ETH", "BTC", "XRP", "Cardano", "Conflux"]
+            keywords.extend(fallback_keywords)
+        
+        return list(set(keywords))  # Remove duplicates
     
     def _apply_link_replacements(self, content: str, matches_to_process: List[dict]) -> str:
         """Apply link replacements to content, avoiding overlaps."""

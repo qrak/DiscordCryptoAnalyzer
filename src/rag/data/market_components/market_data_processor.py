@@ -43,16 +43,40 @@ class MarketDataProcessor:
     def extract_top_coins(self, coingecko_data: Optional[Dict]) -> List[str]:
         """Extract top cryptocurrency symbols from CoinGecko data."""
         try:
-            if not coingecko_data or 'data' not in coingecko_data:
+            if not coingecko_data:
+                self.logger.warning("No CoinGecko data provided")
                 return []
             
-            data = coingecko_data['data']
+            # Check for direct dominance data (current format)
+            if 'dominance' in coingecko_data:
+                dominance_data = coingecko_data['dominance']
+            elif 'data' in coingecko_data and 'dominance' in coingecko_data['data']:
+                dominance_data = coingecko_data['data']['dominance']
+            else:
+                self.logger.warning("No dominance data found in CoinGecko response")
+                return []
             
-            # Extract market cap dominance and percentages
-            if 'market_cap_percentage' in data:
-                return list(data['market_cap_percentage'].keys())[:10]
+            # Sort by dominance percentage and extract top symbols
+            sorted_coins = sorted(
+                dominance_data.items(), 
+                key=lambda x: x[1], 
+                reverse=True
+            )
             
-            return []
+            # Get top 10 coins, excluding stablecoins from top positions
+            stablecoins = {'usdt', 'usdc', 'busd', 'dai', 'tusd', 'usd', 'steth'}
+            top_coins = []
+            
+            for symbol, dominance in sorted_coins:
+                symbol_upper = symbol.upper()
+                if symbol.lower() not in stablecoins:
+                    top_coins.append(symbol_upper)
+                if len(top_coins) >= 10:
+                    break
+            
+            self.logger.debug(f"Extracted {len(top_coins)} top coins: {top_coins}")
+            return top_coins
+            
         except Exception as e:
             self.logger.error(f"Error extracting top coins: {e}")
             return []

@@ -25,7 +25,7 @@ class LMStudioClient(BaseApiClient):
         }
 
         payload = {
-            "model": model, # LM Studio might ignore this if only one model is loaded
+            "model": model,
             "messages": messages,
             **model_config
         }
@@ -45,7 +45,6 @@ class LMStudioClient(BaseApiClient):
             "Content-Type": "application/json",
         }
 
-        # Make a copy of the config and add streaming parameter
         payload = {
             "model": model,
             "messages": messages,

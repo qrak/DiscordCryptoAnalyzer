@@ -118,12 +118,3 @@ class ArticleProcessor:
         
         # If no separator found, return the symbol as is
         return symbol.upper()
-    
-    def calculate_time_decay(self, article: Dict[str, Any], current_time: float) -> float:
-        """Calculate time-based decay factor for article relevance."""
-        pub_time = self.get_article_timestamp(article)
-        if pub_time <= 0:
-            return 0.0
-        
-        time_diff = current_time - pub_time
-        return max(0.0, 1.0 - (time_diff / (24 * 3600)))

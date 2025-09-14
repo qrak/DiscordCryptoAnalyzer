@@ -340,6 +340,91 @@ def get_analysis_template(title, content, sources_section="", current_time="", e
             background-color: var(--keypoint-bg);
         }}
         
+        /* Enhanced table styling for technical analysis */
+        .technical-table {{
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px var(--shadow-color);
+        }}
+        
+        .technical-table th {{
+            background: var(--accent-gradient);
+            color: white;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-size: 0.85em;
+        }}
+        
+        /* Support/Resistance level styling */
+        .support-level {{
+            color: #28a745;
+            font-weight: 600;
+        }}
+        
+        .resistance-level {{
+            color: #dc3545;
+            font-weight: 600;
+        }}
+        
+        /* Signal indicators */
+        .bullish-signal {{
+            background-color: rgba(40, 167, 69, 0.1);
+            border-left: 3px solid #28a745;
+        }}
+        
+        .bearish-signal {{
+            background-color: rgba(220, 53, 69, 0.1);
+            border-left: 3px solid #dc3545;
+        }}
+        
+        .neutral-signal {{
+            background-color: rgba(255, 193, 7, 0.1);
+            border-left: 3px solid #ffc107;
+        }}
+        
+        /* Percentage change styling */
+        .positive-change {{
+            color: #28a745;
+            font-weight: 600;
+        }}
+        
+        .negative-change {{
+            color: #dc3545;
+            font-weight: 600;
+        }}
+        
+        /* Compact table for mobile */
+        .compact-table {{
+            font-size: 0.8em;
+        }}
+        
+        .compact-table th,
+        .compact-table td {{
+            padding: 8px 10px;
+        }}
+        
+        /* Table headers with icons */
+        .table-icon {{
+            margin-right: 5px;
+            font-size: 1.1em;
+        }}
+        
+        /* Strength indicators */
+        .strength-strong {{
+            color: #28a745;
+            font-weight: bold;
+        }}
+        
+        .strength-medium {{
+            color: #ffc107;
+            font-weight: 600;
+        }}
+        
+        .strength-weak {{
+            color: #6c757d;
+        }}
+        
         /* Make charts responsive */
         .js-plotly-plot {{
             max-width: 100% !important;

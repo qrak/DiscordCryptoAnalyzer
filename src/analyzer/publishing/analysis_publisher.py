@@ -48,29 +48,36 @@ class AnalysisPublisher:
         if not article_urls:
             self.logger.warning("No article URLs found in analysis result")
         
-        if "```json" in raw_response:
-            detailed_text = raw_response.split("```json")[1].split("```")[1].strip()
+        # Extract detailed markdown content from raw response (simple method)
+        detailed_text = self._extract_markdown_simple(raw_response)
+        
+        if detailed_text:
+            self.logger.debug(f"Found {len(article_urls)} article URLs for references")
             
-            if detailed_text:
-                self.logger.debug(f"Found {len(article_urls)} article URLs for references")
+            # Prepare OHLCV data for chart generation
+            ohlcv_data = self._prepare_chart_data(context, symbol, timeframe)
+            
+            if ohlcv_data:  # Only generate HTML if we have data
+                html_content = self.html_generator.generate_html_content(
+                    f"{symbol} Detailed Analysis{(' in ' + language) if language else ''}",
+                    detailed_text,
+                    article_urls=article_urls,
+                    ohlcv_data=ohlcv_data
+                )
                 
-                # Prepare OHLCV data for chart generation
-                ohlcv_data = self._prepare_chart_data(context, symbol, timeframe)
-                
-                if ohlcv_data:  # Only generate HTML if we have data
-                    html_content = self.html_generator.generate_html_content(
-                        f"{symbol} Detailed Analysis{(' in ' + language) if language else ''}",
-                        detailed_text,
-                        article_urls=article_urls,
-                        ohlcv_data=ohlcv_data
+                if html_content:
+                    self.analysis_file_url = await self.discord_notifier.upload_analysis_content(
+                        html_content,
+                        symbol,
+                        config.TEMPORARY_CHANNEL_ID_DISCORD
                     )
-                    
-                    if html_content:
-                        self.analysis_file_url = await self.discord_notifier.upload_analysis_content(
-                            html_content,
-                            symbol,
-                            config.TEMPORARY_CHANNEL_ID_DISCORD
-                        )
+                    self.logger.debug(f"HTML analysis uploaded successfully: {self.analysis_file_url}")
+                else:
+                    self.logger.warning("HTML content generation failed")
+            else:
+                self.logger.warning("No OHLCV data available for HTML generation")
+        else:
+            self.logger.warning("No detailed markdown content found in response for HTML generation")
         
         await self._send_discord_embed(symbol, analysis_result)
         return True
@@ -111,6 +118,17 @@ class AnalysisPublisher:
             channel_id=config.MAIN_CHANNEL_ID,
             embed=embed
         )
+    
+    def _extract_markdown_simple(self, raw_response: str) -> str:
+        """Simple markdown extraction - find first ## header and take everything after it"""
+        if not raw_response:
+            return ""
+        
+        lines = raw_response.split('\n')
+        for i, line in enumerate(lines):
+            if line.strip().startswith('##'):
+                return '\n'.join(lines[i:]).strip()
+        return ""
         
     def _prepare_chart_data(self, context, symbol: str, timeframe: str) -> Optional[Dict[str, Any]]:
         """Prepare OHLCV and indicator data for chart generation"""

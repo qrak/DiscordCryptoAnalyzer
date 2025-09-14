@@ -119,10 +119,29 @@ Contains sensitive information that should not be committed to version control:
 
 ### `config_public.py`
 
-Contains non-sensitive configuration that can be safely committed:
+Contains non-sensitive configuration that can be safely committed.
 
-- `USE_LM_STUDIO`: Toggle for using local LM Studio instead of cloud models
+How PROVIDER works
+
+Use the single `PROVIDER` setting in `config/config_public.py` to select the AI provider. This section explains the available options and exact runtime behavior (no project-change narrative).
+
+- `PROVIDER` (string) — valid values and behavior:
+  - `"local"`: Use LM Studio only (local models). LM Studio is the only provider used; streaming is supported when LM Studio is available. If LM Studio fails, the request will fail — there is no automatic fallback.
+  - `"googleai"`: Use Google AI Studio only (Gemini models). Google is the single provider; no automatic fallbacks to other providers on failure.
+  - `"openrouter"`: Use OpenRouter only. OpenRouter is the single provider; no automatic fallbacks to other providers on failure.
+  - `"all"`: Use the fallback chain. In this mode the runtime will try providers in this order until one returns a valid response:
+    1. Google AI Studio
+    2. LM Studio (local)
+    3. OpenRouter
+
+  When `PROVIDER` is set to `"all"`, the system preserves the original fallback behavior. For single-provider settings (`"local"`, `"googleai"`, `"openrouter"`) there is no cross-provider fallback.
+
 - `LM_STUDIO_BASE_URL`: URL for LM Studio (default: "http://localhost:1234/v1")
+- `LM_STUDIO_MODEL`: Model identifier for LM Studio (default: "local-model")
+- `OPENROUTER_BASE_URL`: Base URL for OpenRouter API (default: "https://openrouter.ai/api/v1")
+- `OPENROUTER_BASE_MODEL`: Default OpenRouter model identifier (e.g. "google/gemini-2.5-flash")
+- `OPENROUTER_FALLBACK_MODEL`: Fallback model identifier for OpenRouter
+- `GOOGLE_STUDIO_MODEL`: Default Google model identifier (e.g. "gemini-2.5-flash")
 - `TIMEFRAME`: Default timeframe for analysis (default: "1h")
 - `LOG_DIR`: Directory for log files (default: "logs")
 - `LOGGER_DEBUG`: Enable debug logging

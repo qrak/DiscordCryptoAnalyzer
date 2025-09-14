@@ -5,6 +5,7 @@ Provides common formatting utilities to eliminate code duplication.
 
 import numpy as np
 from ..basic_formatter import fmt
+from ..basic_formatter import fmt_ta
 
 
 class BaseTechnicalFormatter:
@@ -20,22 +21,7 @@ class BaseTechnicalFormatter:
         self.indicator_calculator = indicator_calculator
         self.logger = logger
     
-    def _fmt_ta(self, key: str, td: dict, precision: int = 8, default: str = 'N/A') -> str:
-        """Format technical analysis value safely.
-        
-        Args:
-            key: Indicator key to format
-            td: Technical data dictionary
-            precision: Number of decimal places
-            default: Default value if indicator unavailable
-            
-        Returns:
-            str: Formatted value or default
-        """
-        val = self.indicator_calculator.get_indicator_value(td, key)
-        if isinstance(val, (int, float)) and not np.isnan(val):
-            return fmt(val, precision)
-        return default
+    # Note: _fmt_ta wrapper removed; use fmt_ta(self.indicator_calculator, td, key, precision) directly
     
     def _is_valid_value(self, value) -> bool:
         """Check if a value is valid for formatting.

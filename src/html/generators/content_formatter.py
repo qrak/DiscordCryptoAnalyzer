@@ -3,6 +3,8 @@ Content formatting utilities for HTML generation.
 Handles Markdown processing and content enrichment.
 """
 import markdown
+import re
+from typing import Optional
 
 
 class ContentFormatter:
@@ -13,7 +15,7 @@ class ContentFormatter:
     
     def process_markdown_content(self, content: str) -> str:
         """
-        Process Markdown content and convert to HTML.
+        Process Markdown content and convert to HTML - simplified version.
         
         Args:
             content: Raw Markdown content
@@ -27,10 +29,20 @@ class ContentFormatter:
                     self.logger.warning("Empty content provided for Markdown processing")
                 return ""
             
-            return markdown.markdown(
+            # Limit content size to prevent performance issues
+            if len(content) > 500000:  # 500KB limit
+                if self.logger:
+                    self.logger.warning(f"Content too large ({len(content)} chars), truncating to 500KB")
+                content = content[:500000] + "\n\n... (content truncated for performance)"
+            
+            # Simple markdown conversion - no table fixing bullshit
+            html_content = markdown.markdown(
                 content,
-                extensions=['fenced_code', 'tables', 'nl2br']
+                extensions=['fenced_code', 'nl2br']  # Removed 'tables' extension
             )
+            
+            return html_content
+            
         except Exception as e:
             if self.logger:
                 self.logger.error(f"Error processing Markdown content: {e}")

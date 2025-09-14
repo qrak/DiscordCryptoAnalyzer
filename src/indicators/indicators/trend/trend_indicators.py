@@ -186,3 +186,42 @@ def pfe_numba(close, n, m):
 
     return pfe
 
+
+@njit(cache=True)
+def td_sequential_numba(close, length=9):
+    """
+    Calculate TD Sequential indicator.
+    Returns the count of consecutive higher/lower closes.
+    Positive values indicate bullish counts, negative values indicate bearish counts.
+    """
+    n = len(close)
+    td_seq = np.full(n, np.nan)
+    
+    for i in range(4, n):  # Need at least 4 periods for comparison
+        # Count consecutive higher closes
+        bullish_count = 0
+        bearish_count = 0
+        
+        # Look back up to 'length' periods
+        for j in range(min(length, i)):
+            idx = i - j
+            if idx >= 4:  # Need 4 periods for comparison
+                if close[idx] > close[idx - 4]:
+                    bullish_count += 1
+                    bearish_count = 0  # Reset bearish count
+                elif close[idx] < close[idx - 4]:
+                    bearish_count += 1
+                    bullish_count = 0  # Reset bullish count
+                else:
+                    break  # Break on equal close
+        
+        # Assign value based on the count
+        if bullish_count > 0:
+            td_seq[i] = bullish_count
+        elif bearish_count > 0:
+            td_seq[i] = -bearish_count
+        else:
+            td_seq[i] = 0
+            
+    return td_seq
+

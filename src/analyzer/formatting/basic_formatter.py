@@ -23,6 +23,22 @@ def fmt(val, precision=8):
     return "N/A"
 
 
+def fmt_ta(indicator_calculator, td: dict, key: str, precision: int = 8, default: str = 'N/A') -> str:
+    """Public helper to format technical-analysis indicator values.
+
+    This centralizes the logic used across many formatter classes so there
+    is only one canonical implementation.
+    """
+    try:
+        val = indicator_calculator.get_indicator_value(td, key)
+    except Exception:
+        return default
+
+    if isinstance(val, (int, float)) and not np.isnan(val):
+        return fmt(val, precision)
+    return default
+
+
 class BasicFormatter:
     """Basic formatting utilities for timestamps and common data types."""
     
@@ -39,27 +55,4 @@ class BasicFormatter:
             dt = datetime.fromtimestamp(timestamp_ms / 1000)
             return dt.strftime("%Y-%m-%d %H:%M")
         except (ValueError, TypeError, OSError):
-            return "N/A"
-    
-    def format_percentage(self, value: float, precision: int = 2) -> str:
-        """Format a value as a percentage string."""
-        if value is None or (isinstance(value, float) and np.isnan(value)):
-            return "N/A"
-        try:
-            return f"{value:.{precision}f}%"
-        except (ValueError, TypeError):
-            return "N/A"
-    
-    def format_currency(self, value: float, precision: int = 2) -> str:
-        """Format a value as a currency string."""
-        if value is None or (isinstance(value, float) and np.isnan(value)):
-            return "N/A"
-        try:
-            if abs(value) >= 1_000_000:
-                return f"${value/1_000_000:.{precision}f}M"
-            elif abs(value) >= 1_000:
-                return f"${value/1_000:.{precision}f}K"
-            else:
-                return f"${value:.{precision}f}"
-        except (ValueError, TypeError):
             return "N/A"

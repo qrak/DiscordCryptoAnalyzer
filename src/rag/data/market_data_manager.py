@@ -39,9 +39,7 @@ class MarketDataManager:
         self.current_market_overview: Optional[Dict[str, Any]] = None
         self.coingecko_last_update: Optional[datetime] = None
         
-    async def load_cached_market_overview(self) -> Optional[Dict[str, Any]]:
-        """Load cached market overview data from disk."""
-        return await self.cache.load_cached_market_overview()
+
         
     async def fetch_market_overview(self) -> Optional[Dict[str, Any]]:
         """Fetch overall market data from various sources concurrently."""
@@ -211,7 +209,8 @@ class MarketDataManager:
                 self.logger.debug("Fetching market overview data")
                 market_overview = await self.fetch_market_overview()
                 if market_overview:
-                    await self.save_market_overview(market_overview)
+                    self.current_market_overview = market_overview
+                    self.logger.debug("Market overview updated successfully.")
                     return True
                 else:
                     self.logger.warning("No market overview data was available from data sources")
@@ -222,15 +221,7 @@ class MarketDataManager:
         
         return False
     
-    async def save_market_overview(self, market_overview: Dict[str, Any]) -> None:
-        """Save market overview data to file and update current cache."""
-        try:
-            # Use cache component for saving
-            await self.cache.save_market_overview(market_overview)
-            self.current_market_overview = market_overview
-            self.logger.debug("Market overview updated and saved.")
-        except Exception as e:
-            self.logger.error(f"Error saving market overview: {e}")
+
     
     def _normalize_timestamp(self, timestamp_field: Union[int, float, str, None]) -> float:
         """Convert various timestamp formats to a float timestamp."""

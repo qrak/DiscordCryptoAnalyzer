@@ -88,7 +88,7 @@ Use appropriate {language} terminology for technical analysis concepts."""
         }
         ```        
         After the JSON block, include a detailed human-readable analysis. 
-        **IMPORTANT: Format this detailed analysis using Markdown syntax.** Use headings (`##`), bold (`**text**`), italics (`*text*`), bullet points (`-` or `*`), and numbered lists where appropriate to enhance readability. 
+        **IMPORTANT: Format this detailed analysis using Markdown syntax.** Use headings (`##`), bold (`**text**`), italics (`*text*`), bullet points (`-` or `*`), numbered lists for enhanced readability. 
         **Quantify observations where possible (e.g., "Price is X% below the 50-period MA", "RSI dropped Y points").**
         
         **IMPORTANT: Begin your analysis with a clear disclaimer that this is educational content only and not financial advice.**
@@ -97,14 +97,15 @@ Use appropriate {language} terminology for technical analysis concepts."""
         
         1. Disclaimer (emphasize this is for educational purposes only, not financial advice)
         2. Technical Analysis Overview (objective description of what the indicators show, quantified)
-        3. Multi-Timeframe Assessment (short, medium, long-term patterns, quantified changes)
-        4. Key Technical Levels (support/resistance identified by technical analysis, potentially with % distance from current price)
-        5. News Summary (summarize relevant recent news and their potential impact on the asset)
-        6. Potential Catalysts (Summarize factors like news, events, strong technical signals that could drive future price movement)
-        7. Educational Context (explain technical concepts related to the current market conditions)
-        8. Historical Patterns (similar technical setups in the past and what they typically indicate)
-        9. Risk Considerations (discuss technical factors that may invalidate the analysis)
-        10. Market Context (discuss how the asset relates to the overall market conditions using the provided Market Overview data)
+        3. Multi-Timeframe Assessment (describe short, medium, long-term patterns with quantified changes)
+        4. Technical Indicators Summary (describe indicators in organized paragraphs grouped by category)
+        5. Key Technical Levels (describe support and resistance levels in text format with specific prices and distances)
+        6. Market Context (describe asset performance vs broader market)
+        7. News Summary (summarize relevant recent news and their potential impact on the asset)
+        8. Potential Catalysts (Summarize factors like news, events, strong technical signals that could drive future price movement)
+        9. Educational Context (explain technical concepts related to the current market conditions)
+        10. Historical Patterns (similar technical setups in the past and what they typically indicate)
+        11. Risk Considerations (discuss technical factors that may invalidate the analysis)
         
         End with another reminder that users must do their own research and that this analysis is purely educational.
         '''

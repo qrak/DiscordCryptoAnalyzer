@@ -16,6 +16,7 @@ class ResponseParser:
     def parse_response(self, raw_text: str) -> Dict[str, Any]:
         """
         Parse the model's response from raw string to structured data.
+        Simple 3-step approach that works for all providers.
         
         Args:
             raw_text: The raw text response from the model
@@ -24,40 +25,51 @@ class ResponseParser:
             A dictionary representing the parsed response
         """
         try:
-            # First, clean up any tool_response tags that sometimes appear in model outputs
+            # Clean up any tool_response tags
             cleaned_text = self._clean_tool_response_tags(raw_text)
             
-            # Try parsing as direct JSON
+            # Step 1: Try parsing entire response as JSON (pure JSON responses)
             try:
                 result = json.loads(cleaned_text)
-                # Normalize numeric fields after parsing
                 return self._normalize_numeric_fields(result)
             except json.JSONDecodeError:
                 pass
 
-            # Try extracting JSON from markdown code block
+            # Step 2: Extract from ```json``` blocks (Google AI format)
             if "```json" in cleaned_text:
-                json_content = cleaned_text.split("```json")[1].split("```")[0].strip()
-                result = json.loads(json_content)
-                # Normalize numeric fields after parsing
-                return self._normalize_numeric_fields(result)
+                json_start = cleaned_text.find("```json") + 7
+                json_end = cleaned_text.find("```", json_start)
+                if json_end > json_start:
+                    json_content = cleaned_text[json_start:json_end].strip()
+                    result = json.loads(json_content)
+                    return self._normalize_numeric_fields(result)
 
-            self.logger.warning(f"Unable to parse response as JSON, creating fallback response")
-            
-            # Create a more descriptive error message that includes what was received
-            short_response = cleaned_text[:100] + "..." if len(cleaned_text) > 100 else cleaned_text
-            
+            # Step 3: Extract JSON from start (OpenRouter format)
+            if cleaned_text.strip().startswith('{'):
+                brace_count = 0
+                for i, char in enumerate(cleaned_text):
+                    if char == '{':
+                        brace_count += 1
+                    elif char == '}':
+                        brace_count -= 1
+                        if brace_count == 0:
+                            json_content = cleaned_text[:i+1]
+                            result = json.loads(json_content)
+                            return self._normalize_numeric_fields(result)
+
+            # If all parsing methods fail, create fallback response
+            self.logger.warning("Unable to parse response as JSON, creating fallback response")
             return {
                 "analysis": {
-                    "summary": f"Unable to parse the AI response. The analysis may have been in an invalid format.",
-                    "observed_trend": "NEUTRAL",  # Changed from "trend" to "observed_trend"
+                    "summary": "Unable to parse the AI response. The analysis may have been in an invalid format.",
+                    "observed_trend": "NEUTRAL",
                     "trend_strength": 50,
                     "confidence_score": 0
-                    # Removed "trading_recommendation" as it's not used
                 },
                 "raw_response": cleaned_text,
-                "parse_error": f"Failed to parse response: {short_response}"
+                "parse_error": "Failed to parse response"
             }
+            
         except Exception as e:
             self.logger.error(f"Failed to parse JSON response: {e}")
             return {
@@ -65,9 +77,8 @@ class ResponseParser:
                 "raw_response": raw_text,
                 "analysis": {
                     "summary": "Error parsing response",
-                    "observed_trend": "NEUTRAL",  # Changed from "trend" to "observed_trend"
+                    "observed_trend": "NEUTRAL",
                     "confidence_score": 0
-                    # Removed "trading_recommendation" as it's not used
                 }
             }
     

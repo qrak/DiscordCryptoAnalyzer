@@ -3,7 +3,7 @@ Volatility indicators formatting for technical analysis.
 Handles BB, ATR, Keltner Channels, VIX and related volatility indicators.
 """
 import numpy as np
-from ..basic_formatter import fmt
+from ..basic_formatter import fmt, fmt_ta
 
 
 class VolatilitySectionFormatter:
@@ -18,18 +18,14 @@ class VolatilitySectionFormatter:
         bb_interpretation = self._get_bb_interpretation(td)
         current_price = crypto_data.get('current_price', 0)
         
-        return f"""## Volatility Analysis:
-- Bollinger Bands(20,2): {self._fmt_ta('bb_upper', td, 8)} | {self._fmt_ta('bb_middle', td, 8)} | {self._fmt_ta('bb_lower', td, 8)}{bb_interpretation}
-- Current Price vs BB: {fmt(current_price, 8)}
-- ATR(14): {self._fmt_ta('atr', td, 8)}
-- Keltner Channels(20,2): {self._fmt_ta('kc_upper', td, 8)} | {self._fmt_ta('kc_middle', td, 8)} | {self._fmt_ta('kc_lower', td, 8)}"""
+        return (
+            "## Volatility Analysis:\n"
+            f"- Bollinger Bands(20,2): {fmt_ta(self.indicator_calculator, td, 'bb_upper', 8)} | {fmt_ta(self.indicator_calculator, td, 'bb_middle', 8)} | {fmt_ta(self.indicator_calculator, td, 'bb_lower', 8)}{bb_interpretation}\n"
+            f"- Current Price vs BB: {fmt(current_price, 8)}\n"
+            f"- ATR(14): {fmt_ta(self.indicator_calculator, td, 'atr', 8)}\n"
+            f"- Keltner Channels(20,2): {fmt_ta(self.indicator_calculator, td, 'kc_upper', 8)} | {fmt_ta(self.indicator_calculator, td, 'kc_middle', 8)} | {fmt_ta(self.indicator_calculator, td, 'kc_lower', 8)}"
+        )
     
-    def _fmt_ta(self, key: str, td: dict, precision: int = 8, default: str = 'N/A') -> str:
-        """Format technical analysis value safely."""
-        val = self.indicator_calculator.get_indicator_value(td, key)
-        if isinstance(val, (int, float)) and not np.isnan(val):
-            return fmt(val, precision)
-        return default
     
     def _get_bb_interpretation(self, td: dict) -> str:
         """Get Bollinger Bands interpretation."""

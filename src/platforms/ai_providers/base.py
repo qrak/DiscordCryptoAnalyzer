@@ -40,7 +40,14 @@ class BaseApiClient:
     
     async def _handle_error_response(self, response: aiohttp.ClientResponse, model: str) -> Dict[str, Any]:
         """Handle error responses from APIs."""
-        error_text = await response.text()
+        try:
+            error_text = await response.text()
+        except Exception:
+            error_text = "Failed to read error response"
+        
+        if error_text is None:
+            error_text = "No error details available"
+            
         self.logger.error(f"API Error for model {model}: Status {response.status} - {error_text}")
         
         error_details = {

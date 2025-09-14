@@ -1,15 +1,8 @@
 import asyncio
-import json
-import re
-from collections import defaultdict
 from datetime import datetime, timedelta
-from typing import List, Dict, Any, Optional, Set, Tuple, TypedDict, Union
+from typing import List, Dict, Any, Optional, Set, Tuple, Union
 
-from config.config import (
-    RAG_UPDATE_INTERVAL_HOURS, RAG_CATEGORIES_UPDATE_INTERVAL_HOURS,
-    RAG_COINGECKO_UPDATE_INTERVAL_HOURS, RAG_INITIAL_KNOWN_TICKERS,
-    RAG_IMPORTANT_CATEGORIES, RAG_NON_TICKER_CATEGORIES
-)
+from config.config import RAG_UPDATE_INTERVAL_HOURS
 from src.platforms.coingecko import CoinGeckoAPI
 from src.platforms.cryptocompare import CryptoCompareAPI
 from src.logger.logger import Logger
@@ -20,23 +13,6 @@ from ..data.market_data_manager import MarketDataManager
 from ..management.category_manager import CategoryManager
 from ..search.index_manager import IndexManager
 from .context_builder import ContextBuilder
-
-
-class CacheData(TypedDict):
-    timestamp: str
-    data: Any
-
-
-class NewsArticle(TypedDict, total=False):
-    id: str
-    title: str
-    body: str
-    published_on: Union[int, float, str]
-    categories: str
-    tags: str
-    source: str
-    detected_coins: str
-    url: str
 
 
 class RagEngine:
@@ -98,8 +74,7 @@ class RagEngine:
                 self.market_data_manager.cryptocompare_api = self.cryptocompare_api
                 self.category_manager.cryptocompare_api = self.cryptocompare_api
                 
-            # Load market overview data
-            await self.market_data_manager.load_cached_market_overview()
+
             
             # Load known tickers
             await self.category_manager.load_known_tickers()
@@ -248,12 +223,33 @@ class RagEngine:
             return "Error retrieving market context."
 
     async def get_market_overview(self) -> Optional[Dict[str, Any]]:
-        """Get current market overview data"""
+        """Get current market overview data - now uses CoinGecko data directly"""
         try:
+            # Try to get fresh CoinGecko global data directly
+            if self.coingecko_api:
+                coingecko_data = await self.coingecko_api.get_global_market_data()
+                if coingecko_data:
+                    # Format CoinGecko data as market overview
+                    market_overview = {
+                        "timestamp": self.coingecko_api.last_update.isoformat() if self.coingecko_api.last_update else "unknown",
+                        "summary": "CRYPTO MARKET OVERVIEW",
+                        "published_on": self.coingecko_api.last_update.timestamp() if self.coingecko_api.last_update else 0,
+                        "data_sources": ["coingecko_global"],
+                        "market_cap": coingecko_data.get("market_cap", {}),
+                        "volume": coingecko_data.get("volume", {}),
+                        "dominance": coingecko_data.get("dominance", {}),
+                        "stats": coingecko_data.get("stats", {})
+                    }
+                    self.logger.debug("Using live CoinGecko data as market overview")
+                    return market_overview
+            
+            # Fallback to complex market data manager if CoinGecko fails
             current_overview = self.market_data_manager.get_current_overview()
             
+            # Try to get market overview data directly from CoinGecko API
             if current_overview is None:
-                await self.market_data_manager.load_cached_market_overview()
+                self.logger.debug("No current market overview, fetching from CoinGecko")
+                await self.market_data_manager.update_market_overview_if_needed(max_age_hours=1)
                 current_overview = self.market_data_manager.get_current_overview()
 
             if current_overview is not None:
@@ -354,6 +350,3 @@ class RagEngine:
     def latest_article_urls(self) -> Dict[str, str]:
         """Get latest article URLs from context builder"""
         return self.context_builder.get_latest_article_urls()
-    async def _fetch_market_overview(self) -> Optional[Dict[str, Any]]:
-        """Fetch market overview data - delegates to market data manager"""
-        return await self.market_data_manager.fetch_market_overview()

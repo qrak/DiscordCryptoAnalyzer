@@ -8,6 +8,7 @@ from typing import Any, Dict, List, Optional
 
 from src.logger.logger import Logger
 from ..basic_formatter import fmt
+from ..basic_formatter import fmt_ta
 from .momentum_formatter import MomentumSectionFormatter
 from .trend_formatter import TrendSectionFormatter
 from .volume_formatter import VolumeSectionFormatter
@@ -65,8 +66,8 @@ class TechnicalAnalysisFormatter:
         pattern_info = self._format_recent_patterns(context)
 
         # Build main technical analysis content
-        technical_analysis = f"""\nTECHNICAL ANALYSIS ({timeframe}):\n\n## Price Action:\n- Current Price: {fmt(context.current_price) if hasattr(context, 'current_price') else 0.0}\n- Rolling VWAP (14): {self._fmt_ta('vwap', td, 8)}\n- TWAP (14): {self._fmt_ta('twap', td, 8)}\n\n{momentum_section}\n\n{trend_section}\n\n{volatility_section}\n\n{volume_section}\n\n## Statistical Metrics:\n- Hurst Exponent(20): {self._fmt_ta('hurst', td, 2)} [~0.5: Random Walk, >0.5: Trending, <0.5: Mean Reverting]\n- Z-Score(30): {self._fmt_ta('zscore', td, 2)} [Distance from mean in std deviations]\n- Kurtosis(30): {self._fmt_ta('kurtosis', td, 2)} [Tail risk indicator; >3 suggests fatter tails]\n\n{key_levels_section}\n\n{advanced_section}\n\n{patterns_section}{pattern_info}"""
-        
+        technical_analysis = f"""\nTECHNICAL ANALYSIS ({timeframe}):\n\n## Price Action:\n- Current Price: {fmt(context.current_price) if hasattr(context, 'current_price') else 0.0}\n- Rolling VWAP (14): {fmt_ta(self.indicator_calculator, td, 'vwap', 8)}\n- TWAP (14): {fmt_ta(self.indicator_calculator, td, 'twap', 8)}\n\n{momentum_section}\n\n{trend_section}\n\n{volatility_section}\n\n{volume_section}\n\n## Statistical Metrics:\n- Hurst Exponent(20): {fmt_ta(self.indicator_calculator, td, 'hurst', 2)} [~0.5: Random Walk, >0.5: Trending, <0.5: Mean Reverting]\n- Z-Score(30): {fmt_ta(self.indicator_calculator, td, 'zscore', 2)} [Distance from mean in std deviations]\n- Kurtosis(30): {fmt_ta(self.indicator_calculator, td, 'kurtosis', 2)} [Tail risk indicator; >3 suggests fatter tails]\n\n{key_levels_section}\n\n{advanced_section}\n\n{patterns_section}{pattern_info}"""
+
         return technical_analysis
     
     def _format_patterns_section(self, context) -> str:
@@ -97,23 +98,6 @@ class TechnicalAnalysisFormatter:
                 self.logger.debug(f"Could not use PatternRecognizer for patterns: {e}")
         
         return ""
-    
-    def _fmt_ta(self, key: str, td: dict, precision: int = 8, default: str = 'N/A') -> str:
-        """Format technical analysis value safely.
-        
-        Args:
-            key: Indicator key to format
-            td: Technical data dictionary
-            precision: Number of decimal places
-            default: Default value if indicator unavailable
-            
-        Returns:
-            str: Formatted value or default
-        """
-        val = self.indicator_calculator.get_indicator_value(td, key)
-        if isinstance(val, (int, float)) and not np.isnan(val):
-            return fmt(val, precision)
-        return default
     
     def _format_recent_patterns(self, context) -> str:
         """Format recent pattern detection information.

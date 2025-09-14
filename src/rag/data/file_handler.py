@@ -11,7 +11,6 @@ from src.logger.logger import Logger
 
 class RagFileHandler:
     NEWS_FILE = "crypto_news.json"
-    MARKET_OVERVIEW_FILE = "market_overview.json"
     MARKET_DATA_DIR = "market_data"
     COINGECKO_CACHE_FILE = "coingecko_global.json"
     
@@ -90,24 +89,6 @@ class RagFileHandler:
                 except:
                     pass
             self.logger.error(f"Error saving JSON file {file_path}: {e}")
-
-    def file_exists(self, file_path: str) -> bool:
-        return os.path.exists(file_path)
-
-    def get_market_overview_path(self) -> str:
-        return os.path.join(self.market_data_dir, self.MARKET_OVERVIEW_FILE)
-    
-    def get_news_file_path(self) -> str:
-        return self.news_file_path
-
-    def get_tickers_file_path(self) -> str:
-        return self.tickers_file
-        
-    def get_categories_file_path(self) -> str:
-        return os.path.join(self.data_dir, "categories.json")
-        
-    def get_coingecko_cache_path(self) -> str:
-        return os.path.join(self.market_data_dir, self.COINGECKO_CACHE_FILE)
         
     def save_news_articles(self, articles: List[Dict]):
         if not articles:

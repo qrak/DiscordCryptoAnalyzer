@@ -81,6 +81,12 @@ class TechnicalCalculator:
         indicators["bb_middle"] = bb_middle
         indicators["bb_lower"] = bb_lower
         
+        # Calculate Keltner Channels separately
+        kc_upper, kc_middle, kc_lower = self.ti.volatility.keltner_channels()
+        indicators["kc_upper"] = kc_upper
+        indicators["kc_middle"] = kc_middle
+        indicators["kc_lower"] = kc_lower
+        
         # Calculate Supertrend separately
         supertrend, supertrend_direction = self.ti.trend.supertrend()
         indicators["supertrend"] = supertrend
@@ -111,10 +117,12 @@ class TechnicalCalculator:
             volume_factor=1.5,
             price_factor=0.004
         )
-        indicators["support_resistance"] = [adv_support[-1], adv_resistance[-1]]
+        # Store as arrays instead of single values
+        indicators["advanced_support"] = adv_support
+        indicators["advanced_resistance"] = adv_resistance
         
         # Add Fibonacci retracement levels
-        fib_levels = self.ti.support_resistance.fibonacci_retracement(length=20)
+        fib_levels = self.ti.support_resistance.fibonacci_retracement(length=30)
         if fib_levels is not None and len(fib_levels) > 0:
             # fib_levels is a 2D array (n_periods, n_levels)
             # Extract each fibonacci level as a separate array
@@ -124,23 +132,28 @@ class TechnicalCalculator:
             indicators["fib_618"] = fib_levels[:, 4]  # 61.8% level for all periods
         
         # Add Pivot Points using the proper numba implementation
-        pivot_point, r1, r2, s1, s2 = self.ti.support_resistance.pivot_points()
+        pivot_point, r1, r2, r3, r4, s1, s2, s3, s4 = self.ti.support_resistance.pivot_points()
         indicators["pivot_point"] = pivot_point
         indicators["pivot_r1"] = r1
         indicators["pivot_r2"] = r2
+        indicators["pivot_r3"] = r3
+        indicators["pivot_r4"] = r4
         indicators["pivot_s1"] = s1
         indicators["pivot_s2"] = s2
+        indicators["pivot_s3"] = s3
+        indicators["pivot_s4"] = s4
         
         # Add Parabolic SAR
         sar_values = self.ti.trend.parabolic_sar()
         indicators["sar"] = sar_values
         
-        # Add signal interpretations - temporarily disabled to fix scalar issue
-        # self._add_signal_interpretations(indicators, ohlcv_data)
+        # Add signal interpretations
+        self._add_signal_interpretations(indicators, ohlcv_data)
         
         # Add advanced trend indicators
         vortex_plus, vortex_minus = self.ti.trend.vortex_indicator(length=14)
-        indicators["vortex_indicator"] = [vortex_plus, vortex_minus]
+        indicators["vortex_plus"] = vortex_plus
+        indicators["vortex_minus"] = vortex_minus
         
         # Add more momentum indicators
         indicators["tsi"] = self.ti.momentum.tsi(long_length=25, short_length=13)
@@ -153,6 +166,7 @@ class TechnicalCalculator:
         # Add more trend indicators
         indicators["trix"] = self.ti.trend.trix(length=18)
         indicators["pfe"] = self.ti.trend.pfe(n=10, m=10)
+        indicators["td_sequential"] = self.ti.trend.td_sequential(length=9)
         
         # Calculate Chandelier Exit for trend reversals
         long_exit, short_exit = self.ti.volatility.chandelier_exit()
@@ -354,7 +368,13 @@ class TechnicalCalculator:
             span_a = indicators.get('ichimoku_span_a')
             span_b = indicators.get('ichimoku_span_b')
             
-            if isinstance(span_a, (int, float)) and isinstance(span_b, (int, float)):
+            # Handle numpy arrays by taking the last value
+            if hasattr(span_a, '__iter__') and not isinstance(span_a, str):
+                span_a = span_a[-1] if len(span_a) > 0 else None
+            if hasattr(span_b, '__iter__') and not isinstance(span_b, str):
+                span_b = span_b[-1] if len(span_b) > 0 else None
+            
+            if isinstance(span_a, (int, float)) and isinstance(span_b, (int, float)) and not (np.isnan(span_a) or np.isnan(span_b)):
                 cloud_top = max(span_a, span_b)
                 cloud_bottom = min(span_a, span_b)
                 
@@ -375,10 +395,18 @@ class TechnicalCalculator:
             bb_middle = indicators.get('bb_middle')
             bb_lower = indicators.get('bb_lower')
             
-            if all(isinstance(val, (int, float)) for val in [bb_upper, bb_middle, bb_lower]):
+            # Handle numpy arrays by taking the last value
+            if hasattr(bb_upper, '__iter__') and not isinstance(bb_upper, str):
+                bb_upper = bb_upper[-1] if len(bb_upper) > 0 else None
+            if hasattr(bb_middle, '__iter__') and not isinstance(bb_middle, str):
+                bb_middle = bb_middle[-1] if len(bb_middle) > 0 else None
+            if hasattr(bb_lower, '__iter__') and not isinstance(bb_lower, str):
+                bb_lower = bb_lower[-1] if len(bb_lower) > 0 else None
+            
+            if all(isinstance(val, (int, float)) and not np.isnan(val) for val in [bb_upper, bb_middle, bb_lower]):
                 # Calculate distance to each band as percentage
                 upper_dist = abs(current_price - bb_upper) / bb_upper
-                middle_dist = abs(current_price - bb_middle) / bb_middle
+                _middle_dist = abs(current_price - bb_middle) / bb_middle
                 lower_dist = abs(current_price - bb_lower) / bb_lower
                 
                 # Find closest band (threshold of 2% to determine "near")

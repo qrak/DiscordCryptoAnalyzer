@@ -69,7 +69,7 @@ class PatternAnalyzer:
             
             # Flatten all pattern categories into a single list
             all_patterns = []
-            for category, patterns_list in patterns_dict.items():
+            for _, patterns_list in patterns_dict.items():
                 all_patterns.extend(patterns_list)
             
             if self.logger:
@@ -82,123 +82,6 @@ class PatternAnalyzer:
                 self.logger.warning(f"Error in pattern detection: {e}")
             return []
 
-    def extract_key_patterns(self, context) -> str:
-        """Extract key technical patterns from context data
-        
-        DEPRECATED: This method provides basic pattern extraction. 
-        Use get_all_patterns() for more sophisticated pattern detection via PatternRecognizer.
-        
-        Args:
-            context: Analysis context with technical data and market metrics
-            
-        Returns:
-            str: Formatted key patterns section
-        """
-        if self.logger:
-            self.logger.debug("extract_key_patterns is deprecated. Use get_all_patterns() for advanced pattern detection.")
-        
-        # Try PatternRecognizer first
-        pattern_recognizer_result = self._try_pattern_recognizer(context)
-        if pattern_recognizer_result:
-            return pattern_recognizer_result
-        
-        # Fallback to basic pattern extraction
-        patterns_summary = []
-        patterns_summary.extend(self._extract_market_move_patterns(context))
-        patterns_summary.extend(self._extract_technical_patterns(context))
-        patterns_summary.extend(self._extract_sma_proximity_patterns(context))
-        
-        return "KEY PATTERNS DETECTED:\n- " + "\n- ".join(patterns_summary) if patterns_summary else ""
-    
-    # ---------- Pattern extraction helper methods ----------
-    def _try_pattern_recognizer(self, context) -> str:
-        """Try to use PatternRecognizer for advanced pattern detection"""
-        try:
-            if hasattr(context, 'ohlcv_candles') and hasattr(context, 'technical_data'):
-                ohlcv_data = context.ohlcv_candles
-                technical_history = context.technical_data.get('history', {})
-                patterns = self.get_all_patterns(ohlcv_data, technical_history)
-                
-                if patterns:
-                    pattern_summaries = [f"- {p.get('description', 'Unknown pattern')}" for p in patterns[-3:]]
-                    return "## Key Patterns (PatternRecognizer):\n" + "\n".join(pattern_summaries)
-        except Exception as e:
-            if self.logger:
-                self.logger.debug(f"Could not use PatternRecognizer, falling back to basic: {e}")
-        return ""
-    
-    def _extract_market_move_patterns(self, context) -> list:
-        """Extract patterns from market metrics (large moves, momentum changes)"""
-        patterns = []
-        if not context.market_metrics:
-            return patterns
-        
-        # Daily price moves
-        if '1D' in context.market_metrics:
-            daily_change = context.market_metrics['1D']['metrics'].get('price_change_percent', 0)
-            if abs(daily_change) > 5:
-                patterns.append(f"Large daily move: {daily_change:.2f}% in the last 24 hours")
-        
-        # Weekly trend changes
-        if '7D' in context.market_metrics and 'indicator_changes' in context.market_metrics['7D']:
-            changes = context.market_metrics['7D']['indicator_changes']
-            
-            # RSI momentum change
-            rsi_change = changes.get('rsi_change', 0)
-            if abs(rsi_change) > 15:
-                direction = "strengthening" if rsi_change > 0 else "weakening"
-                patterns.append(f"Significant momentum {direction}: RSI changed by {abs(rsi_change):.1f} points in 7 days")
-            
-            # MACD zero line cross
-            macd_start = changes.get('macd_line_start', 0)
-            macd_end = changes.get('macd_line_end', 0)
-            if macd_start * macd_end < 0:
-                direction = "bullish" if macd_end > 0 else "bearish" if macd_end < 0 else "neutral"
-                patterns.append(f"MACD crossed zero line ({direction})")
-        
-        return patterns
-    
-    def _extract_technical_patterns(self, context) -> list:
-        """Extract patterns from technical indicators (RSI, Bollinger Bands)"""
-        patterns = []
-        if not (context.technical_data and context.ohlcv_candles.size > 0):
-            return patterns
-        
-        td = context.technical_data
-        ts_str = self.formatter.format_timestamp(context.ohlcv_candles[-1, 0])
-        
-        # RSI conditions
-        rsi = self.data_processor.get_indicator_value(td, 'rsi')
-        if rsi != 'N/A':
-            if rsi < self.INDICATOR_THRESHOLDS['rsi']['oversold']:
-                patterns.append(f"{ts_str}Currently Oversold: RSI below {self.INDICATOR_THRESHOLDS['rsi']['oversold']}")
-            elif rsi > self.INDICATOR_THRESHOLDS['rsi']['overbought']:
-                patterns.append(f"{ts_str}Currently Overbought: RSI above {self.INDICATOR_THRESHOLDS['rsi']['overbought']}")
-        
-        # Bollinger Bands volatility
-        bb_width = self.data_processor.calculate_bb_width(td)
-        if bb_width < self.INDICATOR_THRESHOLDS['bb_width']['tight']:
-            tightness = (self.INDICATOR_THRESHOLDS['bb_width']['tight'] - bb_width) / self.INDICATOR_THRESHOLDS['bb_width']['tight'] * 100
-            patterns.append(f"{ts_str}Tight Bollinger Bands ({bb_width:.2f}% width) suggesting potential volatility expansion. {tightness:.1f}% tighter than threshold.")
-        elif bb_width > self.INDICATOR_THRESHOLDS['bb_width']['wide']:
-            patterns.append(f"{ts_str}Wide Bollinger Bands ({bb_width:.2f}% width) indicating high volatility phase.")
-        
-        return patterns
-    
-    def _extract_sma_proximity_patterns(self, context) -> list:
-        """Extract patterns related to price proximity to key SMAs"""
-        patterns = []
-        if not (context.long_term_data and context.long_term_data.get('sma_values') and context.current_price):
-            return patterns
-        
-        ts_str = self.formatter.format_timestamp(context.ohlcv_candles[-1, 0]) if context.ohlcv_candles.size > 0 else ""
-        
-        for period, value in context.long_term_data['sma_values'].items():
-            if value and abs((context.current_price / value - 1) * 100) < 1:
-                patterns.append(f"{ts_str}Price near critical SMA({period}): {value:.2f}")
-        
-        return patterns
-    
     def _hash_data(self, data: np.ndarray) -> str:
         """Create a simple hash of the data for caching"""
         if data is None or len(data) == 0:

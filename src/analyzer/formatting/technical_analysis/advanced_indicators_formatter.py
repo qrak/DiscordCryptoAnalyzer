@@ -3,7 +3,7 @@ Advanced indicators formatting for technical analysis.
 Handles Ichimoku, Demark, Parabolic SAR and other advanced indicators.
 """
 import numpy as np
-from ..basic_formatter import fmt
+from ..basic_formatter import fmt, fmt_ta
 
 
 class AdvancedIndicatorsFormatter:
@@ -18,36 +18,32 @@ class AdvancedIndicatorsFormatter:
         ichimoku_interpretation = self._get_ichimoku_interpretation(td)
         psar_interpretation = self._get_psar_interpretation(td, crypto_data)
         
-        # Get vortex values from the array
-        vortex_array = td.get('vortex_indicator', [None, None])
-        vortex_pos = fmt(vortex_array[0], 4) if vortex_array[0] is not None else 'N/A'
-        vortex_neg = fmt(vortex_array[1], 4) if vortex_array[1] is not None else 'N/A'
+        # Get vortex values from the technical data
+        vortex_pos = fmt_ta(self.indicator_calculator, td, 'vortex_plus', 4)
+        vortex_neg = fmt_ta(self.indicator_calculator, td, 'vortex_minus', 4)
         
-        return f"""## Advanced Indicators:
-- Ichimoku Cloud: Tenkan: {self._fmt_ta('ichimoku_conversion', td, 8)}, Kijun: {self._fmt_ta('ichimoku_base', td, 8)}, 
-  Senkou A: {self._fmt_ta('ichimoku_span_a', td, 8)}, Senkou B: {self._fmt_ta('ichimoku_span_b', td, 8)}{ichimoku_interpretation}
-- Parabolic SAR: {self._fmt_ta('sar', td, 8)}{psar_interpretation}
-- SuperTrend: {self._fmt_ta('supertrend', td, 8)} (Direction: {self._get_supertrend_direction(td)})
-- Advanced Momentum Indicators:
-  * TSI: {self._fmt_ta('tsi', td, 4)} (True Strength Index)
-  * RMI: {self._fmt_ta('rmi', td, 2)} (Relative Momentum Index)  
-  * PPO: {self._fmt_ta('ppo', td, 4)} (Percentage Price Oscillator)
-  * Coppock: {self._fmt_ta('coppock', td, 4)} (Coppock Curve)
-  * UO: {self._fmt_ta('uo', td, 2)} (Ultimate Oscillator)
-  * KST: {self._fmt_ta('kst', td, 4)} (Know Sure Thing)
-- Advanced Trend Indicators:
-  * TRIX: {self._fmt_ta('trix', td, 6)} (Rate of change of triple smoothed EMA)
-  * PFE: {self._fmt_ta('pfe', td, 2)} (Polarized Fractal Efficiency)
-- Chandelier Exits: Long: {self._fmt_ta('chandelier_long', td, 8)}, Short: {self._fmt_ta('chandelier_short', td, 8)}
-- VortexIndicator+: {vortex_pos}, VI-: {vortex_neg}
-- TD Sequential: {self._fmt_ta('td_sequential', td, 0)}"""
+        return (
+            "## Advanced Indicators:\n"
+            f"- Ichimoku Cloud: Tenkan: {fmt_ta(self.indicator_calculator, td, 'ichimoku_conversion', 8)}, Kijun: {fmt_ta(self.indicator_calculator, td, 'ichimoku_base', 8)}, \n"
+            f"  Senkou A: {fmt_ta(self.indicator_calculator, td, 'ichimoku_span_a', 8)}, Senkou B: {fmt_ta(self.indicator_calculator, td, 'ichimoku_span_b', 8)}{ichimoku_interpretation}\n"
+            f"- Parabolic SAR: {fmt_ta(self.indicator_calculator, td, 'sar', 8)}{psar_interpretation}\n"
+            f"- SuperTrend: {fmt_ta(self.indicator_calculator, td, 'supertrend', 8)} (Direction: {self._get_supertrend_direction(td)})\n"
+            "- Advanced Momentum Indicators:\n"
+            f"  * TSI: {fmt_ta(self.indicator_calculator, td, 'tsi', 4)} (True Strength Index)\n"
+            f"  * RMI: {fmt_ta(self.indicator_calculator, td, 'rmi', 2)} (Relative Momentum Index)  \n"
+            f"  * PPO: {fmt_ta(self.indicator_calculator, td, 'ppo', 4)} (Percentage Price Oscillator)\n"
+            f"  * Coppock: {fmt_ta(self.indicator_calculator, td, 'coppock', 4)} (Coppock Curve)\n"
+            f"  * UO: {fmt_ta(self.indicator_calculator, td, 'uo', 2)} (Ultimate Oscillator)\n"
+            f"  * KST: {fmt_ta(self.indicator_calculator, td, 'kst', 4)} (Know Sure Thing)\n"
+            "- Advanced Trend Indicators:\n"
+            f"  * TRIX: {fmt_ta(self.indicator_calculator, td, 'trix', 6)} (Rate of change of triple smoothed EMA)\n"
+            f"  * PFE: {fmt_ta(self.indicator_calculator, td, 'pfe', 2)} (Polarized Fractal Efficiency)\n"
+            f"- Chandelier Exits: Long: {fmt_ta(self.indicator_calculator, td, 'chandelier_long', 8)}, Short: {fmt_ta(self.indicator_calculator, td, 'chandelier_short', 8)}\n"
+            f"- VortexIndicator+: {vortex_pos}, VI-: {vortex_neg}\n"
+            f"- TD Sequential: {fmt_ta(self.indicator_calculator, td, 'td_sequential', 0)}"
+        )
     
-    def _fmt_ta(self, key: str, td: dict, precision: int = 8, default: str = 'N/A') -> str:
-        """Format technical analysis value safely."""
-        val = self.indicator_calculator.get_indicator_value(td, key)
-        if isinstance(val, (int, float)) and not np.isnan(val):
-            return fmt(val, precision)
-        return default
+    
     
     def _get_ichimoku_interpretation(self, td: dict) -> str:
         """Get Ichimoku Cloud interpretation."""

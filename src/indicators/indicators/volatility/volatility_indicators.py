@@ -139,3 +139,39 @@ def vhf_numba(close, length=28, drift=1):
             vhf[i] = 0
 
     return vhf
+
+
+@njit(cache=True)
+def keltner_channels_numba(high, low, close, length=20, multiplier=2.0, mamode='ema'):
+    """Calculate Keltner Channels"""
+    n = len(close)
+    
+    # Calculate middle line (EMA of close prices)
+    middle = np.full(n, np.nan)
+    upper = np.full(n, np.nan)
+    lower = np.full(n, np.nan)
+    
+    # Calculate ATR
+    tr = np.full(n, np.nan)
+    for i in range(1, n):
+        tr[i] = max(high[i] - low[i], abs(high[i] - close[i - 1]), abs(low[i] - close[i - 1]))
+    
+    # Calculate EMA for middle line
+    alpha = 2.0 / (length + 1)
+    middle[length - 1] = np.mean(close[:length])
+    for i in range(length, n):
+        middle[i] = alpha * close[i] + (1 - alpha) * middle[i - 1]
+    
+    # Calculate ATR EMA
+    atr_ema = np.full(n, np.nan)
+    atr_ema[length - 1] = np.mean(tr[1:length])
+    for i in range(length, n):
+        atr_ema[i] = alpha * tr[i] + (1 - alpha) * atr_ema[i - 1]
+    
+    # Calculate upper and lower bands
+    for i in range(length - 1, n):
+        if not np.isnan(middle[i]) and not np.isnan(atr_ema[i]):
+            upper[i] = middle[i] + multiplier * atr_ema[i]
+            lower[i] = middle[i] - multiplier * atr_ema[i]
+    
+    return upper, middle, lower

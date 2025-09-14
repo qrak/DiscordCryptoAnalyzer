@@ -143,8 +143,6 @@ class DiscordCryptoBot:
         try:
             market_overview = await self.rag_engine.market_data_manager.fetch_market_overview()
             if market_overview:
-                market_overview_file = self.rag_engine.file_handler.get_market_overview_path()
-                self.rag_engine.file_handler.save_json_file(market_overview_file, market_overview)
                 self.rag_engine.current_market_overview = market_overview
                 self.logger.info("Market overview data refreshed successfully")
             else:

@@ -475,11 +475,11 @@ class SupportResistanceIndicators(IndicatorCategory['SupportResistanceIndicators
             required_length=lookback
         )
 
-    def pivot_points(self) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    def pivot_points(self) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         """Calculate standard pivot points and support/resistance levels
         
         Returns:
-            Tuple of (pivot_point, r1, r2, s1, s2) arrays
+            Tuple of (pivot_point, r1, r2, r3, r4, s1, s2, s3, s4) arrays
         """
         return self._base.calculate_indicator(
             pivot_points_numba,
@@ -567,6 +567,14 @@ class TrendIndicators(IndicatorCategory['TrendIndicators']):
             m
         )
 
+    def td_sequential(self, length: int = 9) -> np.ndarray:
+        return self._base.calculate_indicator(
+            td_sequential_numba,
+            self.close,
+            length,
+            required_length=5
+        )
+
 
 class VolatilityIndicators(IndicatorCategory['VolatilityIndicators']):
     def atr(self, length: int = 14, mamode: str = 'rma', percent: bool = False) -> np.ndarray:
@@ -616,6 +624,18 @@ class VolatilityIndicators(IndicatorCategory['VolatilityIndicators']):
             self.close,
             length,
             bars,
+            required_length=length
+        )
+
+    def keltner_channels(self, length: int = 20, multiplier: float = 2.0, mamode: str = 'ema') -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        return self._base.calculate_indicator(
+            keltner_channels_numba,
+            self.high,
+            self.low,
+            self.close,
+            length,
+            multiplier,
+            mamode,
             required_length=length
         )
 

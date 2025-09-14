@@ -86,13 +86,31 @@ class MarketMetricsFormatter:
         rsi_change = indicator_changes.get('rsi_change')
         if rsi_change is not None:
             rsi_direction = "📈" if rsi_change >= 0 else "📉"
-            changes_sections.append(f"    • RSI: {rsi_direction} {fmt(abs(rsi_change))} points")
+            changes_sections.append(f"    • RSI: {rsi_direction} {fmt(abs(rsi_change))} value change")
         
-        # MACD changes
-        macd_change = indicator_changes.get('macd_change')
+        # MACD changes (use macd_line which is the main MACD indicator)
+        macd_change = indicator_changes.get('macd_line_change')
         if macd_change is not None:
             macd_direction = "📈" if macd_change >= 0 else "📉"
-            changes_sections.append(f"    • MACD: {macd_direction} {fmt(abs(macd_change))}")
+            changes_sections.append(f"    • MACD Line: {macd_direction} {fmt(abs(macd_change))}")
+        
+        # MACD Histogram changes
+        macd_hist_change = indicator_changes.get('macd_hist_change')
+        if macd_hist_change is not None:
+            macd_hist_direction = "📈" if macd_hist_change >= 0 else "📉"
+            changes_sections.append(f"    • MACD Histogram: {macd_hist_direction} {fmt(abs(macd_hist_change))}")
+        
+        # ADX changes
+        adx_change = indicator_changes.get('adx_change')
+        if adx_change is not None:
+            adx_direction = "📈" if adx_change >= 0 else "📉"
+            changes_sections.append(f"    • ADX: {adx_direction} {fmt(abs(adx_change))} value change")
+        
+        # Stochastic %K changes
+        stoch_k_change = indicator_changes.get('stoch_k_change')
+        if stoch_k_change is not None:
+            stoch_direction = "📈" if stoch_k_change >= 0 else "📉"
+            changes_sections.append(f"    • Stochastic %K: {stoch_direction} {fmt(abs(stoch_k_change))} value change")
         
         # Bollinger Bands position changes
         bb_position_change = indicator_changes.get('bb_position_change')

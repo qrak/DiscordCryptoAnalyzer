@@ -115,7 +115,14 @@ class MarketMetricsCalculator:
             
         history = context.technical_history
         
+        # Signal interpretations are scalar values, not arrays - skip them
+        signal_indicators = {'ichimoku_signal', 'bb_signal'}
+        
         for ind_name, values in history.items():
+            # Skip signal interpretations
+            if ind_name in signal_indicators:
+                continue
+                
             if len(values) >= abs(start_idx):
                 try:
                     start_value = float(values[start_idx])
@@ -127,7 +134,7 @@ class MarketMetricsCalculator:
                     indicator_changes[f"{ind_name}_end"] = end_value
                     indicator_changes[f"{ind_name}_change"] = change
                     indicator_changes[f"{ind_name}_change_pct"] = change_pct
-                except (IndexError, ValueError):
+                except (IndexError, ValueError, TypeError):
                     pass
         
         return indicator_changes

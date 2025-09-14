@@ -68,12 +68,9 @@ class LongTermFormatter:
     
     def _is_new_token(self, long_term_data: dict) -> bool:
         """Check if this appears to be a new token with limited historical data."""
-        # Check for presence of key long-term indicators
-        key_indicators = ['sma_20', 'sma_50', 'sma_200', 'volume_sma_20']
-        missing_indicators = sum(1 for indicator in key_indicators 
-                               if long_term_data.get(indicator) is None)
-        
-        return missing_indicators >= len(key_indicators) // 2
+        # Use the is_new_token flag set by the market data collector
+        # This is based on actual data availability and completeness
+        return long_term_data.get('is_new_token', False)
     
     def _format_no_data_analysis(self) -> str:
         """Format message when no long-term data is available."""
