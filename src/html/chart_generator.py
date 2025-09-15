@@ -47,14 +47,14 @@ class ChartGenerator:
         # Row 3: RSI (if available)
         rows = 3 if has_rsi else 2
         if has_rsi:
-            row_heights = [0.6, 0.2, 0.2]  # Price gets 60%, Volume 20%, RSI 20%
+            row_heights = [0.7, 0.15, 0.15]  # Price gets 70%, Volume 15%, RSI 15%
             specs = [
                 [{"secondary_y": True}],   # Price row with secondary y-axis
                 [{"secondary_y": False}],  # Volume row
                 [{"secondary_y": False}]   # RSI row
             ]
         else:
-            row_heights = [0.7, 0.3]  # Price gets 70%, Volume 30%
+            row_heights = [0.8, 0.2]  # Price gets 80%, Volume 20%
             specs = [
                 [{"secondary_y": True}],   # Price row with secondary y-axis  
                 [{"secondary_y": False}]   # Volume row
@@ -64,7 +64,7 @@ class ChartGenerator:
             rows=rows, 
             cols=1, 
             shared_xaxes=True, 
-            vertical_spacing=0.03,  # Reduced spacing
+            vertical_spacing=0.05,  # Increased spacing for better separation
             row_heights=row_heights,
             specs=specs
         )
@@ -137,12 +137,12 @@ class ChartGenerator:
                 xanchor="left",
                 x=0
             ),
-            font=dict(family="Arial, sans-serif", size=11, color=self.default_colors['text']),  # Adjusted font
+            font=dict(family="Arial, sans-serif", size=11, color=self.default_colors['text']),
             paper_bgcolor=self.default_colors['background'],
             plot_bgcolor=self.default_colors['background'],
-            margin=dict(l=40, r=40, t=60, b=40),  # Adjusted margins
-            dragmode='pan',  # Changed default drag mode to pan
-            hovermode='x unified',  # Keep unified hover
+            margin=dict(l=40, r=40, t=60, b=40),
+            dragmode='zoom',  # Enable zoom by default instead of pan
+            hovermode='x unified',
             autosize=True
         )
         
@@ -210,16 +210,19 @@ class ChartGenerator:
         # Generate a unique ID for this chart instance 
         chart_id = f"crypto_chart_{int(datetime.now().timestamp())}"
         
-        # Configure for responsiveness
+        # Configure for responsiveness and interaction
         config = {
             'responsive': True,
             'displayModeBar': True,
-            'modeBarButtonsToRemove': ['lasso2d', 'select2d'],
+            'scrollZoom': True,  # Enable mouse wheel zoom
+            'modeBarButtonsToRemove': ['lasso2d', 'select2d'],  # Remove selection tools
+            'modeBarButtonsToAdd': ['resetScale2d'],  # Add reset scale button
             'toImageButtonOptions': {
                 'format': 'png',
                 'filename': f'{pair_symbol}_analysis',
                 'scale': 2
-            }
+            },
+            'displaylogo': False  # Hide plotly logo for cleaner look
         }
         
         # Return the figure as HTML

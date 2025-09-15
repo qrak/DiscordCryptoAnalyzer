@@ -64,10 +64,15 @@ class TemplateProcessor:
         """Assemble the final content structure."""
         if chart_html:
             charts_html_section = f"""
-            <div class="chart-section">
-                <div class="market-chart">
+            <div class="chart-section collapsible-section">
+                <div class="collapsible-header">
                     <h3>📈 Market Chart</h3>
-                    {chart_html}
+                    <span class="collapse-icon">▼</span>
+                </div>
+                <div class="collapsible-content expanded">
+                    <div class="market-chart">
+                        {chart_html}
+                    </div>
                 </div>
             </div>
             """
