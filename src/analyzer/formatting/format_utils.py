@@ -10,18 +10,22 @@ from typing import Any, Optional
 def fmt(val, precision=8):
     """Format a value with appropriate precision based on its magnitude"""
     if isinstance(val, (int, float)) and not np.isnan(val):
-        if 0 < abs(val) < 0.000001:
+        if 0 < abs(val) < 0.0000001:  # Only use scientific notation for extremely small values
             return f"{val:.{precision}e}"  # Scientific notation for very small values
+        elif abs(val) < 0.00001:  # SHIB and similar small crypto coins (0.000001 - 0.00001)
+            return f"{val:.8f}"  # 8 decimal places for small crypto values
+        elif abs(val) < 0.0001:
+            return f"{val:.7f}"  # 7 decimal places 
         elif abs(val) < 0.001:
-            return f"{val:.{max(precision, 8)}f}"  # More decimal places for small values
+            return f"{val:.6f}"  # 6 decimal places
         elif abs(val) < 0.01:
-            return f"{val:.6f}"
+            return f"{val:.5f}"  # 5 decimal places
         elif abs(val) < 0.1:
-            return f"{val:.4f}"
+            return f"{val:.4f}"  # 4 decimal places
         elif abs(val) < 10:
-            return f"{val:.{precision}f}"
+            return f"{val:.{precision}f}"  # Respect original precision for indicators
         else:
-            return f"{val:.2f}"
+            return f"{val:.2f}"  # 2 decimal places for larger values
     return "N/A"
 
 

@@ -317,7 +317,7 @@ The bot includes a sophisticated RAG engine that enhances market analysis with r
 
 You can find a sample HTML analysis report in the `example_html` directory:
 
-- `example_html/ETHUSDT_analysis_20250803172541.html`
+- `example_html/ETHUSDT_analysis_20250915155439.html`
 
 This file demonstrates the bot's output for a typical market analysis, including interactive charts and technical indicators.
 
