@@ -58,11 +58,19 @@ class AnalysisPublisher:
             ohlcv_data = self._prepare_chart_data(context, symbol, timeframe)
             
             if ohlcv_data:  # Only generate HTML if we have data
+                # Prepare Discord analysis data for HTML integration
+                discord_analysis_data = {
+                    "analysis": analysis_result.get("analysis", {}),
+                    "symbol": symbol,
+                    "language": language
+                }
+                
                 html_content = self.html_generator.generate_html_content(
                     f"{symbol} Detailed Analysis{(' in ' + language) if language else ''}",
                     detailed_text,
                     article_urls=article_urls,
-                    ohlcv_data=ohlcv_data
+                    ohlcv_data=ohlcv_data,
+                    discord_analysis=discord_analysis_data
                 )
                 
                 if html_content:

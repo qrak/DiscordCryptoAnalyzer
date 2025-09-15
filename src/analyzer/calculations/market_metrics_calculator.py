@@ -63,22 +63,41 @@ class MarketMetricsCalculator:
                 
     def _calculate_period_metrics(self, data: List, period_name: str, context) -> Dict:
         """Calculate metrics for a specific time period"""
-        # Extract basic data arrays
-        prices = [candle["close"] for candle in data]
-        highs = [candle["high"] for candle in data]
-        lows = [candle["low"] for candle in data]
-        volumes = [candle["volume"] for candle in data]
-        
-        # Calculate core metrics
-        basic_metrics = self._calculate_basic_metrics(prices, highs, lows, volumes, period_name)
+        # Calculate core metrics directly from data
+        basic_metrics = self._calculate_basic_metrics(data, period_name)
         
         # Calculate indicator changes
         start_idx = -len(data)
         end_idx = -1
         indicator_changes = self._calculate_indicator_changes_for_period(context, start_idx, end_idx)
         
-        # Get key levels
-        levels = self._identify_key_levels(highs + lows, prices[-1])
+        try:
+            support_arr, resistance_arr = self.indicator_calculator.ti.support_resistance.support_resistance_advanced(length=min(30, len(data)))
+            
+            # Extract the most recent valid support/resistance levels
+            current_price = data[-1]["close"]
+            
+            # Find nearest support below current price
+            import numpy as np
+            valid_support = support_arr[~np.isnan(support_arr)]
+            support_below = valid_support[valid_support < current_price]
+            support_level = float(np.max(support_below)) if len(support_below) > 0 else min(candle["low"] for candle in data)
+            
+            # Find nearest resistance above current price  
+            valid_resistance = resistance_arr[~np.isnan(resistance_arr)]
+            resistance_above = valid_resistance[valid_resistance > current_price]
+            resistance_level = float(np.min(resistance_above)) if len(resistance_above) > 0 else max(candle["high"] for candle in data)
+            
+            levels = {
+                "support": support_level,
+                "resistance": resistance_level
+            }
+        except Exception as e:
+            self.logger.warning(f"Modern support/resistance calculation failed: {e}, using simple fallback")
+            levels = {
+                "support": min(candle["low"] for candle in data),
+                "resistance": max(candle["high"] for candle in data)
+            }
         
         # Calculate divergences
         divergences = self._calculate_divergences_for_period(context, data, start_idx, period_name)
@@ -90,9 +109,13 @@ class MarketMetricsCalculator:
             "divergences": divergences
         }
     
-    def _calculate_basic_metrics(self, prices: List[float], highs: List[float], 
-                                 lows: List[float], volumes: List[float], period_name: str) -> Dict:
+    def _calculate_basic_metrics(self, data: List[Dict], period_name: str) -> Dict:
         """Calculate basic price and volume metrics"""
+        prices = [candle["close"] for candle in data]
+        highs = [candle["high"] for candle in data]
+        lows = [candle["low"] for candle in data]
+        volumes = [candle["volume"] for candle in data]
+        
         return {
             "highest_price": max(highs),
             "lowest_price": min(lows),
@@ -152,12 +175,12 @@ class MarketMetricsCalculator:
             if len(rsi_values) < abs(start_idx):
                 return divergences
             
-            # Try advanced pattern detection first
-            if self._try_advanced_divergence_detection(context, data, start_idx, divergences):
-                return divergences
+            # Try advanced pattern detection
+            if not self._try_advanced_divergence_detection(context, data, start_idx, divergences):
+                # If advanced detection fails, return empty divergences
+                self.logger.debug(f"Advanced divergence detection failed for {period_name}, using empty result")
             
-            # Fallback to legacy divergence detection
-            return self._try_legacy_divergence_detection(context, start_idx, divergences)
+            return divergences
             
         except Exception as e:
             self.logger.warning(f"Error calculating divergences for {period_name}: {e}")
@@ -188,79 +211,3 @@ class MarketMetricsCalculator:
             
         except Exception:
             return False
-    
-    def _try_legacy_divergence_detection(self, context, start_idx: int, divergences: Dict) -> Dict:
-        """Fallback to legacy divergence detection method"""
-        try:
-            rsi_values = context.technical_history["rsi"]
-            rsi_slice = rsi_values[start_idx:]
-            
-            if len(rsi_slice) > 0:
-                # Extract corresponding price data
-                prices = [candle["close"] for candle in context.ohlcv_candles[start_idx:]]
-                return self._check_divergences(prices, rsi_slice)
-                
-        except Exception:
-            pass
-            
-        return divergences
-    
-    # These methods are kept for backward compatibility if indicator_calculator is not provided
-    
-    def _identify_key_levels(self, price_points: List[float], current_price: float) -> Dict:
-        """Identify key support and resistance levels from price data (legacy method)"""
-        from collections import Counter
-
-        # Determine appropriate precision based on price magnitude
-        if current_price < 0.000001:
-            precision = 10
-        elif current_price < 0.001:
-            precision = 6
-        elif current_price < 1:
-            precision = 4
-        else:
-            precision = 1
-            
-        rounded_prices = [round(p, precision) for p in price_points]
-        price_counts = Counter(rounded_prices)
-        
-        # Find levels with at least 3 touches
-        significant_levels = [price for price, count in price_counts.items() if count >= 3]
-        
-        # Separate into support and resistance
-        support_levels = sorted([p for p in significant_levels if p < current_price], reverse=True)
-        resistance_levels = sorted([p for p in significant_levels if p > current_price])
-        
-        # Limit to top 3 levels each
-        support = support_levels[:3]
-        resistance = resistance_levels[:3]
-        
-        return {
-            "support": support,
-            "resistance": resistance
-        }
-    
-    def _check_divergences(self, prices: List[float], rsi_values: List[float]) -> Dict:
-        """Check for bullish and bearish divergences between price and indicators (legacy method)"""
-        try:
-            if len(prices) < 10 or len(rsi_values) < 10:
-                return {"bullish": False, "bearish": False}
-            
-            first_price = float(prices[0])
-            last_price = float(prices[-1])
-            first_rsi = float(rsi_values[0])
-            last_rsi = float(rsi_values[-1])
-                
-            price_increased = last_price > first_price
-            rsi_increased = last_rsi > first_rsi
-                
-            bullish_div = bool(not price_increased and rsi_increased)
-            bearish_div = bool(price_increased and not rsi_increased)
-                
-            return {
-                "bullish": bullish_div,
-                "bearish": bearish_div
-            }
-        except Exception as e:
-            self.logger.warning(f"General error in divergence calculation: {e}")
-            return {"bullish": False, "bearish": False}

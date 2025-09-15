@@ -1,0 +1,330 @@
+/* Simplified table and Discord component styles */
+
+/* Basic table styling */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 20px 0;
+    font-size: 0.95em;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid var(--table-border-color);
+    background: var(--container-bg);
+}
+
+thead tr {
+    background: var(--table-header-bg);
+    color: var(--text-color);
+    text-align: left;
+    font-weight: 600;
+}
+
+th, td {
+    padding: 12px 15px;
+    text-align: left;
+    border-bottom: 1px solid var(--table-border-color);
+}
+
+th {
+    font-weight: 600;
+    border-bottom: 2px solid var(--border-color);
+}
+
+tbody tr:nth-of-type(even) {
+    background: var(--code-bg);
+}
+
+tbody tr:hover {
+    background: var(--keypoint-bg);
+}
+
+tbody tr:last-of-type td {
+    border-bottom: none;
+}
+
+/* Signal indicators */
+.bullish-signal {
+    background-color: rgba(40, 167, 69, 0.1);
+    border-left: 3px solid #28a745;
+}
+
+.bearish-signal {
+    background-color: rgba(220, 53, 69, 0.1);
+    border-left: 3px solid #dc3545;
+}
+
+.neutral-signal {
+    background-color: rgba(255, 193, 7, 0.1);
+    border-left: 3px solid #ffc107;
+}
+
+.positive-change {
+    color: #28a745;
+    font-weight: 600;
+}
+
+.negative-change {
+    color: #dc3545;
+    font-weight: 600;
+}
+
+.support-level {
+    color: #28a745;
+    font-weight: 600;
+}
+
+.resistance-level {
+    color: #dc3545;
+    font-weight: 600;
+}
+
+/* Simplified Discord Summary Section */
+.discord-summary {
+    background: var(--container-bg);
+    border-radius: 8px;
+    margin: 30px 0;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 2px 8px var(--shadow-color);
+    overflow: hidden;
+}
+
+.discord-summary-header {
+    background: var(--table-header-bg);
+    padding: 15px 20px;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.discord-summary-header h3 {
+    color: var(--heading-color);
+    margin: 0;
+    font-size: 1.2em;
+    font-weight: 600;
+}
+
+.collapse-icon {
+    color: var(--text-color);
+    font-size: 1.2em;
+    transition: transform 0.3s ease;
+}
+
+.collapse-icon.expanded {
+    transform: rotate(180deg);
+}
+
+.discord-summary-content {
+    background: var(--container-bg);
+    padding: 0;
+    color: var(--text-color);
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease, padding 0.3s ease;
+}
+
+.discord-summary-content.expanded {
+    max-height: 1500px;
+    padding: 20px;
+}
+
+.discord-summary-content.collapsed {
+    max-height: 0;
+    padding: 0 20px;
+}
+
+.discord-summary-description {
+    background: var(--keypoint-bg);
+    border-radius: 4px;
+    padding: 15px;
+    margin-bottom: 20px;
+    border: 1px solid var(--border-color);
+    font-style: italic;
+}
+
+.discord-field {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 15px;
+    margin: 8px 0;
+    background: var(--code-bg);
+    border-radius: 4px;
+    border: 1px solid var(--border-color);
+}
+
+.discord-field-name {
+    font-weight: 600;
+    color: var(--heading-color);
+    min-width: 140px;
+}
+
+.discord-field-value {
+    text-align: right;
+    font-weight: 600;
+    padding: 4px 8px;
+    border-radius: 4px;
+    background: var(--keypoint-bg);
+    min-width: 60px;
+}
+
+.discord-field-value.bullish {
+    background: #28a745;
+    color: white;
+}
+
+.discord-field-value.bearish {
+    background: #dc3545;
+    color: white;
+}
+
+.discord-field-value.neutral {
+    background: #ffc107;
+    color: #333;
+}
+
+.discord-section-title {
+    color: var(--heading-color);
+    font-size: 1.1em;
+    font-weight: 600;
+    margin: 25px 0 15px 0;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.discord-timeframes {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 10px;
+    margin: 15px 0;
+}
+
+.discord-timeframe {
+    background: var(--code-bg);
+    border-radius: 4px;
+    padding: 12px;
+    text-align: center;
+    border: 1px solid var(--border-color);
+}
+
+.discord-timeframe-label {
+    font-size: 0.85em;
+    color: var(--timestamp-color);
+    margin-bottom: 5px;
+    text-transform: uppercase;
+    font-weight: 500;
+}
+
+.discord-timeframe-value {
+    font-weight: 600;
+    font-size: 1em;
+    padding: 2px 6px;
+    border-radius: 4px;
+    display: inline-block;
+}
+
+.discord-levels {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    margin: 15px 0;
+}
+
+.discord-level-group {
+    background: var(--code-bg);
+    border-radius: 4px;
+    padding: 15px;
+    border: 1px solid var(--border-color);
+}
+
+.discord-level-group.support {
+    border-left: 3px solid #28a745;
+}
+
+.discord-level-group.resistance {
+    border-left: 3px solid #dc3545;
+}
+
+.discord-level-title {
+    font-weight: 600;
+    margin-bottom: 10px;
+    color: var(--heading-color);
+}
+
+.discord-level-value {
+    padding: 6px 10px;
+    margin: 4px 0;
+    font-family: 'Consolas', 'Monaco', monospace;
+    color: var(--link-color);
+    background: var(--resources-bg);
+    border-radius: 4px;
+    font-weight: 600;
+    border: 1px solid var(--border-color);
+}
+
+.discord-news-summary {
+    background: var(--resources-bg);
+    border-radius: 4px;
+    padding: 15px;
+    margin: 15px 0;
+    border: 1px solid var(--border-color);
+}
+
+.discord-news-summary h5 {
+    margin-top: 0;
+    margin-bottom: 10px;
+    color: var(--heading-color);
+    font-size: 1.1em;
+    font-weight: 600;
+}
+
+.discord-scenarios {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    margin: 15px 0;
+}
+
+.discord-scenario {
+    background: var(--code-bg);
+    border-radius: 4px;
+    padding: 15px;
+    text-align: center;
+    border: 1px solid var(--border-color);
+}
+
+.discord-scenario.bullish {
+    border-left: 3px solid #28a745;
+}
+
+.discord-scenario.bearish {
+    border-left: 3px solid #dc3545;
+}
+
+.discord-scenario-label {
+    font-size: 0.9em;
+    color: var(--timestamp-color);
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    font-weight: 600;
+}
+
+.discord-scenario-value {
+    font-size: 1.2em;
+    font-weight: 600;
+    font-family: 'Consolas', 'Monaco', monospace;
+    padding: 6px 12px;
+    border-radius: 4px;
+    display: inline-block;
+}
+
+.discord-scenario.bullish .discord-scenario-value {
+    background: #28a745;
+    color: white;
+}
+
+.discord-scenario.bearish .discord-scenario-value {
+    background: #dc3545;
+    color: white;
+}

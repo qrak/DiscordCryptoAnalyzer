@@ -8,7 +8,7 @@ from config.config import (
 )
 from src.logger.logger import Logger
 from src.models.config import ModelConfigManager
-from src.models.response_handling import ResponseParser, ResponseFormatter
+from src.parsing.unified_parser import UnifiedParser
 from src.platforms.ai_providers.openrouter import ResponseDict
 from src.platforms.ai_providers import OpenRouterClient, GoogleAIClient, LMStudioClient
 from src.utils.token_counter import TokenCounter
@@ -53,8 +53,7 @@ class ModelManager:
         self.config_manager = ModelConfigManager()
 
         # Create helper components
-        self.response_parser = ResponseParser(logger)
-        self.response_formatter = ResponseFormatter(logger)
+        self.unified_parser = UnifiedParser(logger)
         self.token_counter = TokenCounter()
 
         # Set up models and their configurations
@@ -290,7 +289,7 @@ class ModelManager:
                 self.logger.error(f"Missing content in API response: {response_json}")
                 return self._format_error_response("Missing content in API response")
 
-            formatted_content = self.response_formatter.format_scientific_notation(content)
+            formatted_content = content
 
             response_tokens = self.token_counter.track_prompt_tokens(formatted_content, "completion")
             self.logger.info(f"Response token count: {response_tokens}")
@@ -306,13 +305,6 @@ class ModelManager:
             self.logger.error(f"Error processing response: {e}")
             return self._format_error_response(f"Error processing response: {str(e)}")
 
-    def parse_response(self, raw: str) -> Dict[str, Any]:
-        """Parse the model's response from raw string to structured data"""
-        return self.response_parser.parse_response(raw)
-
-    def validate_response(self, response: Dict[str, Any]) -> bool:
-        """Validate that the response has the required structure"""
-        return self.response_parser.validate_response(response)
 
     def _format_error_response(self, error_message: str) -> str:
         """Create a standardized error response in JSON format"""

@@ -197,14 +197,11 @@ class TechnicalCalculator:
         # Create new TI instance for long-term calculations (avoid interference with regular timeframe indicators)
         ti_lt = TechnicalIndicators()
         ti_lt.get_data(ohlcv_data)
-
-        # Extract price & volume arrays
-        close_prices, volumes = self._extract_price_volume_arrays(ohlcv_data)
         available_days = len(ohlcv_data)
 
-        sma_values, volume_sma_values = self._compute_sma_sets(ti_lt, close_prices, volumes, available_days)
-        price_change_pct, volume_change_pct = self._compute_change_metrics(close_prices, volumes, available_days)
-        volatility = self._compute_volatility(close_prices, available_days)
+        sma_values, volume_sma_values = self._compute_sma_sets(ti_lt, available_days)
+        price_change_pct, volume_change_pct = self._compute_change_metrics(ti_lt, available_days)
+        volatility = self._compute_volatility(ti_lt, available_days)
 
         daily_indicators = self._compute_daily_indicators(ti_lt, available_days)
 
@@ -227,35 +224,33 @@ class TechnicalCalculator:
         return result
 
     # ---------------- Helper Methods (extracted for clarity) ----------------
-    def _extract_price_volume_arrays(self, ohlcv_data: np.ndarray):
-        close_prices = np.array([float(c[4]) for c in ohlcv_data])
-        volumes = np.array([float(c[5]) for c in ohlcv_data])
-        return close_prices, volumes
-
-    def _compute_sma_sets(self, ti: TechnicalIndicators, close_prices: np.ndarray, volumes: np.ndarray, available_days: int):
+    def _compute_sma_sets(self, ti: TechnicalIndicators, available_days: int):
         sma_periods = [20, 50, 100, 200]
         sma_values: Dict[int, float] = {}
         volume_sma_values: Dict[int, float] = {}
         for period in sma_periods:
             if available_days >= period:
-                sma = ti.overlap.sma(close_prices, period)
-                vol_sma = ti.overlap.sma(volumes, period)
+                # Use technical indicators directly instead of extracted arrays
+                sma = ti.overlap.sma(ti.close, period)
+                vol_sma = ti.overlap.sma(ti.volume, period)
                 if not np.isnan(sma[-1]):
                     sma_values[period] = float(sma[-1])
                 if not np.isnan(vol_sma[-1]):
                     volume_sma_values[period] = float(vol_sma[-1])
         return sma_values, volume_sma_values
 
-    def _compute_change_metrics(self, close_prices: np.ndarray, volumes: np.ndarray, available_days: int):
+    def _compute_change_metrics(self, ti: TechnicalIndicators, available_days: int):
         price_change_pct = volume_change_pct = None
         if available_days >= 2:
-            price_change_pct = float((close_prices[-1] / close_prices[0] - 1) * 100)
-            volume_change_pct = float((volumes[-1] / max(volumes[0], 1) - 1) * 100)
+            # Use technical indicators data directly
+            price_change_pct = float((ti.close[-1] / ti.close[0] - 1) * 100)
+            volume_change_pct = float((ti.volume[-1] / max(ti.volume[0], 1) - 1) * 100)
         return price_change_pct, volume_change_pct
 
-    def _compute_volatility(self, close_prices: np.ndarray, available_days: int):
+    def _compute_volatility(self, ti: TechnicalIndicators, available_days: int):
         if available_days >= 7:
-            daily_returns = np.diff(close_prices) / close_prices[:-1]
+            # Use technical indicators data directly
+            daily_returns = np.diff(ti.close) / ti.close[:-1]
             return float(np.std(daily_returns) * 100)
         return None
 

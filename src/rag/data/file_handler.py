@@ -7,6 +7,7 @@ from typing import Dict, List, Optional, Union
 
 from config.config import DATA_DIR
 from src.logger.logger import Logger
+from src.parsing.unified_parser import UnifiedParser
 
 
 class RagFileHandler:
@@ -22,32 +23,9 @@ class RagFileHandler:
         self.news_file_path = os.path.join(self.data_dir, self.NEWS_FILE)
         self.tickers_file = os.path.join(self.data_dir, "known_tickers.json")
         self._last_news_save_time = 0
+        self.unified_parser = UnifiedParser(logger)
         
         self.setup_directories()
-    
-    def _normalize_timestamp(self, timestamp_field: Union[int, float, str, None]) -> float:
-        """Convert various timestamp formats to a float timestamp."""
-        if timestamp_field is None:
-            return 0.0
-
-        # Handle numeric timestamps
-        if isinstance(timestamp_field, (int, float)):
-            return float(timestamp_field)
-        
-        # Handle string timestamps
-        if isinstance(timestamp_field, str):
-            try:
-                # Try to parse as numeric string first
-                return float(timestamp_field)
-            except ValueError:
-                try:
-                    # Normalize Z timezone indicator
-                    normalized_str = timestamp_field.replace('Z', '+00:00')
-                    return datetime.fromisoformat(normalized_str).timestamp()
-                except (ValueError, Exception) as e:
-                    self.logger.warning(f"Could not normalize timestamp '{timestamp_field}': {e}")
-        
-        return 0.0
     
     def setup_directories(self):
         os.makedirs(self.data_dir, exist_ok=True)
@@ -107,7 +85,7 @@ class RagFileHandler:
         
         recent_articles = []
         for art in articles:
-            article_timestamp = self._normalize_timestamp(art.get('published_on', 0))
+            article_timestamp = self.unified_parser.parse_timestamp(art.get('published_on', 0))
             if article_timestamp > one_day_ago:
                 recent_articles.append(art)
         
@@ -116,7 +94,7 @@ class RagFileHandler:
             return
 
         try:
-            recent_articles.sort(key=lambda x: self._normalize_timestamp(x.get('published_on', 0)), reverse=True)
+            recent_articles.sort(key=lambda x: self.unified_parser.parse_timestamp(x.get('published_on', 0)), reverse=True)
             
             news_data = {
                 'last_updated': datetime.now().isoformat(),
@@ -145,7 +123,7 @@ class RagFileHandler:
             
             recent_articles = []
             for art in articles:
-                article_timestamp = self._normalize_timestamp(art.get('published_on', 0))
+                article_timestamp = self.unified_parser.parse_timestamp(art.get('published_on', 0))
                 if article_timestamp > one_day_ago:
                     recent_articles.append(art)
             
@@ -173,7 +151,7 @@ class RagFileHandler:
             
             fallback_articles = []
             for art in articles:
-                article_timestamp = self._normalize_timestamp(art.get('published_on', 0))
+                article_timestamp = self.unified_parser.parse_timestamp(art.get('published_on', 0))
                 if article_timestamp > cutoff_time:
                     fallback_articles.append(art)
             
@@ -192,7 +170,7 @@ class RagFileHandler:
         
         recent_articles = []
         for art in articles:
-            article_timestamp = self._normalize_timestamp(art.get('published_on', 0))
+            article_timestamp = self.unified_parser.parse_timestamp(art.get('published_on', 0))
             if article_timestamp > one_day_ago:
                 recent_articles.append(art)
         

@@ -1,0 +1,185 @@
+/* Simplified component styles for crypto analysis reports */
+
+/* Analysis title */
+.analysis-title {
+    color: var(--heading-color);
+    font-size: 1.4em;
+    font-weight: 600;
+    margin: 30px 0 20px 0;
+    text-align: center;
+    border-bottom: 2px solid var(--border-color);
+    padding-bottom: 10px;
+}
+
+.analysis-content {
+    margin-top: 20px;
+}
+
+/* Simplified key points */
+.key-point {
+    background: var(--keypoint-bg);
+    border-left: 4px solid var(--link-color);
+    border-radius: 4px;
+    padding: 15px 20px;
+    margin: 20px 0;
+    border: 1px solid var(--border-color);
+}
+
+/* Simplified charts */
+.chart-section {
+    margin: 30px 0;
+    width: 100%;
+}
+
+.market-chart {
+    background: var(--container-bg);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 2px 8px var(--shadow-color);
+    padding: 20px;
+    margin: 20px 0;
+}
+
+.market-chart h3 {
+    color: var(--heading-color);
+    margin: 0 0 20px 0;
+    font-size: 1.3em;
+    font-weight: 600;
+    text-align: center;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 10px;
+}
+
+.chart-container {
+    border: 1px solid var(--chart-border);
+    border-radius: 4px;
+    padding: 15px;
+    margin: 15px 0;
+    background: var(--container-bg);
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.analysis-details {
+    background: var(--container-bg);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 2px 8px var(--shadow-color);
+    padding: 20px;
+    margin: 20px 0;
+}
+
+/* Simplified loading and timestamps */
+.chart-loading-container {
+    position: relative;
+    min-height: 250px;
+}
+
+.chart-loading {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: var(--background-color);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 10;
+}
+
+.loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--border-color);
+    border-radius: 50%;
+    border-top: 3px solid var(--link-color);
+    animation: spin 1s linear infinite;
+    margin-bottom: 10px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.timestamp {
+    font-size: 0.9em;
+    color: var(--timestamp-color);
+    margin-top: 30px;
+    text-align: center;
+    padding: 10px;
+    background: var(--code-bg);
+    border-radius: 4px;
+    border: 1px solid var(--border-color);
+}
+
+.expiry-notice {
+    background: var(--expiry-bg);
+    border: 1px solid var(--expiry-border);
+    border-radius: 4px;
+    padding: 15px;
+    margin-top: 30px;
+    font-size: 0.95em;
+    text-align: center;
+    font-weight: 500;
+}
+
+.expiry-notice::before {
+    content: "⏰ ";
+    margin-right: 8px;
+}
+
+/* Simplified resources section */
+.resources {
+    background: var(--resources-bg);
+    border-radius: 8px;
+    padding: 20px;
+    margin-top: 30px;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 2px 8px var(--shadow-color);
+}
+
+.resources h4 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    color: var(--heading-color);
+    font-size: 1.2em;
+    font-weight: 600;
+    text-align: center;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 10px;
+}
+
+.resources ul {
+    padding-left: 0;
+    list-style: none;
+}
+
+.resources li {
+    margin: 10px 0;
+    padding: 10px 15px;
+    background: var(--container-bg);
+    border-radius: 4px;
+    border-left: 3px solid var(--link-color);
+    border: 1px solid var(--border-color);
+}
+
+/* Make charts responsive */
+.js-plotly-plot {
+    max-width: 100% !important;
+    width: 100% !important;
+}
+
+.js-plotly-plot .plotly {
+    width: 100% !important;
+}
+
+.js-plotly-plot .plot-container {
+    width: 100% !important;
+}
+
+.main-svg {
+    width: 100% !important;
+}

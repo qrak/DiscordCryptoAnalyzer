@@ -14,7 +14,7 @@ class TemplateProcessor:
         self.logger = logger
     
     def generate_styled_html(self, title: str, html_analysis_content: str, 
-                           article_urls=None, chart_html="") -> str:
+                           article_urls=None, chart_html="", discord_summary_html="") -> str:
         """Generate styled HTML content using pre-rendered HTML analysis."""
         try:
             current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -28,7 +28,8 @@ class TemplateProcessor:
                 content=final_html_structure,
                 sources_section=sources_section,
                 current_time=current_time,
-                expiry_time=expiry_time
+                expiry_time=expiry_time,
+                discord_summary_section=discord_summary_html
             )
         except Exception as e:
             if self.logger:

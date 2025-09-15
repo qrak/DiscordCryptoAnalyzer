@@ -1,0 +1,260 @@
+/* Simplified UI components and responsive styles */
+
+/* Theme switcher */
+.theme-switch {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: var(--container-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 20px;
+    padding: 10px 15px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    transition: all 0.3s ease;
+    z-index: 1000;
+    box-shadow: 0 2px 8px var(--shadow-color);
+    color: var(--text-color);
+}
+
+.theme-switch:hover {
+    background: var(--keypoint-bg);
+}
+
+.theme-switch-icon {
+    margin-right: 8px;
+    font-size: 16px;
+}
+
+/* Back to top button */
+.back-to-top {
+    position: fixed;
+    bottom: 25px;
+    right: 25px;
+    background: var(--link-color);
+    color: white;
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    text-align: center;
+    line-height: 50px;
+    font-size: 20px;
+    cursor: pointer;
+    opacity: 0;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px var(--shadow-color);
+    z-index: 1000;
+    border: none;
+}
+
+.back-to-top.visible {
+    opacity: 0.8;
+}
+
+.back-to-top:hover {
+    opacity: 1;
+    background: var(--link-hover-color);
+}
+
+/* Simplified collapsible sections */
+.collapsible-section {
+    margin: 30px 0;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid var(--border-color);
+    background: var(--container-bg);
+    box-shadow: 0 2px 8px var(--shadow-color);
+}
+
+.collapsible-header {
+    cursor: pointer;
+    padding: 15px 20px;
+    background: var(--keypoint-bg);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.collapsible-header:hover {
+    background: var(--resources-bg);
+}
+
+.collapsible-header h3 {
+    margin: 0;
+    color: var(--heading-color);
+    font-size: 1.2em;
+    font-weight: 600;
+}
+
+.collapsible-content {
+    background: var(--container-bg);
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease, padding 0.3s ease;
+}
+
+.collapsible-content.expanded {
+    max-height: 3000px;
+    padding: 20px;
+}
+
+.collapsible-content.collapsed {
+    max-height: 0;
+    padding: 0 20px;
+}
+
+/* Legacy collapsible support */
+.collapsible-content.open {
+    max-height: 2000px;
+}
+
+/* Mobile Responsiveness */
+@media (max-width: 768px) {
+    body {
+        padding: 15px;
+        font-size: 14px;
+    }
+    
+    .container {
+        padding: 20px;
+        margin: 10px auto;
+        border-radius: 8px;
+        width: 95%;
+    }
+    
+    h1 {
+        font-size: 1.6em;
+        margin-bottom: 20px;
+    }
+    
+    h2 {
+        font-size: 1.3em;
+    }
+    
+    h3 {
+        font-size: 1.1em;
+    }
+    
+    .analysis-title {
+        font-size: 1.3em;
+        margin: 20px 0 15px 0;
+    }
+    
+    .market-chart, .analysis-details {
+        padding: 15px;
+        margin: 15px 0;
+        border-radius: 8px;
+    }
+    
+    .theme-switch {
+        top: 10px;
+        right: 10px;
+        padding: 8px 12px;
+        font-size: 12px;
+        border-radius: 15px;
+    }
+    
+    .back-to-top {
+        width: 45px;
+        height: 45px;
+        line-height: 45px;
+        font-size: 18px;
+        bottom: 20px;
+        right: 20px;
+    }
+    
+    table {
+        font-size: 0.85em;
+        margin: 15px 0;
+    }
+    
+    th, td {
+        padding: 10px 12px;
+    }
+    
+    .key-point {
+        padding: 12px 15px;
+        margin: 15px 0;
+    }
+    
+    .resources {
+        padding: 15px;
+        margin-top: 25px;
+    }
+    
+    /* Mobile table scroll */
+    .table-container {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        border-radius: 8px;
+    }
+    
+    /* Mobile Discord summary */
+    .discord-summary-header h3 {
+        font-size: 1.1em;
+    }
+    
+    .discord-timeframes {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+    
+    .discord-levels {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+    
+    .discord-scenarios {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+    
+    .discord-field {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 5px;
+        padding: 12px;
+    }
+    
+    .discord-field-value {
+        text-align: left;
+        min-width: auto;
+        width: 100%;
+    }
+    
+    .discord-field-name {
+        min-width: auto;
+        width: 100%;
+    }
+}
+
+/* Accessibility */
+:focus {
+    outline: 2px solid var(--link-color);
+    outline-offset: 2px;
+}
+
+button:focus, .theme-switch:focus, .back-to-top:focus {
+    outline: 2px solid var(--link-color);
+    outline-offset: 2px;
+}
+
+/* Print styles */
+@media print {
+    .theme-switch, .back-to-top {
+        display: none;
+    }
+    
+    .container {
+        box-shadow: none;
+        border: 1px solid #ccc;
+    }
+    
+    .market-chart, .analysis-details {
+        break-inside: avoid;
+    }
+}

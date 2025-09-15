@@ -8,7 +8,7 @@ from datetime import datetime
 from typing import Any, Dict, Optional
 
 from src.logger.logger import Logger
-from ..formatting.basic_formatter import fmt
+from ..formatting.format_utils import fmt
 
 
 class ContextBuilder:

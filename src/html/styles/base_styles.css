@@ -1,0 +1,161 @@
+/* Simplified base styles for crypto analysis reports */
+
+/* CSS Variables */
+:root[data-theme="light"] {
+    --text-color: #2c3e50;
+    --background-color: #f8f9fa;
+    --container-bg: #ffffff;
+    --heading-color: #1e3a8a;
+    --border-color: #2563eb;
+    --link-color: #1d4ed8;
+    --link-hover-color: #1e40af;
+    --keypoint-bg: #f0f9ff;
+    --code-bg: #f1f5f9;
+    --expiry-bg: #fef3c7;
+    --expiry-border: #f59e0b;
+    --resources-bg: #f8fafc;
+    --shadow-color: rgba(0, 0, 0, 0.08);
+    --timestamp-color: #64748b;
+    --chart-border: #e2e8f0;
+    --table-border-color: #e2e8f0;
+    --table-header-bg: #f1f5f9;
+}
+
+:root[data-theme="dark"] {
+    --text-color: #e9ecef;
+    --background-color: #212529;
+    --container-bg: #343a40;
+    --heading-color: #64b5f6;
+    --border-color: #4789c0;
+    --link-color: #64b5f6;
+    --link-hover-color: #90caf9;
+    --keypoint-bg: #495057;
+    --code-bg: #495057;
+    --expiry-bg: #6f4e37;
+    --expiry-border: #ffc107;
+    --resources-bg: #495057;
+    --shadow-color: rgba(0, 0, 0, 0.3);
+    --timestamp-color: #adb5bd;
+    --chart-border: #6c757d;
+    --table-border-color: #6c757d;
+    --table-header-bg: #495057;
+}
+
+/* Simplified layout */
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    line-height: 1.6;
+    color: var(--text-color);
+    margin: 0;
+    padding: 20px;
+    background-color: var(--background-color);
+    transition: background-color 0.3s ease;
+}
+
+.container {
+    background: var(--container-bg);
+    border-radius: 8px;
+    padding: 30px;
+    margin: 0 auto;
+    width: 90%;
+    max-width: none;
+    box-shadow: 0 2px 10px var(--shadow-color);
+    border: 1px solid var(--border-color);
+    transition: background-color 0.3s ease;
+}
+
+/* Simplified typography */
+h1 {
+    color: var(--heading-color);
+    font-size: 1.8em;
+    font-weight: 600;
+    margin: 0 0 30px 0;
+    text-align: center;
+    border-bottom: 2px solid var(--border-color);
+    padding-bottom: 15px;
+}
+
+h2 {
+    color: var(--heading-color);
+    font-size: 1.4em;
+    font-weight: 600;
+    margin: 25px 0 15px 0;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 8px;
+}
+
+h3 {
+    color: var(--heading-color);
+    font-size: 1.2em;
+    font-weight: 600;
+    margin: 20px 0 10px 0;
+}
+
+h4 {
+    color: var(--heading-color);
+    font-size: 1.1em;
+    font-weight: 600;
+    margin: 15px 0 10px 0;
+}
+
+h5, h6 {
+    color: var(--heading-color);
+    font-size: 1em;
+    font-weight: 600;
+    margin: 15px 0 10px 0;
+}
+
+p {
+    margin: 15px 0;
+    line-height: 1.6;
+}
+
+/* Simple lists */
+ul, ol {
+    margin: 15px 0;
+    padding-left: 25px;
+}
+
+li {
+    margin: 8px 0;
+    line-height: 1.5;
+}
+
+/* Simple text elements */
+strong {
+    font-weight: 600;
+    color: var(--heading-color);
+}
+
+em {
+    font-style: italic;
+    color: var(--link-color);
+}
+
+code {
+    background: var(--code-bg);
+    color: var(--link-color);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 0.9em;
+    border: 1px solid var(--border-color);
+}
+
+/* Simple links */
+a {
+    color: var(--link-color);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: all 0.2s ease;
+}
+
+a:hover {
+    color: var(--link-hover-color);
+    border-bottom-color: var(--link-hover-color);
+}
+
+/* Smooth scrolling */
+html {
+    scroll-behavior: smooth;
+}

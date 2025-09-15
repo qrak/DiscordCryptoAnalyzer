@@ -5,8 +5,8 @@ from src.logger.logger import Logger
 from ..core.analysis_context import AnalysisContext
 from ..calculations.indicator_calculator import IndicatorCalculator
 from .template_manager import TemplateManager
-from ..formatting.market_analysis.market_overview_formatter import MarketOverviewFormatter
-from ..formatting.technical_analysis.technical_formatter import TechnicalAnalysisFormatter
+from ..formatting.market_formatter import MarketFormatter
+from ..formatting.technical_formatter import TechnicalFormatter
 from .context_builder import ContextBuilder
 
 
@@ -31,8 +31,8 @@ class PromptBuilder:
         
         # Initialize component managers
         self.template_manager = TemplateManager(logger)
-        self.market_overview_formatter = MarketOverviewFormatter(logger)
-        self.technical_analysis_formatter = TechnicalAnalysisFormatter(self.indicator_calculator, logger)
+        self.market_formatter = MarketFormatter(logger)
+        self.technical_analysis_formatter = TechnicalFormatter(self.indicator_calculator, logger)
         self.context_builder = ContextBuilder(timeframe, logger)
 
     def build_prompt(self, context: AnalysisContext) -> str:
@@ -53,7 +53,7 @@ class PromptBuilder:
 
         # Add market overview first before technical analysis to give it more prominence
         if context.market_overview:
-            sections.append(self.market_overview_formatter.format_market_overview(context.market_overview))
+            sections.append(self.market_formatter.format_market_overview(context.market_overview))
 
         sections.extend([
             self.context_builder.build_market_data_section(context.ohlcv_candles),

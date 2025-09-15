@@ -3,6 +3,7 @@ News-based category operations for analyzing article content.
 """
 from typing import List, Dict, Any, Set, Optional
 from src.logger.logger import Logger
+from src.parsing.unified_parser import UnifiedParser
 
 
 class NewsCategoryAnalyzer:
@@ -11,6 +12,7 @@ class NewsCategoryAnalyzer:
     def __init__(self, logger: Logger, category_processor=None):
         self.logger = logger
         self.category_processor = category_processor
+        self.parser = UnifiedParser(logger)
     
     def get_coin_categories(self, symbol: str, news_database: Optional[List[Dict[str, Any]]] = None) -> List[str]:
         """Get categories for a given coin symbol from multiple sources."""
@@ -58,56 +60,11 @@ class NewsCategoryAnalyzer:
             
             # If coin is mentioned, extract categories
             if coin_mentioned and article_categories:
-                categories = self._parse_article_categories(article_categories)
+                categories = self.parser.parse_article_categories(article_categories)
                 coin_categories.update(categories)
         
         return coin_categories
     
-    def _parse_article_categories(self, categories_string: str) -> Set[str]:
-        """Parse categories from article category string."""
-        if not categories_string:
-            return set()
-        
-        categories = set()
-        
-        # Split by common separators
-        for separator in [',', ';', '|']:
-            if separator in categories_string:
-                parts = categories_string.split(separator)
-                for part in parts:
-                    clean_category = part.strip().lower()
-                    if clean_category and len(clean_category) > 2:
-                        categories.add(clean_category)
-                break
-        else:
-            # No separator found, use as single category
-            clean_category = categories_string.strip().lower()
-            if clean_category and len(clean_category) > 2:
-                categories.add(clean_category)
-        
-        return categories
-    
     def _extract_base_coin(self, symbol: str) -> str:
         """Extract base coin from trading pair symbol."""
-        if not symbol:
-            return ""
-        
-        # Use category processor if available
-        if self.category_processor:
-            return self.category_processor.extract_base_coin(symbol)
-        
-        # Fallback implementation
-        if '/' in symbol:
-            return symbol.split('/')[0].upper()
-        elif '-' in symbol:
-            return symbol.split('-')[0].upper()
-        else:
-            # Try to extract base from common pairs
-            common_quotes = ['USDT', 'USD', 'BTC', 'ETH', 'BNB', 'BUSD']
-            symbol_upper = symbol.upper()
-            
-            for quote in common_quotes:
-                if symbol_upper.endswith(quote):
-                    return symbol_upper[:-len(quote)]
-            
-            return symbol_upper
+        return self.parser.extract_base_coin(symbol)

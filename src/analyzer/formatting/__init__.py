@@ -1,12 +1,21 @@
 """
-Formatting components for analysis output.
-Handles technical analysis, market analysis, and general formatting.
+Consolidated analyzer formatting components.
+Simplified structure with fewer, more comprehensive formatters.
 """
 
-from .basic_formatter import BasicFormatter
+from .format_utils import fmt, fmt_ta, format_timestamp, format_value
+from .technical_formatter import TechnicalFormatter  
+from .market_formatter import MarketFormatter
 from .indicator_formatter import IndicatorFormatter
 
 __all__ = [
-    'BasicFormatter',
-    'IndicatorFormatter'
+    # Utility functions
+    'fmt',
+    'fmt_ta', 
+    'format_timestamp',
+    'format_value',
+    # Consolidated formatters
+    'TechnicalFormatter',
+    'MarketFormatter', 
+    'IndicatorFormatter',
 ]

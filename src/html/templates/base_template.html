@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{title}</title>
+    
+    <!-- CSS Styles -->
+    <link rel="stylesheet" href="data:text/css;base64,{base_styles_css}">
+    <link rel="stylesheet" href="data:text/css;base64,{component_styles_css}">
+    <link rel="stylesheet" href="data:text/css;base64,{table_discord_styles_css}">
+    <link rel="stylesheet" href="data:text/css;base64,{ui_responsive_css}">
+</head>
+<body>
+    <button class="theme-switch" id="themeToggle" aria-label="Toggle color theme">
+        <span class="theme-switch-icon" aria-hidden="true">☀️</span>
+        <span>Light Mode</span>
+    </button>
+    
+    <div class="container" role="main">
+        <h1 id="analysis-title">{title}</h1>
+        <div class="analysis-title" role="heading" aria-level="2">Detailed Analysis</div>
+        <div class="analysis-content" role="article" aria-labelledby="analysis-title">
+            {content}
+        </div>
+        {discord_summary_section}
+        <div role="complementary" aria-label="Sources and additional information">
+            {sources_section}
+        </div>
+        <div class="expiry-notice">
+            This analysis link on Discord will expire in 1 hour, at {expiry_time}.
+        </div>
+        <div class="timestamp">
+            Generated on: {current_time}
+        </div>
+    </div>
+    
+    <div class="back-to-top">↑</div>
+    
+    <!-- JavaScript -->
+    <script>{theme_manager_js}</script>
+    <script>{collapsible_manager_js}</script>
+    <script>{back_to_top_js}</script>
+    <script>{app_js}</script>
+</body>
+</html>

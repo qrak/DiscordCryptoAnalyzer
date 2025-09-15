@@ -4,6 +4,7 @@ from typing import Dict, Any, Optional
 
 from src.logger.logger import Logger
 from src.models.manager import ModelManager
+from src.parsing.unified_parser import UnifiedParser
 
 
 class AnalysisResultProcessor:
@@ -13,6 +14,7 @@ class AnalysisResultProcessor:
         """Initialize the processor"""
         self.model_manager = model_manager
         self.logger = logger
+        self.unified_parser = UnifiedParser(logger)
 
     def _serialize_for_json(self, obj):
         """Recursively convert numpy arrays/scalars and other non-JSON types to JSON-serializable types."""
@@ -67,9 +69,9 @@ class AnalysisResultProcessor:
         self.logger.debug("Received response from AI model")
         cleaned_response = self._clean_response(complete_response)
         
-        parsed_response = self.model_manager.parse_response(cleaned_response)
+        parsed_response = self.unified_parser.parse_ai_response(cleaned_response)
         
-        if not self.model_manager.validate_response(parsed_response):
+        if not self.unified_parser.validate_ai_response(parsed_response):
             self.logger.warning("Invalid response format from AI model")
             return {
                 "error": "Invalid response format",
@@ -150,12 +152,12 @@ class AnalysisResultProcessor:
         }
         
         # Normalize numeric fields in mock analysis to match real analysis behavior
-        mock_analysis = self.model_manager.response_parser._normalize_numeric_fields(mock_analysis)
-        # Also attempt to parse the mock raw_response using the real model parser to surface parsing issues
+        mock_analysis = self.unified_parser._normalize_numeric_fields(mock_analysis)
+        # Also attempt to parse the mock raw_response using the real parser to surface parsing issues
         try:
-            parsed = self.model_manager.parse_response(mock_analysis["raw_response"])
+            parsed = self.unified_parser.parse_ai_response(mock_analysis["raw_response"])
             mock_analysis["parsed_response"] = parsed
-            mock_analysis["parse_valid"] = self.model_manager.validate_response(parsed)
+            mock_analysis["parse_valid"] = self.unified_parser.validate_ai_response(parsed)
             if not mock_analysis["parse_valid"]:
                 mock_analysis["parse_error"] = "Parsed response failed validation"
         except Exception as e:

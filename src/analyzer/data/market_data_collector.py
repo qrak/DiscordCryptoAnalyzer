@@ -72,11 +72,11 @@ class MarketDataCollector:
             result["market_context"] = market_context
             
             # Store article URLs from RAG engine
-            if hasattr(self.rag_engine, 'latest_article_urls'):
-                self.article_urls = self.rag_engine.latest_article_urls.copy()
+            try:
+                self.article_urls = self.rag_engine.context_builder.get_latest_article_urls()
                 self.logger.debug(f"Retrieved {len(self.article_urls)} article URLs from RAG engine")
-            else:
-                self.logger.warning("No article URLs available from RAG engine")
+            except Exception as e:
+                self.logger.warning(f"Could not retrieve article URLs from RAG engine: {e}")
                 self.article_urls = {}
                 
             result["article_urls"] = self.article_urls

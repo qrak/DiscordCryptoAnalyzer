@@ -41,12 +41,24 @@ class ChartGenerator:
         # Determine if RSI data is available
         has_rsi = technical_history and 'rsi' in technical_history and len(technical_history['rsi']) == len(timestamps)
 
-        # Create subplots: 2 rows, 1 col. Top for OHLCV/Vol, Bottom for RSI
-        rows = 2 if has_rsi else 1
-        row_heights = [0.7, 0.3] if has_rsi else [1.0]
-        specs = [[{"secondary_y": True}]]
+        # Create subplots: 3 rows if RSI, 2 rows if no RSI
+        # Row 1: Price (with secondary y-axis for right-side axis)
+        # Row 2: Volume 
+        # Row 3: RSI (if available)
+        rows = 3 if has_rsi else 2
         if has_rsi:
-            specs.append([{"secondary_y": False}])
+            row_heights = [0.6, 0.2, 0.2]  # Price gets 60%, Volume 20%, RSI 20%
+            specs = [
+                [{"secondary_y": True}],   # Price row with secondary y-axis
+                [{"secondary_y": False}],  # Volume row
+                [{"secondary_y": False}]   # RSI row
+            ]
+        else:
+            row_heights = [0.7, 0.3]  # Price gets 70%, Volume 30%
+            specs = [
+                [{"secondary_y": True}],   # Price row with secondary y-axis  
+                [{"secondary_y": False}]   # Volume row
+            ]
 
         fig = make_subplots(
             rows=rows, 
@@ -57,9 +69,9 @@ class ChartGenerator:
             specs=specs
         )
         
-        # --- Plot 1: OHLCV and Volume ---
+        # --- Plot 1: Price Candlesticks ---
         
-        # Add candlestick chart (main price data)
+        # Add candlestick chart on secondary y-axis (right side)
         candle = go.Candlestick(
             x=timestamps,
             open=ohlcv[:, 1],
@@ -70,29 +82,32 @@ class ChartGenerator:
             increasing_line_color=self.default_colors['candle_up'],
             decreasing_line_color=self.default_colors['candle_down']
         )
-        fig.add_trace(candle, row=1, col=1)
+        fig.add_trace(candle, row=1, col=1, secondary_y=True)
         
-        # Add volume as a bar chart on the secondary y-axis
+        # --- Plot 2: Volume ---
+        
+        # Add volume as a bar chart in its own subplot
         volume = go.Bar(
             x=timestamps,
             y=ohlcv[:, 5],
             name="Volume",
             marker_color=self.default_colors['volume'],
-            opacity=0.6,  # Slightly reduced opacity
+            opacity=0.6,
         )
-        fig.add_trace(volume, row=1, col=1, secondary_y=True)
+        fig.add_trace(volume, row=2, col=1)
         
-        # --- Plot 2: RSI (if available) ---
+        # --- Plot 3: RSI (if available) ---
+        # --- Plot 3: RSI (if available) ---
         if has_rsi:
             rsi_values = technical_history['rsi']
             
-            # Add RSI line
+            # Add RSI line in the third row
             fig.add_trace(go.Scatter(
                 x=timestamps,
                 y=rsi_values,
                 name="RSI (14)",
                 line=dict(color=self.default_colors['rsi'], width=1.5)
-            ), row=2, col=1)
+            ), row=3, col=1)
             
             # Add RSI Overbought/Oversold lines
             for level, color, dash in [(70, 'rgba(239, 83, 80, 0.7)', 'dash'), (30, 'rgba(38, 166, 154, 0.7)', 'dash')]:
@@ -103,10 +118,10 @@ class ChartGenerator:
                     line=dict(color=color, width=1, dash=dash),
                     showlegend=False,
                     hoverinfo='skip'  # Don't show hover info for these lines
-                ), row=2, col=1)
+                ), row=3, col=1)
             
             # Set RSI y-axis range and title
-            fig.update_yaxes(title_text="RSI", range=[0, 100], row=2, col=1)
+            fig.update_yaxes(title_text="RSI", range=[0, 100], row=3, col=1)
 
         # --- Layout Updates ---
         fig.update_layout(
@@ -133,26 +148,35 @@ class ChartGenerator:
         
         # --- Axis Configuration ---
         
-        # Configure Price axis (Primary Y-axis, Row 1)
+        # Configure Primary Y-axis (Row 1, Left side) - Empty/Hidden for cleaner look
+        fig.update_yaxes(
+            showgrid=False,
+            showticklabels=False,
+            visible=False,
+            row=1, col=1, 
+            secondary_y=False
+        )
+        
+        # Configure Price axis (Secondary Y-axis, Row 1, Right side)
         fig.update_yaxes(
             title_text="Price", 
             showgrid=True, 
             gridwidth=1, 
             gridcolor=self.default_colors['grid'], 
             zeroline=False,
+            side="right",
             row=1, col=1, 
-            secondary_y=False
+            secondary_y=True
         )
         
-        # Configure Volume axis (Secondary Y-axis, Row 1)
+        # Configure Volume axis (Row 2)
         fig.update_yaxes(
             title_text="Volume", 
-            showgrid=False,  # Hide grid for volume
+            showgrid=True,
+            gridwidth=1,
+            gridcolor=self.default_colors['grid'],
             zeroline=False,
-            row=1, col=1, 
-            secondary_y=True,
-            showticklabels=True,  # Ensure volume ticks are visible
-            visible=True  # Ensure axis is visible
+            row=2, col=1
         )
 
         # Configure X-axes
@@ -171,14 +195,16 @@ class ChartGenerator:
         if rows > 1:
             fig.update_xaxes(showticklabels=False, row=1, col=1)
         
-        # Configure RSI Y-axis (Row 2, if exists)
+        # Configure RSI Y-axis (Row 3, if exists)
         if has_rsi:
             fig.update_yaxes(
+                title_text="RSI",
                 showgrid=True,
                 gridwidth=1,
                 gridcolor=self.default_colors['grid'],
                 zeroline=False,
-                row=2, col=1
+                range=[0, 100],
+                row=3, col=1
             )
         
         # Generate a unique ID for this chart instance 

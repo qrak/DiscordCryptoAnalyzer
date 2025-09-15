@@ -110,8 +110,3 @@ class DiscordFileHandler:
             self.logger.info("DiscordFileHandler shutdown complete")
         except Exception as e:
             self.logger.error(f"Error during DiscordFileHandler shutdown: {e}")
-    
-    # Backward compatibility methods
-    async def cleanup_all_expired_messages(self):
-        """Backward compatibility wrapper for cleanup."""
-        return await self.check_and_delete_expired_messages()

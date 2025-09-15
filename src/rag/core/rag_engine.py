@@ -344,9 +344,3 @@ class RagEngine:
         self.market_data_manager.symbol_manager = symbol_manager
         self.category_manager.symbol_manager = symbol_manager
         self.logger.debug("SymbolManager set in RagEngine and component managers")
-
-    # Backwards compatibility methods - delegate to component managers
-    @property
-    def latest_article_urls(self) -> Dict[str, str]:
-        """Get latest article URLs from context builder"""
-        return self.context_builder.get_latest_article_urls()

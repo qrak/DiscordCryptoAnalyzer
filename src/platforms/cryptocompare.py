@@ -40,51 +40,11 @@ class CryptoCompareAPI:
         self.market_api = CryptoCompareMarketAPI(logger)
         self.data_processor = CryptoCompareDataProcessor(logger)
         
-        # Maintain backward compatibility properties
-        self.update_interval = timedelta(hours=update_interval_hours)
-        self.categories_update_interval = timedelta(hours=categories_update_interval_hours)
-        
         # Ensure directories exist
         os.makedirs(data_dir, exist_ok=True)
         os.makedirs(cache_dir, exist_ok=True)
         
         self.session = None
-    
-    # Backward compatibility properties that delegate to specialized components
-    @property
-    def last_news_update(self) -> Optional[datetime]:
-        """Get last news update timestamp"""
-        return self.news_api.last_news_update
-    
-    @property
-    def categories_last_update(self) -> Optional[datetime]:
-        """Get last categories update timestamp"""
-        return self.categories_api.categories_last_update
-    
-    @property
-    def api_categories(self) -> List[Dict[str, Any]]:
-        """Get current API categories"""
-        return self.categories_api.get_api_categories()
-    
-    @property
-    def category_word_map(self) -> Dict[str, str]:
-        """Get current category word mapping"""
-        return self.categories_api.get_category_word_map()
-    
-    @property
-    def categories_file(self) -> str:
-        """Get categories file path"""
-        return self.categories_api.categories_file
-    
-    @property
-    def news_cache_file(self) -> str:
-        """Get news cache file path"""
-        return self.news_api.news_cache_file
-    
-    @property
-    def ohlcv_api_url_template(self) -> str:
-        """Get OHLCV API URL template"""
-        return self.market_api.get_ohlcv_url_template()
     
     async def initialize(self) -> None:
         """Initialize the API client and load cached data"""

@@ -2,10 +2,10 @@
 Market Data Processing Utilities
 Handles data normalization and processing operations.
 """
-from datetime import datetime
-from typing import Dict, Any, Optional, Union, List
+from typing import Dict, Any, Optional, List
 
 from src.logger.logger import Logger
+from src.parsing.unified_parser import UnifiedParser
 
 
 class MarketDataProcessor:
@@ -13,32 +13,11 @@ class MarketDataProcessor:
     
     def __init__(self, logger: Logger):
         self.logger = logger
+        self.parser = UnifiedParser(logger)
     
-    def normalize_timestamp(self, timestamp_field: Union[int, float, str, None]) -> float:
+    def normalize_timestamp(self, timestamp_field) -> float:
         """Convert various timestamp formats to a float timestamp."""
-        if timestamp_field is None:
-            return 0.0
-
-        if isinstance(timestamp_field, (int, float)):
-            return float(timestamp_field)
-        
-        if isinstance(timestamp_field, str):
-            return self._parse_timestamp_string(timestamp_field)
-        
-        return 0.0
-    
-    def _parse_timestamp_string(self, timestamp_field: str) -> float:
-        """Parse timestamp string to float."""
-        try:
-            if timestamp_field.endswith('Z'):
-                timestamp_field = timestamp_field[:-1] + '+00:00'
-            return datetime.fromisoformat(timestamp_field).timestamp()
-        except ValueError:
-            self.logger.warning(f"Could not normalize timestamp string: {timestamp_field}")
-            return 0.0
-        except Exception as e:
-            self.logger.error(f"Error normalizing timestamp string '{timestamp_field}': {e}")
-            return 0.0
+        return self.parser.parse_timestamp(timestamp_field)
     
     def extract_top_coins(self, coingecko_data: Optional[Dict]) -> List[str]:
         """Extract top cryptocurrency symbols from CoinGecko data."""

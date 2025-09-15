@@ -1,641 +1,268 @@
 """
-HTML templates for the crypto bot analysis reports
+Modular HTML templates for the crypto bot analysis reports.
+Refactored to use separate CSS/JS files and keep the main file under 500 lines.
 """
 
-def get_analysis_template(title, content, sources_section="", current_time="", expiry_time=""):
-    """
-    Returns the HTML template for analysis reports.
+import os
+import base64
+from pathlib import Path
 
+class TemplateLoader:
+    """Loads and manages HTML template components."""
+    
+    def __init__(self):
+        self.base_dir = Path(__file__).parent
+        self.styles_dir = self.base_dir / "styles"
+        self.scripts_dir = self.base_dir / "scripts"
+        self.templates_dir = self.base_dir / "templates"
+    
+    def _load_file(self, file_path: Path) -> str:
+        """Load a file and return its contents as string."""
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                return f.read()
+        except FileNotFoundError:
+            print(f"Warning: Template file not found: {file_path}")
+            return ""
+    
+    def _encode_css_for_inline(self, css_content: str) -> str:
+        """Encode CSS content for inline data URLs."""
+        return base64.b64encode(css_content.encode('utf-8')).decode('utf-8')
+    
+    def load_styles(self) -> dict:
+        """Load all CSS files and return as dictionary."""
+        styles = {}
+        css_files = [
+            'base_styles.css',
+            'component_styles.css', 
+            'table_discord_styles.css',
+            'ui_responsive.css'
+        ]
+        
+        for css_file in css_files:
+            css_path = self.styles_dir / css_file
+            css_content = self._load_file(css_path)
+            # Encode for data URL usage
+            styles[css_file.replace('.css', '_css')] = self._encode_css_for_inline(css_content)
+        
+        return styles
+    
+    def load_scripts(self) -> dict:
+        """Load all JavaScript files and return as dictionary."""
+        scripts = {}
+        js_files = [
+            'theme-manager.js',
+            'collapsible-manager.js',
+            'back-to-top.js',
+            'app.js'
+        ]
+        
+        for js_file in js_files:
+            js_path = self.scripts_dir / js_file
+            js_content = self._load_file(js_path)
+            scripts[js_file.replace('-', '_').replace('.js', '_js')] = js_content
+        
+        return scripts
+    
+    def load_template(self, template_name: str) -> str:
+        """Load an HTML template file."""
+        template_path = self.templates_dir / template_name
+        return self._load_file(template_path)
+
+
+class ModularTemplateEngine:
+    """Main template engine that combines all modular components."""
+    
+    def __init__(self):
+        self.loader = TemplateLoader()
+        self._styles_cache = None
+        self._scripts_cache = None
+        self._templates_cache = {}
+    
+    @property
+    def styles(self) -> dict:
+        """Get cached styles or load them."""
+        if self._styles_cache is None:
+            self._styles_cache = self.loader.load_styles()
+        return self._styles_cache
+    
+    @property 
+    def scripts(self) -> dict:
+        """Get cached scripts or load them."""
+        if self._scripts_cache is None:
+            self._scripts_cache = self.loader.load_scripts()
+        return self._scripts_cache
+    
+    def get_template(self, template_name: str) -> str:
+        """Get cached template or load it."""
+        if template_name not in self._templates_cache:
+            self._templates_cache[template_name] = self.loader.load_template(template_name)
+        return self._templates_cache[template_name]
+    
+    def render_analysis_template(self, title: str, content: str, sources_section: str = "", 
+                                current_time: str = "", expiry_time: str = "", 
+                                discord_summary_section: str = "") -> str:
+        """
+        Render the main analysis template with all components.
+        
+        Args:
+            title: The title of the analysis
+            content: The analysis content with enhanced links
+            sources_section: HTML containing the sources list
+            current_time: Generation time of the report
+            expiry_time: Time when the report link will expire
+            discord_summary_section: HTML containing the Discord analysis summary
+        """
+        template = self.get_template('base_template.html')
+        
+        # Combine all styles and scripts
+        template_vars = {
+            'title': title,
+            'content': content,
+            'sources_section': sources_section,
+            'current_time': current_time,
+            'expiry_time': expiry_time,
+            'discord_summary_section': discord_summary_section,
+            **self.styles,
+            **self.scripts
+        }
+        
+        return template.format(**template_vars)
+    
+    def render_error_template(self, error_message: str) -> str:
+        """
+        Render a simple error template.
+        
+        Args:
+            error_message: The error message to display
+        """
+        template = self.get_template('error_template.html')
+        return template.format(error_message=error_message)
+
+
+# Global template engine instance
+_template_engine = None
+
+def get_template_engine() -> ModularTemplateEngine:
+    """Get the global template engine instance."""
+    global _template_engine
+    if _template_engine is None:
+        _template_engine = ModularTemplateEngine()
+    return _template_engine
+
+
+def get_analysis_template(title: str, content: str, sources_section: str = "", 
+                         current_time: str = "", expiry_time: str = "", 
+                         discord_summary_section: str = "") -> str:
+    """
+    Public API function for getting analysis templates.
+    Maintains backward compatibility with existing code.
+    
     Args:
         title: The title of the analysis
         content: The analysis content with enhanced links
         sources_section: HTML containing the sources list
         current_time: Generation time of the report
         expiry_time: Time when the report link will expire
+        discord_summary_section: HTML containing the Discord analysis summary
     """
-    return f"""<!DOCTYPE html>
-<html lang="en" data-theme="dark">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{title}</title>
-    <style>
-        :root[data-theme="light"] {{
-            --text-color: #333;
-            --background-color: #f5f5f5;
-            --container-bg: white;
-            --heading-color: #2c3e50;
-            --border-color: #3498db;
-            --link-color: #3498db;
-            --link-hover-color: #2980b9;
-            --keypoint-bg: #ebf5fb;
-            --code-bg: #f0f0f0;
-            --expiry-bg: #fff3cd;
-            --expiry-border: #ffc107;
-            --resources-bg: #e8f4f8;
-            --shadow-color: rgba(0, 0, 0, 0.1);
-            --timestamp-color: #7f8c8d;
-            --chart-border: #e0e0e0;
-            --table-border-color: #ddd;
-            --table-header-bg: #f2f2f2;
-            --accent-gradient: linear-gradient(135deg, #3498db, #2980b9);
-            --card-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
-        }}
-        
-        :root[data-theme="dark"] {{
-            --text-color: #e0e0e0;
-            --background-color: #1a1a1a;
-            --container-bg: #2d2d2d;
-            --heading-color: #81b3d6;
-            --border-color: #4789c0;
-            --link-color: #64b5f6;
-            --link-hover-color: #90caf9;
-            --keypoint-bg: #1e3a5f;
-            --code-bg: #252525;
-            --expiry-bg: #5d4037;
-            --expiry-border: #8d6e63;
-            --resources-bg: #263238;
-            --shadow-color: rgba(0, 0, 0, 0.3);
-            --timestamp-color: #b0bec5;
-            --chart-border: #444444;
-            --table-border-color: #555;
-            --table-header-bg: #3a3a3a;
-            --accent-gradient: linear-gradient(135deg, #4789c0, #81b3d6);
-            --card-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
-        }}
-        
-        body {{
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            line-height: 1.6;
-            color: var(--text-color);
-            max-width: 100%;
-            margin: 0 auto;
-            padding: 20px;
-            background-color: var(--background-color);
-            transition: background-color 0.3s ease;
-        }}
-        
-        .container {{
-            background-color: var(--container-bg);
-            border-radius: 10px;
-            padding: 30px;
-            box-shadow: 0 0 20px var(--shadow-color);
-            transition: background-color 0.3s ease, box-shadow 0.3s ease;
-            width: 100%;
-            max-width: 95%; /* Changed from 1200px */
-            margin: 0 auto;
-            box-sizing: border-box;
-        }}
-        
-        h1 {{
-            color: var(--heading-color);
-            border-bottom: 2px solid var(--border-color);
-            padding-bottom: 10px;
-            transition: color 0.3s ease, border-color 0.3s ease;
-        }}
-        
-        .analysis-title {{
-            color: var(--heading-color);
-            font-size: 1.4em;
-            font-weight: bold;
-            margin-bottom: 20px;
-            border-bottom: 2px solid var(--border-color);
-            padding-bottom: 10px;
-            transition: color 0.3s ease, border-color 0.3s ease;
-            background: var(--accent-gradient);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            display: inline-block;
-        }}
-        
-        .analysis-content {{
-            margin-top: 20px;
-        }}
-        
-        .timestamp {{
-            font-size: 0.8em;
-            color: var(--timestamp-color);
-            margin-top: 30px;
-            text-align: right;
-            transition: color 0.3s ease;
-        }}
-        
-        .key-point {{
-            background-color: var(--keypoint-bg);
-            border-left: 4px solid var(--border-color);
-            padding: 10px 15px;
-            margin: 15px 0;
-            transition: background-color 0.3s ease, border-color 0.3s ease;
-        }}
-        
-        code {{
-            background-color: var(--code-bg);
-            padding: 2px 5px;
-            border-radius: 3px;
-            font-family: 'Consolas', monospace;
-            transition: background-color 0.3s ease;
-        }}
-        
-        .expiry-notice {{
-            background-color: var(--expiry-bg);
-            border-left: 4px solid var(--expiry-border);
-            padding: 10px 15px;
-            margin-top: 30px;
-            font-size: 0.9em;
-            transition: background-color 0.3s ease, border-color 0.3s ease;
-        }}
-        
-        a {{
-            color: var(--link-color);
-            text-decoration: none;
-            border-bottom: 1px dotted var(--link-color);
-            transition: color 0.3s ease, border-color 0.3s ease;
-        }}
-        
-        a:hover {{
-            color: var(--link-hover-color);
-            border-bottom: 1px solid var(--link-hover-color);
-        }}
-        
-        .resources {{
-            background-color: var(--resources-bg);
-            border-radius: 5px;
-            padding: 15px;
-            margin-top: 25px;
-            transition: background-color 0.3s ease;
-        }}
-        
-        .resources h4 {{
-            margin-top: 0;
-            color: var(--heading-color);
-            transition: color 0.3s ease;
-        }}
-        
-        .resources ul {{
-            padding-left: 20px;
-        }}
-        
-        .theme-switch {{
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background-color: var(--container-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 5px;
-            padding: 8px 12px;
-            cursor: pointer;
-            font-size: 14px;
-            display: flex;
-            align-items: center;
-            transition: background-color 0.3s ease, border-color 0.3s ease;
-            z-index: 1000;
-        }}
-        
-        .theme-switch:hover {{
-            background-color: var(--resources-bg);
-        }}
-        
-        .theme-switch-icon {{
-            margin-right: 8px;
-        }}
-        
-        /* Chart styling */
-        .chart-section {{
-            position: relative;
-            margin-bottom: 30px;
-            width: 100%;
-        }}
-        
-        .market-chart {{
-            margin-bottom: 20px;
-            padding-bottom: 20px;
-            border-bottom: 1px solid var(--border-color);
-            width: 100%;
-            border-radius: 12px;
-            box-shadow: var(--card-shadow);
-            transition: box-shadow 0.3s ease, transform 0.3s ease;
-            overflow: hidden;
-            padding: 20px;
-            margin: 20px 0;
-            background-color: var(--container-bg);
-        }}
-        
-        .market-chart:hover {{
-            box-shadow: 0 12px 24px rgba(0, 0, 0, 0.3);
-            transform: translateY(-2px);
-        }}
-        
-        .market-chart h3 {{
-            color: var(--heading-color);
-            margin-top: 0;
-            padding-bottom: 10px;
-            border-bottom: 1px dashed var(--border-color);
-            background: var(--accent-gradient);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            display: inline-block;
-        }}
-        
-        .chart-container {{
-            border: 1px solid var(--chart-border);
-            border-radius: 8px;
-            padding: 15px;
-            overflow: hidden;
-            margin: 20px 0;
-            background-color: var(--container-bg);
-            box-shadow: 0 2px 10px var(--shadow-color);
-            width: 100%;
-            box-sizing: border-box;
-        }}
-        
-        .analysis-details {{
-            margin-top: 30px;
-            border-radius: 12px;
-            box-shadow: var(--card-shadow);
-            transition: box-shadow 0.3s ease, transform 0.3s ease;
-            overflow: hidden;
-            padding: 20px;
-            margin: 20px 0;
-            background-color: var(--container-bg);
-        }}
-        
-        .analysis-details:hover {{
-            box-shadow: 0 12px 24px rgba(0, 0, 0, 0.3);
-            transform: translateY(-2px);
-        }}
-        
-        /* Chart loading styles */
-        .chart-loading-container {{
-            position: relative;
-            min-height: 300px;
-        }}
-        
-        .chart-loading {{
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: var(--background-color);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            z-index: 10;
-        }}
-        
-        .loading-spinner {{
-            width: 50px;
-            height: 50px;
-            border: 5px solid var(--border-color);
-            border-radius: 50%;
-            border-top: 5px solid var(--link-color);
-            animation: spin 1s linear infinite;
-            margin-bottom: 15px;
-        }}
-        
-        @keyframes spin {{
-            0% {{ transform: rotate(0deg); }}
-            100% {{ transform: rotate(360deg); }}
-        }}
-        
-        /* Table styling */
-        table {{
-            width: 100%;
-            border-collapse: collapse;
-            margin: 20px 0;
-            font-size: 0.9em;
-            box-shadow: 0 2px 5px var(--shadow-color);
-            overflow: hidden;
-            border-radius: 5px;
-        }}
-        
-        thead tr {{
-            background-color: var(--table-header-bg);
-            color: var(--heading-color);
-            text-align: left;
-            font-weight: bold;
-        }}
-        
-        th, td {{
-            padding: 12px 15px;
-            border: 1px solid var(--table-border-color);
-            text-align: left;
-            transition: background-color 0.3s ease, border-color 0.3s ease;
-        }}
-        
-        tbody tr {{
-            border-bottom: 1px solid var(--table-border-color);
-        }}
-        
-        tbody tr:nth-of-type(even) {{
-            background-color: var(--code-bg);
-        }}
-        
-        tbody tr:last-of-type {{
-            border-bottom: 2px solid var(--border-color);
-        }}
-        
-        tbody tr:hover {{
-            background-color: var(--keypoint-bg);
-        }}
-        
-        /* Enhanced table styling for technical analysis */
-        .technical-table {{
-            border-radius: 8px;
-            overflow: hidden;
-            box-shadow: 0 4px 12px var(--shadow-color);
-        }}
-        
-        .technical-table th {{
-            background: var(--accent-gradient);
-            color: white;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            font-size: 0.85em;
-        }}
-        
-        /* Support/Resistance level styling */
-        .support-level {{
-            color: #28a745;
-            font-weight: 600;
-        }}
-        
-        .resistance-level {{
-            color: #dc3545;
-            font-weight: 600;
-        }}
-        
-        /* Signal indicators */
-        .bullish-signal {{
-            background-color: rgba(40, 167, 69, 0.1);
-            border-left: 3px solid #28a745;
-        }}
-        
-        .bearish-signal {{
-            background-color: rgba(220, 53, 69, 0.1);
-            border-left: 3px solid #dc3545;
-        }}
-        
-        .neutral-signal {{
-            background-color: rgba(255, 193, 7, 0.1);
-            border-left: 3px solid #ffc107;
-        }}
-        
-        /* Percentage change styling */
-        .positive-change {{
-            color: #28a745;
-            font-weight: 600;
-        }}
-        
-        .negative-change {{
-            color: #dc3545;
-            font-weight: 600;
-        }}
-        
-        /* Compact table for mobile */
-        .compact-table {{
-            font-size: 0.8em;
-        }}
-        
-        .compact-table th,
-        .compact-table td {{
-            padding: 8px 10px;
-        }}
-        
-        /* Table headers with icons */
-        .table-icon {{
-            margin-right: 5px;
-            font-size: 1.1em;
-        }}
-        
-        /* Strength indicators */
-        .strength-strong {{
-            color: #28a745;
-            font-weight: bold;
-        }}
-        
-        .strength-medium {{
-            color: #ffc107;
-            font-weight: 600;
-        }}
-        
-        .strength-weak {{
-            color: #6c757d;
-        }}
-        
-        /* Make charts responsive */
-        .js-plotly-plot {{
-            max-width: 100% !important;
-            width: 100% !important;
-        }}
-        
-        .js-plotly-plot .plotly {{
-            width: 100% !important;
-        }}
-        
-        .js-plotly-plot .plot-container {{
-            width: 100% !important;
-        }}
-        
-        .main-svg {{
-            width: 100% !important;
-        }}
-        
-        /* Enhanced Mobile Responsiveness */
-        @media (max-width: 768px) {{
-            .container {{
-                padding: 15px;
-            }}
-            
-            body {{
-                padding: 10px;
-                font-size: 14px;
-            }}
-            
-            .market-chart {{
-                padding: 10px;
-            }}
-            
-            .theme-switch {{
-                top: 10px;
-                right: 10px;
-                padding: 10px 15px;
-                font-size: 12px;
-            }}
-            
-            table {{
-                display: block;
-                overflow-x: auto;
-                white-space: nowrap;
-            }}
-            
-            h1 {{
-                font-size: 1.8em;
-            }}
-            
-            table {{
-                font-size: 0.8em;
-            }}
-            
-            th, td {{
-                padding: 8px 10px;
-            }}
-        }}
-        
-        /* Back to top button */
-        .back-to-top {{
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            background-color: var(--container-bg);
-            color: var(--link-color);
-            border-radius: 50%;
-            width: 50px;
-            height: 50px;
-            text-align: center;
-            line-height: 50px;
-            font-size: 20px;
-            cursor: pointer;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-            box-shadow: 0 2px 10px var(--shadow-color);
-            z-index: 1000;
-        }}
-        
-        .back-to-top.visible {{
-            opacity: 0.8;
-        }}
-        
-        .back-to-top:hover {{
-            opacity: 1;
-        }}
-        
-        /* Collapsible sections */
-        .collapsible-header {{
-            cursor: pointer;
-            padding: 12px 15px;
-            background-color: var(--keypoint-bg);
-            border-radius: 6px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 3px;
-        }}
-        
-        .collapsible-content {{
-            max-height: 0;
-            overflow: hidden;
-            transition: max-height 0.3s ease;
-            background-color: var(--container-bg);
-            border-radius: 0 0 6px 6px;
-        }}
-        
-        .collapsible-content.open {{
-            max-height: 2000px;
-        }}
-        
-        :focus {{
-            outline: 3px solid var(--link-color);
-            outline-offset: 3px;
-        }}
-        
-        /* High contrast mode supports */
-        @media (forced-colors: active) {{
-            .analysis-title, .market-chart h3 {{
-                -webkit-text-fill-color: CanvasText;
-            }}
-            
-            a:focus {{
-                outline: 3px solid Highlight;
-            }}
-        }}
-    </style>
-</head>
-<body>
-    <button class="theme-switch" onclick="toggleTheme()" id="themeToggle" aria-label="Toggle color theme">
-        <span class="theme-switch-icon" aria-hidden="true">☀️</span>
-        <span>Light Mode</span>
-    </button>
-    
-    <div class="container" role="main">
-        <h1 id="analysis-title">{title}</h1>
-        <div class="analysis-title" role="heading" aria-level="2">Detailed Analysis</div>
-        <div class="analysis-content" role="article" aria-labelledby="analysis-title">
-            {content}
-        </div>
-        <div role="complementary" aria-label="Sources and additional information">
-            {sources_section}
-        </div>
-        <div class="expiry-notice">
-            This analysis link on Discord will expire in 1 hour, at {expiry_time}.
-        </div>
-        <div class="timestamp">
-            Generated on: {current_time}
-        </div>
-    </div>
-    
-    <div class="back-to-top">↑</div>
-    
-    <script>
-        // Check for saved theme preference or default to light mode
-        function getTheme() {{
-            return localStorage.getItem('crypto-analysis-theme') || 'dark';
-        }}
-        
-        // Apply the current theme
-        function applyTheme(theme) {{
-            document.documentElement.setAttribute('data-theme', theme);
-            const themeToggle = document.getElementById('themeToggle');
-            if (theme === 'dark') {{
-                themeToggle.innerHTML = '<span class="theme-switch-icon" aria-hidden="true">☀️</span><span>Light Mode</span>';
-            }} else {{
-                themeToggle.innerHTML = '<span class="theme-switch-icon" aria-hidden="true">🌙</span><span>Dark Mode</span>';
-            }}
-        }}
-        
-        // Toggle between light and dark themes
-        function toggleTheme() {{
-            const currentTheme = getTheme();
-            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
-            localStorage.setItem('crypto-analysis-theme', newTheme);
-            applyTheme(newTheme);
-        }}
-        
-        // Apply theme immediately to avoid flash of unstyled content
-        document.addEventListener('DOMContentLoaded', function() {{
-            applyTheme(getTheme());
-            
-            // Back to top button
-            const backToTop = document.querySelector('.back-to-top');
-            window.addEventListener('scroll', function() {{
-                if (window.scrollY > 300) {{
-                    backToTop.classList.add('visible');
-                }} else {{
-                    backToTop.classList.remove('visible');
-                }}
-            }});
-            
-            backToTop.addEventListener('click', function() {{
-                window.scrollTo({{
-                    top: 0,
-                    behavior: 'smooth'
-                }});
-            }});
-        }});
-    </script>
-</body>
-</html>"""
+    engine = get_template_engine()
+    return engine.render_analysis_template(
+        title=title,
+        content=content,
+        sources_section=sources_section,
+        current_time=current_time,
+        expiry_time=expiry_time,
+        discord_summary_section=discord_summary_section
+    )
 
-def get_error_template(error_message):
+
+def get_error_template(error_message: str) -> str:
     """
-    Returns a simple HTML template for displaying errors
+    Public API function for getting error templates.
+    Maintains backward compatibility with existing code.
     
     Args:
         error_message: The error message to display
     """
-    return f"""<!DOCTYPE html>
-<html><body><h1>Error Generating Analysis</h1>
-<p>There was a problem generating the analysis: {error_message}</p>
-</body></html>"""
+    engine = get_template_engine()
+    return engine.render_error_template(error_message)
+
+
+# Additional utility functions for development and debugging
+def reload_templates():
+    """Force reload of all template components (useful for development)."""
+    global _template_engine
+    _template_engine = None
+
+
+def list_available_templates() -> list:
+    """List all available template files."""
+    engine = get_template_engine()
+    templates_dir = engine.loader.templates_dir
+    return [f.name for f in templates_dir.glob("*.html")]
+
+
+def validate_template_structure() -> dict:
+    """Validate that all required template files exist and are readable."""
+    engine = get_template_engine()
+    validation_results = {
+        'styles': {},
+        'scripts': {},
+        'templates': {},
+        'overall_status': 'ok'
+    }
+    
+    # Check styles
+    try:
+        styles = engine.styles
+        validation_results['styles'] = {name: 'ok' for name in styles.keys()}
+    except Exception as e:
+        validation_results['styles']['error'] = str(e)
+        validation_results['overall_status'] = 'error'
+    
+    # Check scripts
+    try:
+        scripts = engine.scripts
+        validation_results['scripts'] = {name: 'ok' for name in scripts.keys()}
+    except Exception as e:
+        validation_results['scripts']['error'] = str(e)
+        validation_results['overall_status'] = 'error'
+    
+    # Check templates
+    try:
+        templates = list_available_templates()
+        validation_results['templates'] = {name: 'ok' for name in templates}
+    except Exception as e:
+        validation_results['templates']['error'] = str(e)
+        validation_results['overall_status'] = 'error'
+    
+    return validation_results
+
+
+if __name__ == "__main__":
+    # Quick test/validation when run directly
+    print("HTML Templates Module - Validation Results:")
+    results = validate_template_structure()
+    
+    for category, items in results.items():
+        if category == 'overall_status':
+            continue
+        print(f"\n{category.upper()}:")
+        for name, status in items.items():
+            print(f"  {name}: {status}")
+    
+    print(f"\nOverall Status: {results['overall_status']}")
+    
+    # Test template generation
+    try:
+        test_html = get_analysis_template(
+            title="Test Analysis", 
+            content="<p>Test content</p>",
+            sources_section="<h4>Test Sources</h4>",
+            current_time="2025-09-15 12:00:00",
+            expiry_time="2025-09-15 13:00:00"
+        )
+        print(f"\nTest template generated successfully: {len(test_html)} characters")
+    except Exception as e:
+        print(f"\nError generating test template: {e}")

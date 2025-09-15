@@ -35,26 +35,6 @@ class ModelConfigManager:
         if custom_configs and "global" in custom_configs:
             self.config.update(custom_configs["global"])
     
-    def get_model_type(self, model_name: str) -> str:
-        """
-        Extract the model type from a model name.
-        
-        Args:
-            model_name: Full model name (e.g., 'google/gemini-2.5-pro')
-            
-        Returns:
-            The model type identifier (e.g., 'gemini')
-        """
-        # Method kept for backward compatibility but no longer affects configuration
-        if '/' in model_name:
-            # For models like "google/gemini-2.5-pro"
-            model_type = model_name.split('/')[0].lower()
-        else:
-            # For models like "gemini-2.5-pro"
-            model_type = model_name.split('-')[0].lower()
-            
-        return model_type
-    
     def get_config(self, model_name: str, overrides: Dict[str, Any] = None) -> Dict[str, Any]:
         """
         Get configuration parameters for a specific model.

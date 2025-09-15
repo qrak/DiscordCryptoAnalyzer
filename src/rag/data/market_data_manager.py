@@ -7,6 +7,7 @@ Handles fetching and processing of cryptocurrency market overview data.
 from datetime import datetime, timedelta
 from typing import Dict, Any, Optional, List, Union
 from src.logger.logger import Logger
+from src.parsing.unified_parser import UnifiedParser
 from .file_handler import RagFileHandler
 from .market_components import (
     MarketDataFetcher,
@@ -23,6 +24,7 @@ class MarketDataManager:
                  coingecko_api=None, cryptocompare_api=None, symbol_manager=None):
         self.logger = logger
         self.file_handler = file_handler
+        self.unified_parser = UnifiedParser(logger)
         
         # Initialize specialized components
         self.fetcher = MarketDataFetcher(logger, coingecko_api, symbol_manager)
@@ -30,7 +32,6 @@ class MarketDataManager:
         self.cache = MarketDataCache(logger, file_handler)
         self.overview_builder = MarketOverviewBuilder(logger, self.processor)
         
-        # Legacy compatibility
         self.coingecko_api = coingecko_api
         self.cryptocompare_api = cryptocompare_api
         self.symbol_manager = symbol_manager
@@ -194,7 +195,7 @@ class MarketDataManager:
             # Check if market overview is older than max_age_hours
             timestamp_field = self.current_market_overview.get('published_on', 
                                                              self.current_market_overview.get('timestamp', 0))
-            timestamp = self._normalize_timestamp(timestamp_field)
+            timestamp = self.unified_parser.parse_timestamp(timestamp_field)
             
             if timestamp:
                 data_time = datetime.fromtimestamp(timestamp)
@@ -221,28 +222,6 @@ class MarketDataManager:
         
         return False
     
-
-    
-    def _normalize_timestamp(self, timestamp_field: Union[int, float, str, None]) -> float:
-        """Convert various timestamp formats to a float timestamp."""
-        if timestamp_field is None:
-            return 0.0
-
-        # Handle numeric timestamps
-        if isinstance(timestamp_field, (int, float)):
-            return float(timestamp_field)
-        
-        # Handle string timestamps
-        if isinstance(timestamp_field, str):
-            try:
-                # Normalize Z timezone indicator
-                normalized_str = timestamp_field.replace('Z', '+00:00')
-                return datetime.fromisoformat(normalized_str).timestamp()
-            except (ValueError, Exception) as e:
-                self.logger.warning(f"Could not normalize timestamp '{timestamp_field}': {e}")
-        
-        return 0.0
-    
     def get_current_overview(self) -> Optional[Dict[str, Any]]:
         """Get the current market overview data."""
         return self.current_market_overview
@@ -254,7 +233,7 @@ class MarketDataManager:
             
         timestamp_field = self.current_market_overview.get('published_on',
                                                            self.current_market_overview.get('timestamp', 0))
-        timestamp = self._normalize_timestamp(timestamp_field)
+        timestamp = self.unified_parser.parse_timestamp(timestamp_field)
 
         if timestamp:
             data_time = datetime.fromtimestamp(timestamp)
