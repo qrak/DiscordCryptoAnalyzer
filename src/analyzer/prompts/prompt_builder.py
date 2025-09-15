@@ -102,14 +102,28 @@ class PromptBuilder:
         """Check if advanced support/resistance indicators are detected.
         
         Returns:
-            bool: True if advanced S/R indicators are available
+            bool: True if advanced S/R indicators are available and valid
         """
-        if not (hasattr(self, 'context') and hasattr(self.context, 'technical_data')):
-            return False
-            
         td = self.context.technical_data
-        if 'support_resistance' not in td:
-            return False
+        
+        # Get advanced indicators with defaults
+        adv_support = td.get('advanced_support', np.nan)
+        adv_resistance = td.get('advanced_resistance', np.nan)
+        
+        # Handle array indicators - take the last value
+        try:
+            if len(adv_support) > 0:
+                adv_support = adv_support[-1]
+        except TypeError:
+            # adv_support is already a scalar value
+            pass
             
-        sr = td['support_resistance']
-        return len(sr) == 2 and not (np.isnan(sr[0]) and np.isnan(sr[1]))
+        try:
+            if len(adv_resistance) > 0:
+                adv_resistance = adv_resistance[-1]
+        except TypeError:
+            # adv_resistance is already a scalar value
+            pass
+        
+        # Both values must be valid (not NaN)
+        return not np.isnan(adv_support) and not np.isnan(adv_resistance)

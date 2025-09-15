@@ -142,6 +142,33 @@ def vhf_numba(close, length=28, drift=1):
 
 
 @njit(cache=True)
+def donchian_channels_numba(high, low, length=20):
+    """Calculate Donchian Channels
+    
+    Args:
+        high: High prices array
+        low: Low prices array  
+        length: Period for calculation (default: 20)
+        
+    Returns:
+        Tuple of (upper_channel, middle_channel, lower_channel)
+    """
+    n = len(high)
+    
+    upper_channel = np.full(n, np.nan)
+    lower_channel = np.full(n, np.nan)
+    middle_channel = np.full(n, np.nan)
+    
+    # Calculate rolling max and min
+    for i in range(length - 1, n):
+        upper_channel[i] = np.max(high[i - length + 1:i + 1])
+        lower_channel[i] = np.min(low[i - length + 1:i + 1])
+        middle_channel[i] = (upper_channel[i] + lower_channel[i]) / 2.0
+        
+    return upper_channel, middle_channel, lower_channel
+
+
+@njit(cache=True)
 def keltner_channels_numba(high, low, close, length=20, multiplier=2.0, mamode='ema'):
     """Calculate Keltner Channels"""
     n = len(close)

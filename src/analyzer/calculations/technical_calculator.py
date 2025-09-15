@@ -50,45 +50,55 @@ class TechnicalCalculator:
         
         # Calculate all indicators
         indicators = {
-            "vwap": self.ti.vol.rolling_vwap(length=14),
-            "twap": self.ti.vol.twap(length=14),
+            "vwap": self.ti.vol.rolling_vwap(length=20),
+            "twap": self.ti.vol.twap(length=20),
             "mfi": self.ti.vol.mfi(length=14),
-            "obv": self.ti.vol.obv(length=14),
+            "obv": self.ti.vol.obv(length=20),
             "cmf": self.ti.vol.chaikin_money_flow(length=20),
-            "force_index": self.ti.vol.force_index(length=13),
+            "force_index": self.ti.vol.force_index(length=20),
+            "cci": self.ti.vol.cci(length=14),
             "rsi": self.ti.momentum.rsi(length=14),
-            "stoch_k": self.ti.momentum.stochastic()[0],
-            "stoch_d": self.ti.momentum.stochastic()[1],
+            "stoch_k": self.ti.momentum.stochastic(period_k=14, smooth_k=3, period_d=3)[0],
+            "stoch_d": self.ti.momentum.stochastic(period_k=14, smooth_k=3, period_d=3)[1],
             "williams_r": self.ti.momentum.williams_r(length=14),
-            "adx": self.ti.trend.adx()[0],
-            "plus_di": self.ti.trend.adx()[1],
-            "minus_di": self.ti.trend.adx()[2],
-            "atr": self.ti.volatility.atr(length=14),
-            "kurtosis": self.ti.statistical.kurtosis(length=30),
+            "uo": self.ti.momentum.uo(),  # Ultimate Oscillator uses fixed periods (7,14,28)
+            "adx": self.ti.trend.adx(length=14)[0],
+            "plus_di": self.ti.trend.adx(length=14)[1],
+            "minus_di": self.ti.trend.adx(length=14)[2],
+            "atr": self.ti.volatility.atr(length=20),
+            "kurtosis": self.ti.statistical.kurtosis(length=20),
             "zscore": self.ti.statistical.zscore(length=20),
             "hurst": self.ti.statistical.hurst(max_lag=20),
         }
         
         # Calculate MACD separately to handle the tuple return
-        macd_line, macd_signal, macd_hist = self.ti.momentum.macd()
+        macd_line, macd_signal, macd_hist = self.ti.momentum.macd(fast_length=12, slow_length=26, signal_length=9)
         indicators["macd_line"] = macd_line
         indicators["macd_signal"] = macd_signal
         indicators["macd_hist"] = macd_hist
         
         # Calculate Bollinger Bands separately
-        bb_upper, bb_middle, bb_lower = self.ti.volatility.bollinger_bands()
+        bb_upper, bb_middle, bb_lower = self.ti.volatility.bollinger_bands(length=20, num_std_dev=2)
         indicators["bb_upper"] = bb_upper
         indicators["bb_middle"] = bb_middle
         indicators["bb_lower"] = bb_lower
         
+        # Calculate BB %B (position within bands)
+        current_price = ohlcv_data[-1, 3]  # Close price
+        if bb_upper[-1] != bb_lower[-1]:  # Avoid division by zero
+            bb_percent_b = (current_price - bb_lower[-1]) / (bb_upper[-1] - bb_lower[-1])
+            indicators["bb_percent_b"] = bb_percent_b
+        else:
+            indicators["bb_percent_b"] = np.nan
+        
         # Calculate Keltner Channels separately
-        kc_upper, kc_middle, kc_lower = self.ti.volatility.keltner_channels()
+        kc_upper, kc_middle, kc_lower = self.ti.volatility.keltner_channels(length=20, multiplier=2)
         indicators["kc_upper"] = kc_upper
         indicators["kc_middle"] = kc_middle
         indicators["kc_lower"] = kc_lower
         
         # Calculate Supertrend separately
-        supertrend, supertrend_direction = self.ti.trend.supertrend()
+        supertrend, supertrend_direction = self.ti.trend.supertrend(length=20, multiplier=3.0)
         indicators["supertrend"] = supertrend
         indicators["supertrend_direction"] = supertrend_direction
 
@@ -104,14 +114,25 @@ class TechnicalCalculator:
         indicators["ichimoku_span_a"] = span_a  # Senkou Span A
         indicators["ichimoku_span_b"] = span_b  # Senkou Span B
         
+        # Calculate Donchian Channels using proper @njit implementation
+        donchian_upper, donchian_middle, donchian_lower = self.ti.volatility.donchian_channels(length=20)
+        indicators["donchian_upper"] = donchian_upper
+        indicators["donchian_middle"] = donchian_middle  
+        indicators["donchian_lower"] = donchian_lower
+        
+        # Calculate ATR Percentage
+        current_price = ohlcv_data[-1, 4] if len(ohlcv_data) > 0 else 1  # Close price
+        atr_values = indicators["atr"]
+        indicators["atr_percent"] = (atr_values / current_price) * 100 if current_price > 0 else np.full_like(atr_values, np.nan)
+        
         # Add support and resistance indicators
-        support, resistance = self.ti.support_resistance.support_resistance(length=30)
+        support, resistance = self.ti.support_resistance.support_resistance(length=20)
         indicators["basic_support"] = support
         indicators["basic_resistance"] = resistance
         
         # Add advanced support and resistance with volume analysis
         adv_support, adv_resistance = self.ti.support_resistance.advanced_support_resistance(
-            length=25,
+            length=20,
             strength_threshold=1,
             persistence=1,
             volume_factor=1.5,
@@ -122,7 +143,7 @@ class TechnicalCalculator:
         indicators["advanced_resistance"] = adv_resistance
         
         # Add Fibonacci retracement levels
-        fib_levels = self.ti.support_resistance.fibonacci_retracement(length=30)
+        fib_levels = self.ti.support_resistance.fibonacci_retracement(length=20)
         if fib_levels is not None and len(fib_levels) > 0:
             # fib_levels is a 2D array (n_periods, n_levels)
             # Extract each fibonacci level as a separate array
@@ -144,32 +165,31 @@ class TechnicalCalculator:
         indicators["pivot_s4"] = s4
         
         # Add Parabolic SAR
-        sar_values = self.ti.trend.parabolic_sar()
+        sar_values = self.ti.trend.parabolic_sar(step=0.02, max_step=0.2)
         indicators["sar"] = sar_values
         
         # Add signal interpretations
         self._add_signal_interpretations(indicators, ohlcv_data)
         
         # Add advanced trend indicators
-        vortex_plus, vortex_minus = self.ti.trend.vortex_indicator(length=14)
+        vortex_plus, vortex_minus = self.ti.trend.vortex_indicator(length=20)
         indicators["vortex_plus"] = vortex_plus
         indicators["vortex_minus"] = vortex_minus
         
         # Add more momentum indicators
-        indicators["tsi"] = self.ti.momentum.tsi(long_length=25, short_length=13)
-        indicators["rmi"] = self.ti.momentum.rmi(length=14, momentum_length=5)
+        indicators["tsi"] = self.ti.momentum.tsi(long_length=20, short_length=10)
+        indicators["rmi"] = self.ti.momentum.rmi(length=20, momentum_length=5)
         indicators["ppo"] = self.ti.momentum.ppo(fast_length=12, slow_length=26)
-        indicators["coppock"] = self.ti.momentum.coppock_curve()
-        indicators["uo"] = self.ti.momentum.uo()
-        indicators["kst"] = self.ti.momentum.kst()
+        indicators["coppock"] = self.ti.momentum.coppock_curve(wl1=11, wl2=14, wma_length=10)
+        indicators["kst"] = self.ti.momentum.kst()  # KST uses fixed periods
         
         # Add more trend indicators
-        indicators["trix"] = self.ti.trend.trix(length=18)
-        indicators["pfe"] = self.ti.trend.pfe(n=10, m=10)
-        indicators["td_sequential"] = self.ti.trend.td_sequential(length=9)
+        indicators["trix"] = self.ti.trend.trix(length=20)
+        indicators["pfe"] = self.ti.trend.pfe(n=20, m=5)
+        indicators["td_sequential"] = self.ti.trend.td_sequential(length=9)  # TD Sequential uses fixed 9 periods
         
         # Calculate Chandelier Exit for trend reversals
-        long_exit, short_exit = self.ti.volatility.chandelier_exit()
+        long_exit, short_exit = self.ti.volatility.chandelier_exit(length=20, multiplier=3.0)
         indicators["chandelier_long"] = long_exit
         indicators["chandelier_short"] = short_exit
         
@@ -204,6 +224,9 @@ class TechnicalCalculator:
         volatility = self._compute_volatility(ti_lt, available_days)
 
         daily_indicators = self._compute_daily_indicators(ti_lt, available_days)
+        
+        # Add macro trend analysis based on SMA relationships
+        macro_trend_analysis = self._compute_macro_trend_analysis(ti_lt, available_days, sma_values)
 
         result = {
             'sma_values': sma_values,
@@ -212,6 +235,7 @@ class TechnicalCalculator:
             'volume_change': volume_change_pct,
             'volatility': volatility,
             'available_days': available_days,
+            'macro_trend': macro_trend_analysis,
             **daily_indicators
         }
 
@@ -253,6 +277,82 @@ class TechnicalCalculator:
             daily_returns = np.diff(ti.close) / ti.close[:-1]
             return float(np.std(daily_returns) * 100)
         return None
+    
+    def _compute_macro_trend_analysis(self, ti: TechnicalIndicators, available_days: int, sma_values: Dict[int, float]) -> Dict[str, Any]:
+        """Analyze macro trend using SMA relationships and 365-day context."""
+        analysis = {
+            'trend_direction': 'Neutral',
+            'sma_alignment': 'Mixed',
+            'golden_cross': False,
+            'death_cross': False,
+            'price_above_200sma': False,
+            'sma_50_vs_200': 'Neutral'
+        }
+        
+        if available_days < 200:
+            return analysis
+            
+        current_price = float(ti.close[-1])
+        
+        # Check price position relative to key SMAs
+        if 200 in sma_values:
+            analysis['price_above_200sma'] = current_price > sma_values[200]
+            
+        # Analyze SMA 50 vs SMA 200 relationship (Golden/Death Cross context)
+        if 50 in sma_values and 200 in sma_values:
+            sma_50 = sma_values[50]
+            sma_200 = sma_values[200]
+            
+            if sma_50 > sma_200:
+                analysis['sma_50_vs_200'] = 'Bullish'
+                # Check if this could be a golden cross scenario
+                if available_days >= 250:  # Need enough data to check trend
+                    sma_50_prev = ti.overlap.sma(ti.close, 50)[-10]  # 10 periods ago
+                    sma_200_prev = ti.overlap.sma(ti.close, 200)[-10]
+                    if sma_50_prev <= sma_200_prev and sma_50 > sma_200:
+                        analysis['golden_cross'] = True
+            elif sma_50 < sma_200:
+                analysis['sma_50_vs_200'] = 'Bearish'
+                # Check if this could be a death cross scenario
+                if available_days >= 250:
+                    sma_50_prev = ti.overlap.sma(ti.close, 50)[-10]
+                    sma_200_prev = ti.overlap.sma(ti.close, 200)[-10]
+                    if sma_50_prev >= sma_200_prev and sma_50 < sma_200:
+                        analysis['death_cross'] = True
+        
+        # Determine overall SMA alignment
+        if 20 in sma_values and 50 in sma_values and 100 in sma_values and 200 in sma_values:
+            smas = [sma_values[20], sma_values[50], sma_values[100], sma_values[200]]
+            if all(smas[i] >= smas[i+1] for i in range(len(smas)-1)):
+                analysis['sma_alignment'] = 'Bullish (Ascending)'
+            elif all(smas[i] <= smas[i+1] for i in range(len(smas)-1)):
+                analysis['sma_alignment'] = 'Bearish (Descending)'
+            else:
+                analysis['sma_alignment'] = 'Mixed'
+        
+        # Determine overall trend direction
+        bullish_signals = sum([
+            analysis['price_above_200sma'],
+            analysis['sma_50_vs_200'] == 'Bullish',
+            analysis['golden_cross'],
+            analysis['sma_alignment'] == 'Bullish (Ascending)'
+        ])
+        
+        bearish_signals = sum([
+            not analysis['price_above_200sma'],
+            analysis['sma_50_vs_200'] == 'Bearish', 
+            analysis['death_cross'],
+            analysis['sma_alignment'] == 'Bearish (Descending)'
+        ])
+        
+        if bullish_signals >= 3:
+            analysis['trend_direction'] = 'Bullish'
+        elif bearish_signals >= 3:
+            analysis['trend_direction'] = 'Bearish'
+        else:
+            analysis['trend_direction'] = 'Neutral'
+            
+        return analysis
 
     def _compute_daily_indicators(self, ti: TechnicalIndicators, available_days: int) -> Dict[str, Any]:
         """Compute daily indicators based on available data."""

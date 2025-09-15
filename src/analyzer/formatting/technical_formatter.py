@@ -48,7 +48,7 @@ class TechnicalFormatter:
         pattern_info = self._format_recent_patterns(context)
 
         # Build main technical analysis content
-        technical_analysis = f"""\nTECHNICAL ANALYSIS ({timeframe}):\n\n## Price Action:\n- Current Price: {fmt(context.current_price) if hasattr(context, 'current_price') else 0.0}\n- Rolling VWAP (14): {fmt_ta(self.indicator_calculator, td, 'vwap', 8)}\n- TWAP (14): {fmt_ta(self.indicator_calculator, td, 'twap', 8)}\n\n{momentum_section}\n\n{trend_section}\n\n{volatility_section}\n\n{volume_section}\n\n## Statistical Metrics:\n- Hurst Exponent(20): {fmt_ta(self.indicator_calculator, td, 'hurst', 2)} [~0.5: Random Walk, >0.5: Trending, <0.5: Mean Reverting]\n- Z-Score(30): {fmt_ta(self.indicator_calculator, td, 'zscore', 2)} [Distance from mean in std deviations]\n- Kurtosis(30): {fmt_ta(self.indicator_calculator, td, 'kurtosis', 2)} [Tail risk indicator; >3 suggests fatter tails]\n\n{key_levels_section}\n\n{advanced_section}\n\n{patterns_section}{pattern_info}"""
+        technical_analysis = f"""\nTECHNICAL ANALYSIS ({timeframe}):\n\n## Price Action:\n- Current Price: {fmt(context.current_price) if hasattr(context, 'current_price') else 0.0}\n- Rolling VWAP (20): {fmt_ta(self.indicator_calculator, td, 'vwap', 8)}\n- TWAP (20): {fmt_ta(self.indicator_calculator, td, 'twap', 8)}\n\n{momentum_section}\n\n{trend_section}\n\n{volatility_section}\n\n{volume_section}\n\n## Statistical Metrics:\n- Hurst Exponent(20): {fmt_ta(self.indicator_calculator, td, 'hurst', 2)} [~0.5: Random Walk, >0.5: Trending, <0.5: Mean Reverting]\n- Z-Score(20): {fmt_ta(self.indicator_calculator, td, 'zscore', 2)} [Distance from mean in std deviations]\n- Kurtosis(20): {fmt_ta(self.indicator_calculator, td, 'kurtosis', 2)} [Tail risk indicator; >3 suggests fatter tails]\n\n{key_levels_section}\n\n{advanced_section}\n\n{patterns_section}{pattern_info}"""
 
         return technical_analysis
     
@@ -60,8 +60,8 @@ class TechnicalFormatter:
   * Line: {fmt_ta(self.indicator_calculator, td, 'macd_line', 8)}
   * Signal: {fmt_ta(self.indicator_calculator, td, 'macd_signal', 8)}
   * Histogram: {fmt_ta(self.indicator_calculator, td, 'macd_hist', 8)}
-- Stochastic %K(5,3,3): {fmt_ta(self.indicator_calculator, td, 'stoch_k', 1)} [<{self.INDICATOR_THRESHOLDS['stoch_k']['oversold']}=Oversold, >{self.INDICATOR_THRESHOLDS['stoch_k']['overbought']}=Overbought]
-- Stochastic %D(5,3,3): {fmt_ta(self.indicator_calculator, td, 'stoch_d', 1)} [<{self.INDICATOR_THRESHOLDS['stoch_d']['oversold']}=Oversold, >{self.INDICATOR_THRESHOLDS['stoch_d']['overbought']}=Overbought]
+- Stochastic %K(14,3,3): {fmt_ta(self.indicator_calculator, td, 'stoch_k', 1)} [<{self.INDICATOR_THRESHOLDS['stoch_k']['oversold']}=Oversold, >{self.INDICATOR_THRESHOLDS['stoch_k']['overbought']}=Overbought]
+- Stochastic %D(14,3,3): {fmt_ta(self.indicator_calculator, td, 'stoch_d', 1)} [<{self.INDICATOR_THRESHOLDS['stoch_d']['oversold']}=Oversold, >{self.INDICATOR_THRESHOLDS['stoch_d']['overbought']}=Overbought]
 - Williams %R(14): {fmt_ta(self.indicator_calculator, td, 'williams_r', 1)} [<{self.INDICATOR_THRESHOLDS['williams_r']['oversold']}=Oversold, >{self.INDICATOR_THRESHOLDS['williams_r']['overbought']}=Overbought]"""
 
     def format_trend_section(self, td: dict) -> str:
@@ -73,7 +73,7 @@ class TechnicalFormatter:
             f"- ADX(14): {fmt_ta(self.indicator_calculator, td, 'adx', 1)} [0-{self.INDICATOR_THRESHOLDS['adx']['weak']}: Weak/No Trend, {self.INDICATOR_THRESHOLDS['adx']['weak']}-{self.INDICATOR_THRESHOLDS['adx']['strong']}: Strong, {self.INDICATOR_THRESHOLDS['adx']['strong']}-{self.INDICATOR_THRESHOLDS['adx']['very_strong']}: Very Strong, >{self.INDICATOR_THRESHOLDS['adx']['very_strong']}: Extremely Strong]\n"
             f"- +DI(14): {fmt_ta(self.indicator_calculator, td, 'plus_di', 1)} [Pattern detector analyzes DI crossovers]\n"
             f"- -DI(14): {fmt_ta(self.indicator_calculator, td, 'minus_di', 1)}\n"
-            f"- Supertrend(7,3.0) Direction: {supertrend_direction}"
+            f"- Supertrend(20,3.0) Direction: {supertrend_direction}"
         )
 
     def format_volume_section(self, td: dict) -> str:
@@ -85,7 +85,7 @@ class TechnicalFormatter:
             f"- MFI(14): {fmt_ta(self.indicator_calculator, td, 'mfi', 1)} [<{self.INDICATOR_THRESHOLDS['mfi']['oversold']}=Oversold, >{self.INDICATOR_THRESHOLDS['mfi']['overbought']}=Overbought]\n"
             f"- On Balance Volume (OBV): {fmt_ta(self.indicator_calculator, td, 'obv', 0)}\n"
             f"- Chaikin MF(20): {fmt_ta(self.indicator_calculator, td, 'cmf', 4)}{cmf_interpretation}\n"
-            f"- Force Index(13): {fmt_ta(self.indicator_calculator, td, 'force_index', 0)}"
+            f"- Force Index(20): {fmt_ta(self.indicator_calculator, td, 'force_index', 0)}"
         )
 
     def format_volatility_section(self, td: dict, crypto_data: dict) -> str:
@@ -104,22 +104,24 @@ class TechnicalFormatter:
         """Format key levels section."""
         return (
             "## Key Levels:\n"
-            f"- Support Level 1: {fmt_ta(self.indicator_calculator, td, 'support_1', 8)}\n"
-            f"- Support Level 2: {fmt_ta(self.indicator_calculator, td, 'support_2', 8)}\n"
-            f"- Resistance Level 1: {fmt_ta(self.indicator_calculator, td, 'resistance_1', 8)}\n"
-            f"- Resistance Level 2: {fmt_ta(self.indicator_calculator, td, 'resistance_2', 8)}\n"
-            f"- Pivot Point: {fmt_ta(self.indicator_calculator, td, 'pivot_point', 8)}"
+            f"- Basic Support: {fmt_ta(self.indicator_calculator, td, 'basic_support', 8)}\n"
+            f"- Basic Resistance: {fmt_ta(self.indicator_calculator, td, 'basic_resistance', 8)}\n"
+            f"- Pivot Point: {fmt_ta(self.indicator_calculator, td, 'pivot_point', 8)}\n"
+            f"- Pivot S1: {fmt_ta(self.indicator_calculator, td, 'pivot_s1', 8)} | S2: {fmt_ta(self.indicator_calculator, td, 'pivot_s2', 8)} | S3: {fmt_ta(self.indicator_calculator, td, 'pivot_s3', 8)} | S4: {fmt_ta(self.indicator_calculator, td, 'pivot_s4', 8)}\n"
+            f"- Pivot R1: {fmt_ta(self.indicator_calculator, td, 'pivot_r1', 8)} | R2: {fmt_ta(self.indicator_calculator, td, 'pivot_r2', 8)} | R3: {fmt_ta(self.indicator_calculator, td, 'pivot_r3', 8)} | R4: {fmt_ta(self.indicator_calculator, td, 'pivot_r4', 8)}"
         )
 
     def format_advanced_indicators_section(self, td: dict, crypto_data: dict) -> str:
         """Format advanced indicators section."""
         return (
             "## Advanced Indicators:\n"
-            f"- Commodity Channel Index (CCI): {fmt_ta(self.indicator_calculator, td, 'cci', 1)} [>100=Overbought, <-100=Oversold]\n"
+            f"- Advanced Support: {fmt_ta(self.indicator_calculator, td, 'advanced_support', 8)}\n"
+            f"- Advanced Resistance: {fmt_ta(self.indicator_calculator, td, 'advanced_resistance', 8)}\n"
+            f"- Commodity Channel Index CCI(14): {fmt_ta(self.indicator_calculator, td, 'cci', 1)} [>100=Overbought, <-100=Oversold]\n"
             f"- Average True Range %: {fmt_ta(self.indicator_calculator, td, 'atr_percent', 2)}%\n"
             f"- Parabolic SAR: {fmt_ta(self.indicator_calculator, td, 'sar', 8)} [Price above SAR=Bullish, below=Bearish]\n"
             f"- Donchian Channels(20): {fmt_ta(self.indicator_calculator, td, 'donchian_upper', 8)} | {fmt_ta(self.indicator_calculator, td, 'donchian_lower', 8)}\n"
-            f"- Ultimate Oscillator: {fmt_ta(self.indicator_calculator, td, 'ultimate_oscillator', 1)} [>70=Overbought, <30=Oversold]"
+            f"- Ultimate Oscillator: {fmt_ta(self.indicator_calculator, td, 'uo', 1)} [>70=Overbought, <30=Oversold]"
         )
     
     def _format_patterns_section(self, context) -> str:

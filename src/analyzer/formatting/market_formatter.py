@@ -88,6 +88,12 @@ class MarketFormatter:
             if ichimoku_section:
                 sections.append(ichimoku_section)
         
+        # Macro trend analysis (365-day SMA context)
+        if 'macro_trend' in long_term_data:
+            macro_trend_section = self._format_macro_trend_section(long_term_data['macro_trend'])
+            if macro_trend_section:
+                sections.append(macro_trend_section)
+        
         if sections:
             return "\n\n".join(sections)
         
@@ -329,3 +335,29 @@ class MarketFormatter:
         if ichimoku_items:
             return "## Ichimoku Analysis:\n" + " | ".join(ichimoku_items)
         return ""
+    
+    def _format_macro_trend_section(self, macro_trend: dict) -> str:
+        """Format 365-day macro trend analysis based on SMA relationships."""
+        if not macro_trend:
+            return ""
+            
+        trend_direction = macro_trend.get('trend_direction', 'Neutral')
+        sma_alignment = macro_trend.get('sma_alignment', 'Mixed')
+        sma_50_vs_200 = macro_trend.get('sma_50_vs_200', 'Neutral')
+        price_above_200sma = macro_trend.get('price_above_200sma', False)
+        golden_cross = macro_trend.get('golden_cross', False)
+        death_cross = macro_trend.get('death_cross', False)
+        
+        # Build status indicators
+        status_parts = []
+        status_parts.append(f"Trend: {trend_direction}")
+        status_parts.append(f"SMA Alignment: {sma_alignment}")
+        status_parts.append(f"50vs200 SMA: {sma_50_vs_200}")
+        status_parts.append(f"Price>200SMA: {'✓' if price_above_200sma else '✗'}")
+        
+        if golden_cross:
+            status_parts.append("Golden Cross Detected")
+        elif death_cross:
+            status_parts.append("Death Cross Detected")
+            
+        return f"## Macro Trend Analysis (365D):\n{' | '.join(status_parts)}"

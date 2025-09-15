@@ -1,4 +1,5 @@
 from typing import Dict, List
+import numpy as np
 
 from src.logger.logger import Logger
 from .indicator_calculator import IndicatorCalculator
@@ -71,42 +72,57 @@ class MarketMetricsCalculator:
         end_idx = -1
         indicator_changes = self._calculate_indicator_changes_for_period(context, start_idx, end_idx)
         
-        try:
-            support_arr, resistance_arr = self.indicator_calculator.ti.support_resistance.support_resistance_advanced(length=min(30, len(data)))
-            
-            # Extract the most recent valid support/resistance levels
-            current_price = data[-1]["close"]
-            
-            # Find nearest support below current price
-            import numpy as np
-            valid_support = support_arr[~np.isnan(support_arr)]
-            support_below = valid_support[valid_support < current_price]
-            support_level = float(np.max(support_below)) if len(support_below) > 0 else min(candle["low"] for candle in data)
-            
-            # Find nearest resistance above current price  
-            valid_resistance = resistance_arr[~np.isnan(resistance_arr)]
-            resistance_above = valid_resistance[valid_resistance > current_price]
-            resistance_level = float(np.min(resistance_above)) if len(resistance_above) > 0 else max(candle["high"] for candle in data)
-            
-            levels = {
-                "support": support_level,
-                "resistance": resistance_level
-            }
-        except Exception as e:
-            self.logger.warning(f"Modern support/resistance calculation failed: {e}, using simple fallback")
-            levels = {
-                "support": min(candle["low"] for candle in data),
-                "resistance": max(candle["high"] for candle in data)
-            }
+        # Use support/resistance from technical_calculator instead of duplicating
+        current_price = data[-1]["close"]
+        td = context.technical_data
         
-        # Calculate divergences
-        divergences = self._calculate_divergences_for_period(context, data, start_idx, period_name)
+        # Get support/resistance from existing technical indicators
+        support_level = current_price
+        resistance_level = current_price
+        
+        if 'advanced_support' in td and 'advanced_resistance' in td:
+            adv_support = td.get('advanced_support', np.nan)
+            adv_resistance = td.get('advanced_resistance', np.nan)
+            
+            # Handle array indicators - take the last value, following prompt_builder.py pattern
+            try:
+                if len(adv_support) > 0:
+                    adv_support = adv_support[-1]
+            except TypeError:
+                # adv_support is already a scalar value
+                pass
+                
+            try:
+                if len(adv_resistance) > 0:
+                    adv_resistance = adv_resistance[-1]
+            except TypeError:
+                # adv_resistance is already a scalar value
+                pass
+            
+            # Use valid values or fallback
+            if not np.isnan(adv_support):
+                support_level = adv_support
+            else:
+                support_level = min(candle["low"] for candle in data)
+                
+            if not np.isnan(adv_resistance):
+                resistance_level = adv_resistance
+            else:
+                resistance_level = max(candle["high"] for candle in data)
+        else:
+            # Fallback to simple min/max
+            support_level = min(candle["low"] for candle in data)
+            resistance_level = max(candle["high"] for candle in data)
+        
+        levels = {
+            "support": support_level,
+            "resistance": resistance_level
+        }
         
         return {
             "metrics": basic_metrics,
             "indicator_changes": indicator_changes,
-            "key_levels": levels,
-            "divergences": divergences
+            "key_levels": levels
         }
     
     def _calculate_basic_metrics(self, data: List[Dict], period_name: str) -> Dict:
@@ -146,68 +162,23 @@ class MarketMetricsCalculator:
             if ind_name in signal_indicators:
                 continue
                 
-            if len(values) >= abs(start_idx):
-                try:
-                    start_value = float(values[start_idx])
-                    end_value = float(values[end_idx])
-                    change = end_value - start_value
-                    change_pct = (change / abs(start_value)) * 100 if start_value != 0 else 0
-                    
-                    indicator_changes[f"{ind_name}_start"] = start_value
-                    indicator_changes[f"{ind_name}_end"] = end_value
-                    indicator_changes[f"{ind_name}_change"] = change
-                    indicator_changes[f"{ind_name}_change_pct"] = change_pct
-                except (IndexError, ValueError, TypeError):
-                    pass
+            try:
+                if len(values) >= abs(start_idx):
+                    try:
+                        start_value = float(values[start_idx])
+                        end_value = float(values[end_idx])
+                        change = end_value - start_value
+                        change_pct = (change / abs(start_value)) * 100 if start_value != 0 else 0
+                        
+                        indicator_changes[f"{ind_name}_start"] = start_value
+                        indicator_changes[f"{ind_name}_end"] = end_value
+                        indicator_changes[f"{ind_name}_change"] = change
+                        indicator_changes[f"{ind_name}_change_pct"] = change_pct
+                    except (IndexError, ValueError, TypeError):
+                        pass
+            except TypeError:
+                # values is a scalar numpy value, not an array
+                pass
         
         return indicator_changes
     
-    def _calculate_divergences_for_period(self, context, data: List, start_idx: int, period_name: str) -> Dict:
-        """Calculate divergences for the specific period"""
-        divergences = {"bullish": False, "bearish": False}
-        
-        try:
-            if not hasattr(context, 'technical_history') or "rsi" not in context.technical_history:
-                return divergences
-                
-            rsi_values = context.technical_history["rsi"]
-            
-            if len(rsi_values) < abs(start_idx):
-                return divergences
-            
-            # Try advanced pattern detection
-            if not self._try_advanced_divergence_detection(context, data, start_idx, divergences):
-                # If advanced detection fails, return empty divergences
-                self.logger.debug(f"Advanced divergence detection failed for {period_name}, using empty result")
-            
-            return divergences
-            
-        except Exception as e:
-            self.logger.warning(f"Error calculating divergences for {period_name}: {e}")
-            return divergences
-    
-    def _try_advanced_divergence_detection(self, context, data: List, start_idx: int, divergences: Dict) -> bool:
-        """Try to use advanced pattern detection for divergences"""
-        try:
-            if not (hasattr(context, 'ohlcv_candles') and context.ohlcv_candles is not None):
-                return False
-                
-            # Use advanced pattern detection if OHLCV data is available
-            patterns = self.indicator_calculator.get_all_patterns(
-                context.ohlcv_candles[-len(data):], 
-                {k: v[start_idx:] for k, v in context.technical_history.items()}
-            )
-            
-            # Look for divergence patterns in results
-            for pattern in patterns:
-                pattern_type = pattern.get('type', '').lower()
-                if 'divergence' in pattern_type:
-                    if 'bullish' in pattern_type:
-                        divergences["bullish"] = True
-                    elif 'bearish' in pattern_type:
-                        divergences["bearish"] = True
-            
-            return True
-            
-        except Exception:
-            return False

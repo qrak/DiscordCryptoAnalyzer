@@ -639,6 +639,15 @@ class VolatilityIndicators(IndicatorCategory['VolatilityIndicators']):
             required_length=length
         )
 
+    def donchian_channels(self, length: int = 20) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        return self._base.calculate_indicator(
+            donchian_channels_numba,
+            self.high,
+            self.low,
+            length,
+            required_length=length
+        )
+
 
 class VolumeIndicators(IndicatorCategory['VolumeIndicators']):
     def cci(self, length: int = 14, c: float = 0.015) -> np.ndarray:
