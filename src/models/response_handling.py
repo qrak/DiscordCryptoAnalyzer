@@ -141,28 +141,33 @@ class ResponseParser:
         if not isinstance(data, dict):
             return data
             
-        # List of fields that should be numeric
-        numeric_fields = [
-            'risk_ratio', 'trend_strength', 'confidence_score',
-            'bullish_scenario', 'bearish_scenario'
-        ]
+        # List of fields that should be numeric with their default values
+        numeric_fields = {
+            'risk_ratio': 1.0,
+            'trend_strength': 50,
+            'confidence_score': 50,
+            'bullish_scenario': 0.0,
+            'bearish_scenario': 0.0
+        }
         
         # Check analysis section
         analysis = data.get('analysis', {})
-        for field in numeric_fields:
+        for field, default_value in numeric_fields.items():
             if field in analysis and isinstance(analysis[field], str):
                 try:
                     analysis[field] = float(analysis[field])
                 except ValueError:
-                    pass  # Keep as string if conversion fails
+                    # If conversion fails, use default value instead of keeping invalid string
+                    analysis[field] = default_value
         
         # Check root level
-        for field in numeric_fields:
+        for field, default_value in numeric_fields.items():
             if field in data and isinstance(data[field], str):
                 try:
                     data[field] = float(data[field])
                 except ValueError:
-                    pass  # Keep as string if conversion fails
+                    # If conversion fails, use default value instead of keeping invalid string
+                    data[field] = default_value
         
         return data
 

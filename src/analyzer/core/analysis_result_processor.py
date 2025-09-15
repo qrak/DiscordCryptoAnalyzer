@@ -148,6 +148,9 @@ class AnalysisResultProcessor:
             "technical_history_included": technical_history is not None,
             "technical_data_included": technical_data is not None
         }
+        
+        # Normalize numeric fields in mock analysis to match real analysis behavior
+        mock_analysis = self.model_manager.response_parser._normalize_numeric_fields(mock_analysis)
         # Also attempt to parse the mock raw_response using the real model parser to surface parsing issues
         try:
             parsed = self.model_manager.parse_response(mock_analysis["raw_response"])
