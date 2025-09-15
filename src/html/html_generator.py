@@ -3,6 +3,7 @@ HTML generator utility for creating detailed analysis reports.
 """
 import html
 from pathlib import Path
+from src.analyzer.formatting.format_utils import fmt
 
 from src.html.generators.template_processor import TemplateProcessor
 from src.html.generators.chart_section_generator import ChartSectionGenerator
@@ -225,13 +226,13 @@ class AnalysisHtmlGenerator:
         if bullish_scenario is not None:
             html_parts.append('<div class="discord-scenario bullish">')
             html_parts.append('<div class="discord-scenario-label">Bullish</div>')
-            html_parts.append(f'<div class="discord-scenario-value">${bullish_scenario}</div>')
+            html_parts.append(f'<div class="discord-scenario-value">${fmt(bullish_scenario)}</div>')
             html_parts.append('</div>')
         
         if bearish_scenario is not None:
             html_parts.append('<div class="discord-scenario bearish">')
             html_parts.append('<div class="discord-scenario-label">Bearish</div>')
-            html_parts.append(f'<div class="discord-scenario-value">${bearish_scenario}</div>')
+            html_parts.append(f'<div class="discord-scenario-value">${fmt(bearish_scenario)}</div>')
             html_parts.append('</div>')
         
         html_parts.append('</div>')
@@ -255,14 +256,14 @@ class AnalysisHtmlGenerator:
             html_parts.append('<div class="discord-level-group support">')
             html_parts.append('<div class="discord-level-title support">Support Levels</div>')
             for level in support_levels:
-                html_parts.append(f'<div class="discord-level-value">${level}</div>')
+                html_parts.append(f'<div class="discord-level-value">${fmt(level)}</div>')
             html_parts.append('</div>')
         
         if resistance_levels:
             html_parts.append('<div class="discord-level-group resistance">')
             html_parts.append('<div class="discord-level-title resistance">Resistance Levels</div>')
             for level in resistance_levels:
-                html_parts.append(f'<div class="discord-level-value">${level}</div>')
+                html_parts.append(f'<div class="discord-level-value">${fmt(level)}</div>')
             html_parts.append('</div>')
         
         html_parts.append('</div>')

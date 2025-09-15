@@ -299,6 +299,24 @@ class UnifiedParser:
                     # Use default value for invalid strings (fix at source)
                     analysis[field] = default_value
         
+        # Normalize key_levels arrays (support/resistance)
+        key_levels = analysis.get('key_levels', {})
+        if isinstance(key_levels, dict):
+            for level_type in ['support', 'resistance']:
+                levels = key_levels.get(level_type, [])
+                if isinstance(levels, list):
+                    normalized_levels = []
+                    for level in levels:
+                        if isinstance(level, (int, float)):
+                            normalized_levels.append(float(level))
+                        elif isinstance(level, str):
+                            try:
+                                normalized_levels.append(float(level))
+                            except ValueError:
+                                # Skip invalid string values - don't add them to the list
+                                continue
+                    key_levels[level_type] = normalized_levels
+        
         # Check root level
         for field, default_value in self._numeric_fields.items():
             if field in data and isinstance(data[field], str):
