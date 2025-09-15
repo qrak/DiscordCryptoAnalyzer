@@ -14,6 +14,7 @@ from src.discord_interface.cogs.command_handler import CommandHandler
 from src.discord_interface.cogs.reaction_handler import ReactionHandler
 from .filehandler import DiscordFileHandler
 from src.utils.decorators import retry_async
+from src.analyzer.formatting.format_utils import fmt
 
 
 class DiscordNotifier:
@@ -383,12 +384,12 @@ class DiscordNotifier:
         bearish_scenario = price_scenarios.get('bearish_scenario')
         
         if bullish_scenario is not None:
-            scenario_values.append(f"Bullish: ${bullish_scenario}")
+            scenario_values.append(f"Bullish: ${fmt(bullish_scenario)}")
         else:
             scenario_values.append(f"Bullish: N/A")
             
         if bearish_scenario is not None:
-            scenario_values.append(f"Bearish: ${bearish_scenario}")
+            scenario_values.append(f"Bearish: ${fmt(bearish_scenario)}")
         else:
             scenario_values.append(f"Bearish: N/A")
             
@@ -396,8 +397,8 @@ class DiscordNotifier:
     
     def _add_key_levels_fields(self, embed: discord.Embed, key_levels: Dict[str, Any]) -> None:
         """Add support and resistance levels fields to the embed"""
-        support_values = [f"${level}" for level in key_levels.get("support", [])]
-        resistance_values = [f"${level}" for level in key_levels.get("resistance", [])]
+        support_values = [f"${fmt(level)}" for level in key_levels.get("support", [])]
+        resistance_values = [f"${fmt(level)}" for level in key_levels.get("resistance", [])]
         
         if support_values:
             embed.add_field(name="Support Levels", value="\n".join(support_values), inline=True)
