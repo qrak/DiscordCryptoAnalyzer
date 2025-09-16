@@ -31,7 +31,7 @@ class TemplateManager:
             str: Formatted system prompt
         """
         # Import here to avoid circular dependency
-        from config.config import DEFAULT_LANGUAGE
+        from config import DEFAULT_LANGUAGE
 
         language = language or DEFAULT_LANGUAGE
 

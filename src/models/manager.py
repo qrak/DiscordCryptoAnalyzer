@@ -1,7 +1,7 @@
 import json
 from typing import Optional, Dict, Any, List, Union, cast
 
-from config.config import (
+from config import (
     OPENROUTER_API_KEY, OPENROUTER_BASE_URL, OPENROUTER_BASE_MODEL,
     GOOGLE_STUDIO_API_KEY, GOOGLE_STUDIO_MODEL,
     PROVIDER, LM_STUDIO_BASE_URL, LM_STUDIO_MODEL

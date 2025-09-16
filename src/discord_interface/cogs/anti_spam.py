@@ -4,7 +4,7 @@ from typing import Optional, Set
 import discord
 from discord.ext import commands
 
-from config.config import GUILD_ID_DISCORD
+from config import GUILD_ID_DISCORD
 
 
 class AntiSpam(commands.Cog):

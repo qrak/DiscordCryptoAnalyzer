@@ -11,7 +11,7 @@ Thank you for your interest in contributing!
 ## Guidelines
 - Follow the existing code style and structure
 - Document new features and update the README if needed
-- Do not commit secrets or API keys (use config_private.template.py)
+- Do not commit secrets or API keys (use keys.env)
 - Add tests for new features if possible
 - Be respectful and constructive in discussions
 

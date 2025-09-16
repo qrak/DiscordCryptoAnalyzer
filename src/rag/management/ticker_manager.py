@@ -63,17 +63,10 @@ class TickerManager:
                     if isinstance(coin, str) and len(coin) >= 2:
                         detected_coins.add(coin.upper())
             elif isinstance(coins_mentioned, str) and coins_mentioned:
-                # Handle legacy string format
+                # Handle string format
                 for coin in coins_mentioned.split('|'):
                     coin = coin.strip()
                     if coin and len(coin) >= 2:
-                        detected_coins.add(coin.upper())
-            
-            # Also check legacy 'coins_mentioned' field for backward compatibility
-            legacy_coins = article.get('coins_mentioned', [])
-            if isinstance(legacy_coins, list):
-                for coin in legacy_coins:
-                    if isinstance(coin, str) and len(coin) >= 2:
                         detected_coins.add(coin.upper())
         
         return detected_coins

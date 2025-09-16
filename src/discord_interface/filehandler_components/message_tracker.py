@@ -6,7 +6,7 @@ import asyncio
 from datetime import datetime
 from typing import List, Tuple, Optional, Dict, Any
 
-from config.config import FILE_MESSAGE_EXPIRY
+from config import FILE_MESSAGE_EXPIRY
 
 
 class MessageTracker:

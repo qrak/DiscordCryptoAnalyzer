@@ -89,10 +89,10 @@ Activate the virtual environment:
 pip install -r requirements.txt
 ```
 
-4. Create a configuration file:
-   - Copy `config/config_private.template.py` to `config/config_private.py`
-   - Set your API keys and Discord settings in this file
-   - Adjust other settings in `config/config_public.py` as needed
+4. Create configuration files:
+   - Copy `keys.env.example` to `keys.env`
+   - Set your API keys and Discord settings in the `keys.env` file
+   - Adjust other settings in `config/config.ini` as needed
 
 5. Run the bot:
 
@@ -103,9 +103,9 @@ python start.py
 
 ## Configuration
 
-The configuration is split across several files:
+The configuration is split across two files:
 
-### `config_private.py`
+### `keys.env`
 
 Contains sensitive information that should not be committed to version control:
 
@@ -117,15 +117,15 @@ Contains sensitive information that should not be committed to version control:
 - `MAIN_CHANNEL_ID`: Main channel for bot communication
 - `TEMPORARY_CHANNEL_ID_DISCORD`: Channel for temporary file uploads
 
-### `config_public.py`
+### `config/config.ini`
 
 Contains non-sensitive configuration that can be safely committed.
 
-How PROVIDER works
+How AI Provider Selection Works
 
-Use the single `PROVIDER` setting in `config/config_public.py` to select the AI provider. This section explains the available options and exact runtime behavior (no project-change narrative).
+Use the `provider` setting in the `[ai_providers]` section of `config/config.ini` to select the AI provider. This section explains the available options and exact runtime behavior.
 
-- `PROVIDER` (string) — valid values and behavior:
+- `provider` (string) — valid values and behavior:
   - `"local"`: Use LM Studio only (local models). LM Studio is the only provider used; streaming is supported when LM Studio is available. If LM Studio fails, the request will fail — there is no automatic fallback.
   - `"googleai"`: Use Google AI Studio only (Gemini models). Google is the single provider; no automatic fallbacks to other providers on failure.
   - `"openrouter"`: Use OpenRouter only. OpenRouter is the single provider; no automatic fallbacks to other providers on failure.
@@ -134,10 +134,10 @@ Use the single `PROVIDER` setting in `config/config_public.py` to select the AI 
     2. LM Studio (local)
     3. OpenRouter
 
-  When `PROVIDER` is set to `"all"`, the system preserves the original fallback behavior. For single-provider settings (`"local"`, `"googleai"`, `"openrouter"`) there is no cross-provider fallback.
+  When `provider` is set to `"all"`, the system preserves the original fallback behavior. For single-provider settings (`"local"`, `"googleai"`, `"openrouter"`) there is no cross-provider fallback.
 
-- `LM_STUDIO_BASE_URL`: URL for LM Studio (default: "http://localhost:1234/v1")
-- `LM_STUDIO_MODEL`: Model identifier for LM Studio (default: "local-model")
+- `lm_studio_base_url`: URL for LM Studio (default: "http://localhost:1234/v1")
+- `lm_studio_model`: Model identifier for LM Studio (default: "local-model")
 - `OPENROUTER_BASE_URL`: Base URL for OpenRouter API (default: "https://openrouter.ai/api/v1")
 - `OPENROUTER_BASE_MODEL`: Default OpenRouter model identifier (e.g. "google/gemini-2.5-flash")
 - `OPENROUTER_FALLBACK_MODEL`: Fallback model identifier for OpenRouter

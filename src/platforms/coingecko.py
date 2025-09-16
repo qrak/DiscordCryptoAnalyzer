@@ -42,24 +42,6 @@ class CoinGeckoAPI:
 
     async def initialize(self) -> None:
         """Initialize the API client and load cached data"""
-        await self.initialize_coin_mappings()
-        
-        # Check if we have cached global data
-        if os.path.exists(self.coingecko_cache_file):
-            try:
-                with open(self.coingecko_cache_file, 'r', encoding='utf-8') as f:
-                    cached_data = json.load(f)
-                    if "timestamp" in cached_data:
-                        self.last_update = datetime.fromisoformat(cached_data["timestamp"])
-                        self.logger.debug(f"Loaded CoinGecko cache from {self.last_update.isoformat()}")
-            except Exception as e:
-                self.logger.error(f"Error loading CoinGecko cache: {e}")
-
-    async def initialize_coin_mappings(self) -> None:
-        """
-        Initialize coin mappings from CoinGecko API.
-        This method is kept separate for backward compatibility with app.py.
-        """
         try:
             if self.session:
                 await self.session.close()
@@ -73,6 +55,17 @@ class CoinGeckoAPI:
         except Exception as e:
             self.logger.error(f"Error initializing coin mappings: {e}")
             self.symbol_to_id_map = {}
+        
+        # Check if we have cached global data
+        if os.path.exists(self.coingecko_cache_file):
+            try:
+                with open(self.coingecko_cache_file, 'r', encoding='utf-8') as f:
+                    cached_data = json.load(f)
+                    if "timestamp" in cached_data:
+                        self.last_update = datetime.fromisoformat(cached_data["timestamp"])
+                        self.logger.debug(f"Loaded CoinGecko cache from {self.last_update.isoformat()}")
+            except Exception as e:
+                self.logger.error(f"Error loading CoinGecko cache: {e}")
 
     async def get_coin_image(self,
                              base_symbol: str,

@@ -5,7 +5,7 @@ import time
 from datetime import datetime
 from typing import Dict, List, Optional, Union
 
-from config.config import DATA_DIR
+from config import DATA_DIR
 from src.logger.logger import Logger
 from src.parsing.unified_parser import UnifiedParser
 

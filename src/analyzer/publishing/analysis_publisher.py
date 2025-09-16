@@ -1,6 +1,6 @@
 from typing import Dict, Any, Optional
 
-import config.config as config
+import config as config
 from src.platforms.coingecko import CoinGeckoAPI
 from src.html.html_generator import AnalysisHtmlGenerator
 from src.logger.logger import Logger

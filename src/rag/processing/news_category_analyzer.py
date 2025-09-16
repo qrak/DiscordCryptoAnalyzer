@@ -42,13 +42,13 @@ class NewsCategoryAnalyzer:
         
         for article in news_database:
             # Check if this coin is mentioned in the article
-            coins_mentioned = article.get('coins_mentioned', [])
+            detected_coins = article.get('detected_coins', [])
             article_categories = article.get('categories', '')
             
             # Check if coin is mentioned or in title/body
             coin_mentioned = False
             
-            if isinstance(coins_mentioned, list) and base_coin in coins_mentioned:
+            if isinstance(detected_coins, list) and base_coin in detected_coins:
                 coin_mentioned = True
             else:
                 # Check title and body for coin mention

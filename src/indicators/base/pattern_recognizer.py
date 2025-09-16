@@ -89,8 +89,7 @@ class PatternRecognizer:
             "macd_signals": [],
             "volatility_changes": [],
             "price_divergences": [],
-            "significant_crossovers": [],
-            "chart_patterns": []  # Keep this empty category for backward compatibility
+            "significant_crossovers": []
         }
         
         if not market_data.has_data:

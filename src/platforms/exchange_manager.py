@@ -177,17 +177,7 @@ class ExchangeManager:
         for exchange_id in self.exchange_names:
             if exchange_id in self.symbols_by_exchange and symbol in self.symbols_by_exchange[exchange_id]:
                 return self.exchanges.get(exchange_id), exchange_id
-        
-        # If symbol not found, try refreshing markets once
-        if self.last_update and (datetime.now() - self.last_update).total_seconds() > 3600:
-            self.logger.info(f"Symbol {symbol} not found, refreshing markets")
-            await self.refresh_markets()
-            
-            # Try again after refresh
-            for exchange_id in self.exchange_names:
-                if exchange_id in self.symbols_by_exchange and symbol in self.symbols_by_exchange[exchange_id]:
-                    return self.exchanges.get(exchange_id), exchange_id
-        
+        self.logger.debug(f"Symbol {symbol} not found in cached markets")
         return None, None
     
     def get_all_symbols(self) -> Set[str]:

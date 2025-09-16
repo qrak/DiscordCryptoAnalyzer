@@ -2,7 +2,7 @@ from typing import Dict, List, Any
 
 import aiohttp
 
-from config.config import CRYPTOCOMPARE_API_KEY, RAG_PRICE_API_URL
+from config import CRYPTOCOMPARE_API_KEY, RAG_PRICE_API_URL
 from src.logger.logger import Logger
 from src.utils.decorators import retry_api_call
 

@@ -1,6 +1,6 @@
 from typing import Dict, Any
 
-import config.config as config
+import config as config
 from src.platforms.alternative_me import AlternativeMeAPI
 from src.platforms.coingecko import CoinGeckoAPI
 from .analysis_context import AnalysisContext

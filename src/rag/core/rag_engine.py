@@ -2,7 +2,7 @@ import asyncio
 from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional, Set, Tuple, Union
 
-from config.config import RAG_UPDATE_INTERVAL_HOURS
+from config import RAG_UPDATE_INTERVAL_HOURS
 from src.platforms.coingecko import CoinGeckoAPI
 from src.platforms.cryptocompare import CryptoCompareAPI
 from src.logger.logger import Logger

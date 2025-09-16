@@ -17,8 +17,7 @@ class CryptoCompareAPI:
     API client for CryptoCompare services.
     Handles news fetching, price data, and categories with proper caching.
     
-    This class acts as an orchestrator for specialized API components while maintaining
-    full backward compatibility with the existing interface.
+    This class acts as an orchestrator for specialized API components.
     """
     
     def __init__(

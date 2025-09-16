@@ -1,7 +1,7 @@
 import asyncio
 import sys
 
-from config.config import LOGGER_DEBUG, LOG_DIR
+from config import LOGGER_DEBUG, LOG_DIR
 from src.app import DiscordCryptoBot
 from src.logger.logger import Logger
 from src.utils.graceful_shutdown_manager import GracefulShutdownManager

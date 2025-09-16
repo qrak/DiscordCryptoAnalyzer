@@ -8,7 +8,7 @@ from typing import Dict, Optional, Tuple, Union
 from dataclasses import dataclass
 from discord.ext import commands
 
-from config.config import MAIN_CHANNEL_ID, SUPPORTED_LANGUAGES
+from config import MAIN_CHANNEL_ID, SUPPORTED_LANGUAGES
 
 
 @dataclass

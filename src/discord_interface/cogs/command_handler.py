@@ -4,7 +4,7 @@ from typing import Optional, Any, TYPE_CHECKING
 import discord
 from discord.ext import commands
 
-from config.config import (
+from config import (
     MAIN_CHANNEL_ID,
     ANALYSIS_COOLDOWN_COIN,
     ANALYSIS_COOLDOWN_USER,

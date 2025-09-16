@@ -56,8 +56,6 @@ class AnalysisHandler:
         """Find exchange for the given symbol."""
         exchange, exchange_id = await self.symbol_manager.find_symbol_exchange(symbol)
         if not exchange:
-            if self.logger:
-                self.logger.warning(f"Symbol {symbol} not found on supported exchanges")
             return None, None
         return exchange, exchange_id
     

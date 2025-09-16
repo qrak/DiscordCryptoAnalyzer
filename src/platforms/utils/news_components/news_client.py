@@ -7,7 +7,7 @@ from typing import Dict, List, Any, Optional
 
 import aiohttp
 
-from config.config import RAG_NEWS_API_URL
+from config import RAG_NEWS_API_URL
 from src.logger.logger import Logger
 from src.utils.decorators import retry_api_call
 

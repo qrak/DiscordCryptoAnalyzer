@@ -34,7 +34,8 @@ class MessageDeleter:
             
         channel = await self._get_channel(channel_id, message_id)
         if not channel:
-            return False
+            self.logger.warning(f"Channel {channel_id} not found for message {message_id}; removing tracking entry")
+            return True
             
         return await self._delete_from_channel(message_id, channel)
     
@@ -42,8 +43,7 @@ class MessageDeleter:
         """Get channel for message deletion."""
         channel = self.bot.get_channel(channel_id)
         if not channel:
-            self.logger.warning(f"Channel {channel_id} not found for message {message_id}")
-            raise discord.NotFound(response=None, message=f"Channel {channel_id} not found")
+            return None
         return channel
     
     async def _delete_from_channel(self, message_id: int, channel) -> bool:

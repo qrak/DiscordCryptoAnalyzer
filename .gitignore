@@ -48,4 +48,6 @@ htmlcov/
 /cache/
 /logs/
 # Updated configuration file management
-/config/config_private.py
+# Private keys and sensitive data
+keys.env
+*.env

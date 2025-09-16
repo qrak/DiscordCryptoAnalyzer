@@ -200,7 +200,7 @@ class ContentLinkProcessor:
         try:
             import os
             import json
-            from config.config import DATA_DIR
+            from config import DATA_DIR
             
             tickers_file = os.path.join(DATA_DIR, "known_tickers.json")
             if os.path.exists(tickers_file):

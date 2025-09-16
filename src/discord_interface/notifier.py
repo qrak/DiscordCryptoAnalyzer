@@ -7,8 +7,8 @@ import discord
 from aiohttp import ClientSession
 from discord.ext import commands
 
-from config.config import (BOT_TOKEN_DISCORD, TEMPORARY_CHANNEL_ID_DISCORD)
-from config.config import FILE_MESSAGE_EXPIRY, SUPPORTED_LANGUAGES
+from config import (BOT_TOKEN_DISCORD, TEMPORARY_CHANNEL_ID_DISCORD)
+from config import FILE_MESSAGE_EXPIRY, SUPPORTED_LANGUAGES
 from src.discord_interface.cogs.anti_spam import AntiSpam
 from src.discord_interface.cogs.command_handler import CommandHandler
 from src.discord_interface.cogs.reaction_handler import ReactionHandler
@@ -253,18 +253,17 @@ class DiscordNotifier:
         
         return None
 
-    def _finalize_embed(self, embed: discord.Embed, thumbnail_url: str, image_url: str) -> None:
-        """Add thumbnail, image, and footer to embeds"""
+    def _finalize_embed(self, embed: discord.Embed, thumbnail_url: str) -> None:
+        """Add thumbnail and footer to embeds"""
         if thumbnail_url:
             embed.set_thumbnail(url=thumbnail_url or self.BOT_LOGO_URL)
-        # Keeping image_url parameter for backward compatibility, but we won't use it for now
         embed.set_footer(
             text=f"Last Updated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"[:2048]
         )
 
         
     def create_analysis_embed(self, analysis_result: Dict[str, Any], symbol: str, analysis_file_url: Optional[str] = None, 
-                            thumbnail_url: Optional[str] = None, image_url: Optional[str] = None, language: Optional[str] = None) -> discord.Embed:
+                            thumbnail_url: Optional[str] = None, language: Optional[str] = None) -> discord.Embed:
         """Create a Discord embed for market analysis results"""
         analysis = analysis_result.get("analysis", {})
         
@@ -285,7 +284,7 @@ class DiscordNotifier:
                 inline=False
             )
         
-        self._finalize_embed(embed, thumbnail_url, image_url)
+        self._finalize_embed(embed, thumbnail_url)
         return embed
     
     def _create_base_embed(self, analysis: Dict[str, Any], symbol: str, language: Optional[str]) -> discord.Embed:
