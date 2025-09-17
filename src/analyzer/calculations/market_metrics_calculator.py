@@ -84,7 +84,7 @@ class MarketMetricsCalculator:
             adv_support = td.get('advanced_support', np.nan)
             adv_resistance = td.get('advanced_resistance', np.nan)
             
-            # Handle array indicators - take the last value, following prompt_builder.py pattern
+            # Handle array indicators - take the last value, following promptt_builder.py pattern
             try:
                 if len(adv_support) > 0:
                     adv_support = adv_support[-1]

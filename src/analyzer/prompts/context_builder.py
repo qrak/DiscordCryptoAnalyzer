@@ -160,3 +160,19 @@ class ContextBuilder:
             return ""
         
         return indicator_calculator.format_long_term_analysis(long_term_data, current_price)
+    
+    def build_coin_details_section(self, coin_details: Optional[Dict[str, Any]], 
+                                  indicator_calculator) -> str:
+        """Build cryptocurrency details section.
+        
+        Args:
+            coin_details: Coin details data including description, taxonomy, and ratings
+            indicator_calculator: Calculator instance for formatting
+            
+        Returns:
+            str: Formatted coin details section
+        """
+        if not coin_details:
+            return ""
+        
+        return indicator_calculator.format_coin_details_section(coin_details)

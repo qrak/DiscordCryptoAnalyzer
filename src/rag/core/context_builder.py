@@ -115,7 +115,7 @@ class ContextBuilder:
         return score
     
     def _calculate_coin_score(self, coin: str, content) -> float:
-        """Calculate score based on coin-specific matches."""
+        """Calculate score based on coin-specific matches using word boundaries."""
         coin_lower = coin.lower()
         score = 0.0
         
@@ -123,18 +123,22 @@ class ContextBuilder:
         if coin_lower in content.categories:
             score += 15
         
-        # Title/body regex matches
-        if re.search(rf'\b{re.escape(coin_lower)}\b', content.title):
+        # Title/body word-boundary regex matches
+        coin_pattern = rf'\b{re.escape(coin_lower)}\b'
+        if re.search(coin_pattern, content.title):
             score += 15
-        if re.search(rf'\b{re.escape(coin_lower)}\b', content.body):
+        if re.search(coin_pattern, content.body):
             score += 5
         
         # Detected coins
         if coin_lower in content.detected_coins:
             score += 8
         
-        # Special title patterns
-        if content.title.startswith(coin_lower) or f"{coin_lower} price" in content.title:
+        # Special title patterns with word boundaries
+        title_start_pattern = rf'^\s*{re.escape(coin_lower)}\b'
+        price_pattern = rf'\b{re.escape(coin_lower)}\s+price\b'
+        
+        if re.search(title_start_pattern, content.title) or re.search(price_pattern, content.title):
             score += 20
         
         return score

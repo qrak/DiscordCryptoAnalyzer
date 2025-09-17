@@ -25,6 +25,7 @@ class AnalysisEngine:
              rag_engine: RagEngine,
              coingecko_api: CoinGeckoAPI,
              alternative_me_api: AlternativeMeAPI = None,
+             cryptocompare_api=None,
              discord_notifier=None) -> None:
         self.logger = logger
 
@@ -83,6 +84,7 @@ class AnalysisEngine:
         # Store references to external services
         self.rag_engine = rag_engine
         self.coingecko_api = coingecko_api
+        self.cryptocompare_api = cryptocompare_api
         self.discord_notifier = discord_notifier
         
         # Use the token counter from model_manager
@@ -159,6 +161,19 @@ class AnalysisEngine:
                 self.logger.warning(f"Failed to fetch market overview: {e}")
                 # Initialize as empty dict to avoid AttributeError
                 self.context.market_overview = {}
+            
+            # Fetch cryptocurrency details if CryptoCompare is available
+            if self.cryptocompare_api:
+                try:
+                    coin_details = await self.cryptocompare_api.get_coin_details(self.base_symbol)
+                    self.context.coin_details = coin_details
+                    if coin_details:
+                        self.logger.debug(f"Coin details for {self.base_symbol} fetched and added to context")
+                    else:
+                        self.logger.warning(f"No coin details found for {self.base_symbol}")
+                except Exception as e:
+                    self.logger.warning(f"Failed to fetch coin details for {self.base_symbol}: {e}")
+                    self.context.coin_details = {}
             
             # Step 2: Calculate technical indicators
             await self._calculate_technical_indicators()

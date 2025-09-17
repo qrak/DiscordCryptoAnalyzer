@@ -55,6 +55,13 @@ class PromptBuilder:
         if context.market_overview:
             sections.append(self.market_formatter.format_market_overview(context.market_overview))
 
+        # Add cryptocurrency details if available
+        coin_details_section = self.context_builder.build_coin_details_section(
+            context.coin_details, self.indicator_calculator
+        )
+        if coin_details_section:
+            sections.append(coin_details_section)
+
         sections.extend([
             self.context_builder.build_market_data_section(context.ohlcv_candles),
             self.technical_analysis_formatter.format_technical_analysis(context, self.timeframe),

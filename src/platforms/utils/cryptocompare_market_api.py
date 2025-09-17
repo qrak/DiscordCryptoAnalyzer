@@ -63,6 +63,59 @@ class CryptoCompareMarketAPI:
                 self.logger.error(f"Error fetching price data: {e}")
                 return {}
     
+    @retry_api_call(max_retries=3)
+    async def get_coin_details(self, symbol: str) -> Dict[str, Any]:
+        """
+        Get detailed coin information including description, taxonomy, and Weiss ratings
+        
+        Args:
+            symbol: Cryptocurrency symbol (e.g., 'LINK', 'BTC')
+            
+        Returns:
+            Dictionary with coin details including:
+            - Description: Project description text
+            - Algorithm: Consensus algorithm (e.g., "Proof of Work", "N/A")
+            - ProofType: Proof mechanism type
+            - Sponsored: Whether coin is sponsored on CryptoCompare
+            - Taxonomy: Regulatory classifications (Access, FCA, FINMA, Industry, etc.)
+            - Rating: Weiss ratings including overall, technology adoption, and market performance
+        """
+        url = f"https://min-api.cryptocompare.com/data/all/coinlist?fsym={symbol}&api_key={CRYPTOCOMPARE_API_KEY}"
+        
+        async with aiohttp.ClientSession() as session:
+            try:
+                async with session.get(url, timeout=30) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        if data and data.get("Response") == "Success" and "Data" in data:
+                            coin_data = data["Data"].get(symbol)
+                            if coin_data:
+                                # Extract the fields we need
+                                return {
+                                    "description": coin_data.get("Description", ""),
+                                    "algorithm": coin_data.get("Algorithm", "N/A"),
+                                    "proof_type": coin_data.get("ProofType", "N/A"),
+                                    "sponsored": coin_data.get("Sponsored", False),
+                                    "taxonomy": coin_data.get("Taxonomy", {}),
+                                    "rating": coin_data.get("Rating", {}),
+                                    "full_name": coin_data.get("FullName", ""),
+                                    "coin_name": coin_data.get("CoinName", ""),
+                                    "symbol": coin_data.get("Symbol", symbol),
+                                    "is_trading": coin_data.get("IsTrading", True)
+                                }
+                            else:
+                                self.logger.warning(f"No data found for symbol {symbol}")
+                                return {}
+                        else:
+                            self.logger.warning(f"Coin details API response unsuccessful: {data.get('Message', 'Unknown error')}")
+                            return {}
+                    else:
+                        self.logger.error(f"Coin details API request failed with status {resp.status}")
+                        return {}
+            except Exception as e:
+                self.logger.error(f"Error fetching coin details for {symbol}: {e}")
+                return {}
+    
     def get_ohlcv_url_template(self) -> str:
         """Get the OHLCV API URL template"""
         return self.OHLCV_API_URL_TEMPLATE

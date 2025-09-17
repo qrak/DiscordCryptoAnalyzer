@@ -81,7 +81,7 @@ class IndexManager:
             self.coin_index[coin.lower()].append(index)
 
     def _index_article_keywords(self, article: Dict[str, Any], index: int, category_word_map: Dict[str, str]) -> None:
-        """Index keywords from article title and body."""
+        """Index keywords from article title and body with consistent case normalization."""
         title = article.get('title', '').lower()
         body = article.get('body', '').lower()
 
@@ -92,24 +92,31 @@ class IndexManager:
         self._index_title_words(title, index)
 
     def _index_category_words(self, title: str, body: str, index: int, category_word_map: Dict[str, str]) -> None:
-        """Index words associated with categories."""
+        """Index words associated with categories with consistent lowercase normalization."""
         for word, category in category_word_map.items():
-            word_pattern = rf'\b{re.escape(word)}\b'
+            # Ensure word is already lowercase (should be from the mapping)
+            word_lower = word.lower()
+            word_pattern = rf'\b{re.escape(word_lower)}\b'
             if re.search(word_pattern, title) or re.search(word_pattern, body):
-                self.keyword_index[word].append(index)
+                # Prevent duplicates
+                if index not in self.keyword_index[word_lower]:
+                    self.keyword_index[word_lower].append(index)
                 # Note: This would need known_crypto_tickers to be passed in
                 # For now, commenting out the coin index part
                 # if category.upper() in known_crypto_tickers:
                 #     self.coin_index[category.lower()].append(index)
 
     def _index_title_words(self, title: str, index: int) -> None:
-        """Index important words from article title."""
+        """Index important words from article title with consistent lowercase normalization."""
         title_words = set(re.findall(r'\b[a-z0-9]{3,15}\b', title))
         stop_words = {'the', 'and', 'for', 'with'}
         
         for word in title_words:
             if len(word) > 2 and word not in stop_words:
-                self.keyword_index[word].append(index)
+                # Ensure consistent lowercase normalization and prevent duplicates
+                word_lower = word.lower()
+                if index not in self.keyword_index[word_lower]:
+                    self.keyword_index[word_lower].append(index)
     
     def _detect_coins_in_article(self, article: Dict[str, Any], known_crypto_tickers: Set[str]) -> Set[str]:
         """Detect cryptocurrency mentions in article content - delegates to ArticleProcessor."""

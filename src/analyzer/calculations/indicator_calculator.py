@@ -55,6 +55,10 @@ class IndicatorCalculator:
     def format_long_term_analysis(self, long_term_data: dict, current_price: float = None) -> str:
         """Format long-term analysis from historical data"""
         return self.formatter.format_long_term_analysis(long_term_data, current_price)
+    
+    def format_coin_details_section(self, coin_details: dict) -> str:
+        """Format cryptocurrency details section"""
+        return self.formatter.format_coin_details_section(coin_details)
 
     def get_indicator_value(self, td: dict, key: str):
         """Get indicator value with proper type checking and error handling

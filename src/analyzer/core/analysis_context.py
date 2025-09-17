@@ -36,6 +36,9 @@ class AnalysisContext:
         # News and articles
         self._news_articles = []
         
+        # Cryptocurrency details
+        self._coin_details = {}
+        
     @property
     def symbol(self) -> str:
         """Get the trading symbol"""
@@ -185,3 +188,15 @@ class AnalysisContext:
         if not isinstance(value, list):
             raise TypeError("News articles must be a list")
         self._news_articles = value
+        
+    @property
+    def coin_details(self) -> Dict[str, Any]:
+        """Get cryptocurrency details including description, taxonomy, and ratings"""
+        return self._coin_details
+        
+    @coin_details.setter
+    def coin_details(self, value: Dict[str, Any]):
+        """Set cryptocurrency details"""
+        if not isinstance(value, dict):
+            raise TypeError("Coin details must be a dictionary")
+        self._coin_details = value

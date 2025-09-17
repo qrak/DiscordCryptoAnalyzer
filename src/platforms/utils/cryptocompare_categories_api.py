@@ -8,6 +8,7 @@ import aiohttp
 from config import RAG_CATEGORIES_API_URL
 from src.logger.logger import Logger
 from src.utils.decorators import retry_api_call
+from src.utils.collision_resolver import CategoryCollisionResolver
 from .cryptocompare_data_processor import CryptoCompareDataProcessor
 
 
@@ -30,8 +31,9 @@ class CryptoCompareCategoriesAPI:
         self.category_word_map: Dict[str, str] = {}
         self.categories_file = os.path.join(data_dir, "categories.json")
         
-        # Initialize data processor
+        # Initialize data processor and collision resolver
         self.data_processor = CryptoCompareDataProcessor(logger)
+        self.collision_resolver = CategoryCollisionResolver()
         
         # Ensure data directory exists
         os.makedirs(data_dir, exist_ok=True)
@@ -41,17 +43,33 @@ class CryptoCompareCategoriesAPI:
         await self._load_cached_categories()
     
     async def _load_cached_categories(self) -> None:
-        """Load cached categories data"""
+        """Load cached categories data - supports both list and object formats"""
         if os.path.exists(self.categories_file):
             try:
                 with open(self.categories_file, 'r', encoding='utf-8') as f:
                     cached_data = json.load(f)
-                    if "timestamp" in cached_data:
-                        self.categories_last_update = datetime.fromisoformat(cached_data["timestamp"])
+                    
+                    # Handle both list and object formats
+                    if isinstance(cached_data, list):
+                        # Direct list format
+                        self.api_categories = cached_data
+                        self._process_api_categories(self.api_categories)
+                        self.logger.debug(f"Loaded {len(self.api_categories)} categories from cache (list format)")
+                    elif isinstance(cached_data, dict):
+                        # Object format with timestamp and categories
+                        if "timestamp" in cached_data:
+                            self.categories_last_update = datetime.fromisoformat(cached_data["timestamp"])
+                        
                         if "categories" in cached_data:
                             self.api_categories = cached_data["categories"]
-                            self._process_api_categories(self.api_categories)
-                            self.logger.debug(f"Loaded {len(self.api_categories)} categories from cache")
+                        else:
+                            # Fallback: treat the dict as the categories data itself
+                            self.api_categories = [cached_data]
+                            
+                        self._process_api_categories(self.api_categories)
+                        self.logger.debug(f"Loaded {len(self.api_categories)} categories from cache (object format)")
+                    else:
+                        self.logger.warning(f"Unexpected cache format: {type(cached_data)}")
             except Exception as e:
                 self.logger.error(f"Error loading categories cache: {e}")
     
@@ -160,10 +178,47 @@ class CryptoCompareCategoriesAPI:
             self._add_words_to_mapping(phrases, category_name)
     
     def _add_words_to_mapping(self, words: List, category_name: str) -> None:
-        """Add a list of words/phrases to the category mapping"""
+        """Add a list of words/phrases to the category mapping with priority-based collision resolution"""
+        collision_count = 0
+        excluded_count = 0
+        
         for word in words:
-            if isinstance(word, str) and len(word) > 2:
-                self.category_word_map[word.lower()] = category_name
+            if not isinstance(word, str):
+                continue
+                
+            word_stripped = word.strip()
+            if len(word_stripped) < 2:
+                # Skip single-character tokens
+                excluded_count += 1
+                continue
+            elif len(word_stripped) == 2:
+                # Allow 2-character tokens if they are uppercase (likely tickers) or contain digits
+                if not (word_stripped.isupper() or any(c.isdigit() for c in word_stripped)):
+                    excluded_count += 1
+                    continue
+            
+            word_lower = word_stripped.lower()
+            if word_lower in self.category_word_map:
+                # Use shared collision resolver
+                existing_category = self.category_word_map[word_lower]
+                winner = self.collision_resolver.resolve_collision(existing_category, category_name, word_lower)
+                
+                if winner != existing_category:
+                    # New category wins, update mapping
+                    self.category_word_map[word_lower] = winner
+                    self.logger.debug(f"Mapping collision for word '{word_lower}': replacing '{existing_category}' with '{winner}' (priority)")
+                else:
+                    # Existing category wins, keep as is
+                    self.logger.debug(f"Mapping collision for word '{word_lower}': keeping '{existing_category}' over '{category_name}' (priority)")
+                
+                collision_count += 1
+            else:
+                self.category_word_map[word_lower] = category_name
+        
+        if collision_count > 0:
+            self.logger.debug(f"Category '{category_name}': {collision_count} mapping collisions detected")
+        if excluded_count > 0:
+            self.logger.debug(f"Category '{category_name}': {excluded_count} words excluded (too short or invalid)")
     
     def get_category_word_map(self) -> Dict[str, str]:
         """Get the current category word mapping"""

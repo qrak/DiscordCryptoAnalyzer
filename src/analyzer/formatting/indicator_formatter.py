@@ -57,3 +57,7 @@ class IndicatorFormatter:
     def format_long_term_analysis(self, long_term_data: dict, current_price: float = None) -> str:
         """Format comprehensive long-term analysis from historical data."""
         return self.market_formatter.format_long_term_analysis(long_term_data, current_price)
+    
+    def format_coin_details_section(self, coin_details: dict) -> str:
+        """Format cryptocurrency details section."""
+        return self.market_formatter.format_coin_details_section(coin_details)

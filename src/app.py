@@ -69,7 +69,8 @@ class DiscordCryptoBot:
             logger=self.logger,
             rag_engine=self.rag_engine,
             coingecko_api=self.coingecko_api,
-            alternative_me_api=self.alternative_me_api
+            alternative_me_api=self.alternative_me_api,
+            cryptocompare_api=self.cryptocompare_api
         )
 
         self.logger.debug("AnalysisEngine initialized")

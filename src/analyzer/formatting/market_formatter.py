@@ -2,8 +2,9 @@
 Consolidated Market Analysis Formatter.
 Handles all market analysis formatting in a single comprehensive class.
 """
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 from src.logger.logger import Logger
+from src.utils.token_counter import TokenCounter
 from .format_utils import fmt, fmt_ta, format_timestamp, format_value
 
 
@@ -13,6 +14,7 @@ class MarketFormatter:
     def __init__(self, logger: Optional[Logger] = None):
         """Initialize the market formatter."""
         self.logger = logger
+        self.token_counter = TokenCounter()
         # Define indicator thresholds locally since we don't have indicator_calculator here
         self.INDICATOR_THRESHOLDS = {
             'rsi': {'oversold': 30, 'overbought': 70},
@@ -361,3 +363,130 @@ class MarketFormatter:
             status_parts.append("Death Cross Detected")
             
         return f"## Macro Trend Analysis (365D):\n{' | '.join(status_parts)}"
+    
+    def format_coin_details_section(self, coin_details: Dict[str, Any], max_description_tokens: int = 256) -> str:
+        """Format coin details into a structured section for prompt building
+        
+        Args:
+            coin_details: Dictionary containing coin details from CryptoCompare API
+            max_description_tokens: Maximum tokens allowed for description (default: 150)
+            
+        Returns:
+            str: Formatted coin details section
+        """
+        if not coin_details:
+            return ""
+        
+        section = "CRYPTOCURRENCY DETAILS:\n"
+        
+        # Basic information
+        if coin_details.get("full_name"):
+            section += f"- Full Name: {coin_details['full_name']}\n"
+        if coin_details.get("coin_name"):
+            section += f"- Project: {coin_details['coin_name']}\n"
+        
+        # Technical details
+        algorithm = coin_details.get("algorithm", "N/A")
+        proof_type = coin_details.get("proof_type", "N/A")
+        if algorithm != "N/A" or proof_type != "N/A":
+            section += f"- Algorithm: {algorithm}\n"
+            section += f"- Proof Type: {proof_type}\n"
+        
+        # Taxonomy classifications
+        taxonomy = coin_details.get("taxonomy", {})
+        if taxonomy:
+            section += "\nRegulatory Classifications:\n"
+            if taxonomy.get("Access"):
+                section += f"- Access Model: {taxonomy['Access']}\n"
+            if taxonomy.get("FCA"):
+                section += f"- UK FCA Classification: {taxonomy['FCA']}\n"
+            if taxonomy.get("FINMA"):
+                section += f"- Swiss FINMA Classification: {taxonomy['FINMA']}\n"
+            if taxonomy.get("Industry"):
+                section += f"- Industry Category: {taxonomy['Industry']}\n"
+            if taxonomy.get("CollateralizedAsset"):
+                collateral_text = "Yes" if taxonomy["CollateralizedAsset"] == "Yes" else "No"
+                section += f"- Collateralized Asset: {collateral_text}\n"
+        
+        # Weiss ratings
+        rating = coin_details.get("rating", {})
+        if rating:
+            weiss = rating.get("Weiss", {})
+            if weiss:
+                section += "\nWeiss Cryptocurrency Ratings:\n"
+                section += "- Independent Rating System: Weiss Ratings is a US-based independent agency (since 1971)\n"
+                section += "- Scale: A=Excellent (strong buy), B=Good (buy), C=Fair (hold/avoid), D=Weak (sell), E=Very weak (sell)\n"
+                section += "- Modifiers: + indicates upper third of grade, - indicates lower third of grade\n"
+                section += "- Two Components: Tech/Adoption (long-term potential) + Market Performance (short-term price patterns)\n"
+                
+                overall_rating = weiss.get("Rating")
+                if overall_rating:
+                    section += f"- Overall Rating: {overall_rating}\n"
+                
+                tech_rating = weiss.get("TechnologyAdoptionRating")
+                if tech_rating:
+                    section += f"- Technology/Adoption Grade: {tech_rating}\n"
+                    section += "  * Evaluates: Transaction speeds, scalability, decentralization, energy efficiency\n"
+                    section += "  * Measures: Real-world network security, capacity, developer participation, public acceptance\n"
+                    section += "  * Focus: Long-term sustainability and technological advancement potential\n"
+                
+                market_rating = weiss.get("MarketPerformanceRating")
+                if market_rating:
+                    section += f"- Market Performance Grade: {market_rating}\n"
+                    section += "  * Evaluates: Price momentum, volatility patterns, trading volume dynamics\n"
+                    section += "  * Measures: Risk vs reward ratio, market manipulation resistance\n"
+                    section += "  * Focus: Short-term investment viability and price stability\n"
+        
+        # Project description (keep last as it can be long)
+        description = coin_details.get("description", "")
+        if description:
+            # Use token-based truncation instead of character-based
+            description_tokens = self.token_counter.count_tokens(description)
+            
+            if description_tokens > max_description_tokens:
+                # Truncate by sentences to maintain readability
+                description = self._truncate_description_by_tokens(description, max_description_tokens)
+                
+            section += f"\nProject Description:\n{description}\n"
+        
+        return section
+    
+    def _truncate_description_by_tokens(self, description: str, max_tokens: int) -> str:
+        """Truncate description by tokens while preserving sentence boundaries
+        
+        Args:
+            description: The original description text
+            max_tokens: Maximum tokens allowed
+            
+        Returns:
+            str: Truncated description ending with complete sentences
+        """
+        # Split by sentences (simple approach)
+        sentences = description.split('. ')
+        truncated = ""
+        
+        for i, sentence in enumerate(sentences):
+            # Add sentence with proper punctuation
+            test_text = truncated + (sentence if sentence.endswith('.') else sentence + '.')
+            if i < len(sentences) - 1:
+                test_text += ' '
+            
+            # Check if adding this sentence would exceed token limit
+            if self.token_counter.count_tokens(test_text) > max_tokens:
+                # If even the first sentence is too long, truncate it directly
+                if not truncated:
+                    words = sentence.split()
+                    for j, word in enumerate(words):
+                        test_word_text = ' '.join(words[:j+1]) + '...'
+                        if self.token_counter.count_tokens(test_word_text) > max_tokens:
+                            if j == 0:  # Even first word is too long
+                                return sentence[:50] + '...'
+                            return ' '.join(words[:j]) + '...'
+                    return sentence + '...'
+                else:
+                    # Add ellipsis to indicate truncation
+                    return truncated.rstrip() + '...'
+            
+            truncated = test_text
+        
+        return truncated

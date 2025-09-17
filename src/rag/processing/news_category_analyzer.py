@@ -1,6 +1,7 @@
 """
 News-based category operations for analyzing article content.
 """
+import re
 from typing import List, Dict, Any, Set, Optional
 from src.logger.logger import Logger
 from src.parsing.unified_parser import UnifiedParser
@@ -36,9 +37,10 @@ class NewsCategoryAnalyzer:
         return sorted(list(all_categories))
     
     def _get_news_categories(self, base_coin: str, news_database: List[Dict[str, Any]]) -> set:
-        """Extract categories for a coin from news database."""
+        """Extract categories for a coin from news database using word boundaries."""
         coin_categories = set()
         coin_lower = base_coin.lower()
+        coin_pattern = rf'\b{re.escape(coin_lower)}\b'
         
         for article in news_database:
             # Check if this coin is mentioned in the article
@@ -51,11 +53,11 @@ class NewsCategoryAnalyzer:
             if isinstance(detected_coins, list) and base_coin in detected_coins:
                 coin_mentioned = True
             else:
-                # Check title and body for coin mention
+                # Check title and body for coin mention with word boundaries
                 title = article.get('title', '').lower()
                 body = article.get('body', '').lower()
                 
-                if coin_lower in title or coin_lower in body:
+                if re.search(coin_pattern, title) or re.search(coin_pattern, body):
                     coin_mentioned = True
             
             # If coin is mentioned, extract categories

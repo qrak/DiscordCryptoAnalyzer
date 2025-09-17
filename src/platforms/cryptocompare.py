@@ -133,6 +133,20 @@ class CryptoCompareAPI:
         """
         return await self.market_api.get_multi_price_data(coins=coins, vs_currencies=vs_currencies)
     
+    @retry_api_call(max_retries=3)
+    async def get_coin_details(self, symbol: str) -> Dict[str, Any]:
+        """
+        Get detailed coin information including description, taxonomy, and Weiss ratings
+        
+        Args:
+            symbol: Cryptocurrency symbol (e.g., 'LINK', 'BTC')
+            
+        Returns:
+            Dictionary with coin details including description, algorithm, proof type,
+            sponsored status, taxonomy classifications, and Weiss ratings
+        """
+        return await self.market_api.get_coin_details(symbol)
+    
     # Delegate static methods to appropriate components
     async def detect_coins_in_article(self, article: Dict[str, Any], known_tickers: Set[str]) -> Set[str]:
         """
