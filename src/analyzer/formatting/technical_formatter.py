@@ -35,7 +35,7 @@ class TechnicalFormatter:
             return "TECHNICAL ANALYSIS:\nNo technical data available."
 
         td = context.technical_data
-        crypto_data = {'current_price': getattr(context, 'current_price', 0)}
+        crypto_data = {'current_price': context.current_price}
         
         # Build all sections
         patterns_section = self._format_patterns_section(context)
@@ -45,10 +45,9 @@ class TechnicalFormatter:
         volatility_section = self.format_volatility_section(td, crypto_data)
         advanced_section = self.format_advanced_indicators_section(td, crypto_data)
         key_levels_section = self.format_key_levels_section(td)
-        pattern_info = self._format_recent_patterns(context)
 
         # Build main technical analysis content
-        technical_analysis = f"""\nTECHNICAL ANALYSIS ({timeframe}):\n\n## Price Action:\n- Current Price: {fmt(context.current_price)}\n- Rolling VWAP (20): {fmt_ta(self.indicator_calculator, td, 'vwap', 8)}\n- TWAP (20): {fmt_ta(self.indicator_calculator, td, 'twap', 8)}\n\n{momentum_section}\n\n{trend_section}\n\n{volatility_section}\n\n{volume_section}\n\n## Statistical Metrics:\n- Hurst Exponent(20): {fmt_ta(self.indicator_calculator, td, 'hurst', 2)} [~0.5: Random Walk, >0.5: Trending, <0.5: Mean Reverting]\n- Z-Score(20): {fmt_ta(self.indicator_calculator, td, 'zscore', 2)} [Distance from mean in std deviations]\n- Kurtosis(20): {fmt_ta(self.indicator_calculator, td, 'kurtosis', 2)} [Tail risk indicator; >3 suggests fatter tails]\n\n{key_levels_section}\n\n{advanced_section}\n\n{patterns_section}{pattern_info}"""
+        technical_analysis = f"""\nTECHNICAL ANALYSIS ({timeframe}):\n\n## Price Action:\n- Current Price: {fmt(context.current_price)}\n- Rolling VWAP (20): {fmt_ta(self.indicator_calculator, td, 'vwap', 8)}\n- TWAP (20): {fmt_ta(self.indicator_calculator, td, 'twap', 8)}\n\n{momentum_section}\n\n{trend_section}\n\n{volatility_section}\n\n{volume_section}\n\n## Statistical Metrics:\n- Hurst Exponent(20): {fmt_ta(self.indicator_calculator, td, 'hurst', 2)} [~0.5: Random Walk, >0.5: Trending, <0.5: Mean Reverting]\n- Z-Score(20): {fmt_ta(self.indicator_calculator, td, 'zscore', 2)} [Distance from mean in std deviations]\n- Kurtosis(20): {fmt_ta(self.indicator_calculator, td, 'kurtosis', 2)} [Tail risk indicator; >3 suggests fatter tails]\n\n{key_levels_section}\n\n{advanced_section}\n\n{patterns_section}"""
 
         return technical_analysis
     
@@ -172,33 +171,5 @@ class TechnicalFormatter:
         except Exception as e:
             if self.logger:
                 self.logger.debug(f"Could not use fallback pattern detection: {e}")
-        
-        return ""
-    
-    def _format_recent_patterns(self, context) -> str:
-        """Format recent pattern detection information.
-        
-        Args:
-            context: Analysis context containing pattern data
-            
-        Returns:
-            str: Formatted recent patterns section
-        """
-        if not context.recent_patterns:
-            return ""
-        
-        try:
-            pattern_lines = []
-            for pattern_info in context.recent_patterns[-3:]:  # Last 3 patterns
-                pattern_type = pattern_info.get('type', 'Unknown')
-                confidence = pattern_info.get('confidence', 0)
-                timeframe = pattern_info.get('timeframe', 'N/A')
-                pattern_lines.append(f"  - {pattern_type} (Confidence: {confidence:.1f}%, Timeframe: {timeframe})")
-            
-            if pattern_lines:
-                return f"\n\n## Recent Pattern Detection:\n" + "\n".join(pattern_lines)
-        except Exception as e:
-            if self.logger:
-                self.logger.warning(f"Error formatting recent patterns: {e}")
         
         return ""
