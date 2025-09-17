@@ -1,6 +1,5 @@
 # Base indicators module initialization
 from src.indicators.base.pattern_detector import (
-    PatternDetectorInterface,
     BasePatternDetector,
     Pattern,
     MarketData,
@@ -38,7 +37,6 @@ __all__ = [
     'TrendIndicators',
     'VolatilityIndicators',
     'VolumeIndicators',
-    'PatternDetectorInterface',
     'BasePatternDetector',
     'Pattern',
     'MarketData',

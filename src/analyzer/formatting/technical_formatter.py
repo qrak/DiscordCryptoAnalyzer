@@ -48,7 +48,7 @@ class TechnicalFormatter:
         pattern_info = self._format_recent_patterns(context)
 
         # Build main technical analysis content
-        technical_analysis = f"""\nTECHNICAL ANALYSIS ({timeframe}):\n\n## Price Action:\n- Current Price: {fmt(context.current_price) if hasattr(context, 'current_price') else 0.0}\n- Rolling VWAP (20): {fmt_ta(self.indicator_calculator, td, 'vwap', 8)}\n- TWAP (20): {fmt_ta(self.indicator_calculator, td, 'twap', 8)}\n\n{momentum_section}\n\n{trend_section}\n\n{volatility_section}\n\n{volume_section}\n\n## Statistical Metrics:\n- Hurst Exponent(20): {fmt_ta(self.indicator_calculator, td, 'hurst', 2)} [~0.5: Random Walk, >0.5: Trending, <0.5: Mean Reverting]\n- Z-Score(20): {fmt_ta(self.indicator_calculator, td, 'zscore', 2)} [Distance from mean in std deviations]\n- Kurtosis(20): {fmt_ta(self.indicator_calculator, td, 'kurtosis', 2)} [Tail risk indicator; >3 suggests fatter tails]\n\n{key_levels_section}\n\n{advanced_section}\n\n{patterns_section}{pattern_info}"""
+        technical_analysis = f"""\nTECHNICAL ANALYSIS ({timeframe}):\n\n## Price Action:\n- Current Price: {fmt(context.current_price)}\n- Rolling VWAP (20): {fmt_ta(self.indicator_calculator, td, 'vwap', 8)}\n- TWAP (20): {fmt_ta(self.indicator_calculator, td, 'twap', 8)}\n\n{momentum_section}\n\n{trend_section}\n\n{volatility_section}\n\n{volume_section}\n\n## Statistical Metrics:\n- Hurst Exponent(20): {fmt_ta(self.indicator_calculator, td, 'hurst', 2)} [~0.5: Random Walk, >0.5: Trending, <0.5: Mean Reverting]\n- Z-Score(20): {fmt_ta(self.indicator_calculator, td, 'zscore', 2)} [Distance from mean in std deviations]\n- Kurtosis(20): {fmt_ta(self.indicator_calculator, td, 'kurtosis', 2)} [Tail risk indicator; >3 suggests fatter tails]\n\n{key_levels_section}\n\n{advanced_section}\n\n{patterns_section}{pattern_info}"""
 
         return technical_analysis
     
@@ -125,7 +125,7 @@ class TechnicalFormatter:
         )
     
     def _format_patterns_section(self, context) -> str:
-        """Format patterns section using the modern PatternRecognizer.
+        """Format patterns section using detected patterns from context.
         
         Args:
             context: Analysis context containing technical data
@@ -133,23 +133,45 @@ class TechnicalFormatter:
         Returns:
             str: Formatted patterns section
         """
-        try:
-            if hasattr(context, 'ohlcv_candles') and hasattr(context, 'technical_data'):
-                ohlcv_data = context.ohlcv_candles
-                technical_history = context.technical_data.get('history', {})
-                patterns = self.indicator_calculator.get_all_patterns(ohlcv_data, technical_history)
+        # Use stored technical_patterns from analysis engine
+        if context.technical_patterns:
+            try:
+                pattern_summaries = []
+                for category, patterns_list in context.technical_patterns.items():
+                    if patterns_list:  # Only process non-empty pattern lists
+                        for pattern_dict in patterns_list:
+                            description = pattern_dict.get('description', f'Unknown {category} pattern')
+                            pattern_summaries.append(f"- {description}")
                 
-                if patterns:
-                    pattern_summaries = []
-                    for pattern in patterns[-5:]:  # Show last 5 patterns
-                        description = pattern.get('description', 'Unknown pattern')
-                        pattern_summaries.append(f"- {description}")
-                    
-                    if pattern_summaries:
-                        return "## Key Patterns (PatternRecognizer):\n" + "\n".join(pattern_summaries)
+                if pattern_summaries:
+                    if self.logger:
+                        self.logger.debug(f"Including {len(pattern_summaries)} detected patterns in technical analysis")
+                    return "\n\n## Detected Patterns:\n" + "\n".join(pattern_summaries[-10:])  # Show last 10 patterns
+            except Exception as e:
+                if self.logger:
+                    self.logger.debug(f"Error using stored technical_patterns: {e}")
+        
+        # Fallback: try direct pattern detection
+        try:
+            ohlcv_data = context.ohlcv_candles
+            technical_history = context.technical_data.get('history', {})
+            
+            patterns = self.indicator_calculator.get_all_patterns(ohlcv_data, technical_history)
+            
+            if self.logger:
+                self.logger.debug(f"Using fallback pattern detection, found {len(patterns)} patterns")
+            
+            if patterns:
+                pattern_summaries = []
+                for pattern in patterns[-5:]:  # Show last 5 patterns
+                    description = pattern.get('description', 'Unknown pattern')
+                    pattern_summaries.append(f"- {description}")
+                
+                if pattern_summaries:
+                    return "\n\n## Detected Patterns:\n" + "\n".join(pattern_summaries)
         except Exception as e:
             if self.logger:
-                self.logger.debug(f"Could not use PatternRecognizer for patterns: {e}")
+                self.logger.debug(f"Could not use fallback pattern detection: {e}")
         
         return ""
     
@@ -162,7 +184,7 @@ class TechnicalFormatter:
         Returns:
             str: Formatted recent patterns section
         """
-        if not hasattr(context, 'recent_patterns') or not context.recent_patterns:
+        if not context.recent_patterns:
             return ""
         
         try:

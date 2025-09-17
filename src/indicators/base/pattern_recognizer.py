@@ -1,7 +1,7 @@
 from typing import Dict, List, Optional, Any
 
 from src.indicators.base.pattern_detector import (
-    PatternDetectorInterface,
+    BasePatternDetector,
     MarketData,
     RSISettings,
     MACDSettings,
@@ -24,7 +24,7 @@ class PatternRecognizer:
         self.logger = logger
         self._detectors = self._initialize_detectors()
     
-    def _initialize_detectors(self) -> Dict[str, PatternDetectorInterface]:
+    def _initialize_detectors(self) -> Dict[str, BasePatternDetector]:
         """Initialize all pattern detectors with default settings"""
         return {
             'rsi': RSIPatternDetector(
@@ -58,7 +58,7 @@ class PatternRecognizer:
         """Get list of active detector names"""
         return list(self._detectors.keys())
     
-    def add_detector(self, name: str, detector: PatternDetectorInterface) -> None:
+    def add_detector(self, name: str, detector: BasePatternDetector) -> None:
         """Add a new detector or replace an existing one"""
         if self.logger:
             self.logger.debug(f"Adding detector: {name}")

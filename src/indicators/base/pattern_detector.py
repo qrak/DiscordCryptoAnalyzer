@@ -120,19 +120,17 @@ class Pattern:
         return d
 
 
-class PatternDetectorInterface(ABC):
-    """Interface for all pattern detectors"""
-    @abstractmethod
-    def detect(self, data: MarketData) -> List[Pattern]:
-        """Detect patterns in the provided data"""
-        pass
-
-
-class BasePatternDetector(PatternDetectorInterface):
+class BasePatternDetector:
     """Base implementation for pattern detectors"""
     def __init__(self, config: PatternConfig, logger=None):
         self.config = config
         self.logger = logger
+    
+    def detect(self, data: MarketData) -> List[Pattern]:
+        """Detect patterns in the provided data - must be implemented by subclasses"""
+        if not self._validate_input(data):
+            return []
+        return []
     
     def _validate_input(self, data: MarketData) -> bool:
         """Validate input data"""
@@ -261,7 +259,7 @@ class BasePatternDetector(PatternDetectorInterface):
         return patterns
     
     def detect(self, data: MarketData) -> List[Pattern]:
-        """Default implementation that validates input"""
+        """Detect patterns in the provided data - must be implemented by subclasses"""
         if not self._validate_input(data):
             return []
         return []
