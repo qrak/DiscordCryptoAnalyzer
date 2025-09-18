@@ -33,6 +33,7 @@ ENV/
 .github/
 *.swp
 *.swo
+.devcontainer/
 
 # PowerShell scripts
 *.ps1
