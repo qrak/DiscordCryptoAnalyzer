@@ -11,8 +11,8 @@ from typing import Any, Dict
 from dotenv import dotenv_values
 
 # Get the root directory (where keys.env is located) and config directory (where config.ini is located)
-ROOT_DIR = Path(__file__).parent.parent.resolve()
-CONFIG_DIR = Path(__file__).parent.resolve()
+ROOT_DIR = Path(__file__).parent.parent.parent.resolve()
+CONFIG_DIR = ROOT_DIR / "config"
 KEYS_ENV_PATH = ROOT_DIR / "keys.env"
 CONFIG_INI_PATH = CONFIG_DIR / "config.ini"
 
@@ -246,49 +246,17 @@ class Config:
     @property
     def DEFAULT_LANGUAGE(self):
         return self.get_config('languages', 'default', 'English')
+    
+    # Exchange Configuration
+    @property
+    def SUPPORTED_EXCHANGES(self):
+        """Returns list of supported exchanges in priority order."""
+        return self.get_config('exchanges', 'supported', ['binance', 'kucoin', 'gateio'])
+    
+    @property
+    def MARKET_REFRESH_HOURS(self):
+        return self.get_config('exchanges', 'market_refresh_hours', 24)
 
 
 # Create global config instance
 config = Config()
-
-# Export all configuration values as module-level variables for backward compatibility
-BOT_TOKEN_DISCORD = config.BOT_TOKEN_DISCORD
-GUILD_ID_DISCORD = config.GUILD_ID_DISCORD
-MAIN_CHANNEL_ID = config.MAIN_CHANNEL_ID
-TEMPORARY_CHANNEL_ID_DISCORD = config.TEMPORARY_CHANNEL_ID_DISCORD
-OPENROUTER_API_KEY = config.OPENROUTER_API_KEY
-GOOGLE_STUDIO_API_KEY = config.GOOGLE_STUDIO_API_KEY
-CRYPTOCOMPARE_API_KEY = config.CRYPTOCOMPARE_API_KEY
-
-PROVIDER = config.PROVIDER
-LM_STUDIO_BASE_URL = config.LM_STUDIO_BASE_URL
-LM_STUDIO_MODEL = config.LM_STUDIO_MODEL
-OPENROUTER_BASE_URL = config.OPENROUTER_BASE_URL
-OPENROUTER_BASE_MODEL = config.OPENROUTER_BASE_MODEL
-OPENROUTER_FALLBACK_MODEL = config.OPENROUTER_FALLBACK_MODEL
-GOOGLE_STUDIO_MODEL = config.GOOGLE_STUDIO_MODEL
-
-LOGGER_DEBUG = config.LOGGER_DEBUG
-TEST_ENVIRONMENT = config.TEST_ENVIRONMENT
-TIMEFRAME = config.TIMEFRAME
-CANDLE_LIMIT = config.CANDLE_LIMIT
-
-LOG_DIR = config.LOG_DIR
-DATA_DIR = config.DATA_DIR
-
-ANALYSIS_COOLDOWN_COIN = config.ANALYSIS_COOLDOWN_COIN
-ANALYSIS_COOLDOWN_USER = config.ANALYSIS_COOLDOWN_USER
-FILE_MESSAGE_EXPIRY = config.FILE_MESSAGE_EXPIRY
-
-RAG_UPDATE_INTERVAL_HOURS = config.RAG_UPDATE_INTERVAL_HOURS
-RAG_CATEGORIES_UPDATE_INTERVAL_HOURS = config.RAG_CATEGORIES_UPDATE_INTERVAL_HOURS
-RAG_COINGECKO_UPDATE_INTERVAL_HOURS = config.RAG_COINGECKO_UPDATE_INTERVAL_HOURS
-RAG_COINGECKO_GLOBAL_API_URL = config.RAG_COINGECKO_GLOBAL_API_URL
-
-SUPPORTED_LANGUAGES = config.SUPPORTED_LANGUAGES
-DEFAULT_LANGUAGE = config.DEFAULT_LANGUAGE
-
-# Dynamic URLs that depend on API keys
-RAG_NEWS_API_URL = config.RAG_NEWS_API_URL
-RAG_CATEGORIES_API_URL = config.RAG_CATEGORIES_API_URL
-RAG_PRICE_API_URL = config.RAG_PRICE_API_URL

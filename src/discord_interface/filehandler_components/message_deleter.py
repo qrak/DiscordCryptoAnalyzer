@@ -1,6 +1,5 @@
 import discord
 from src.utils.decorators import retry_async
-from typing import Any, cast
 
 
 class MessageDeleter:

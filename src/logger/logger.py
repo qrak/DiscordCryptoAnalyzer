@@ -63,9 +63,11 @@ class Logger(logging.Logger):
         self.log_filename_prefix = log_filename_prefix
         
         if log_dir is None:
-            raise ValueError("log_dir is required and must be specified explicitly")
-        
-        self.log_dir = log_dir
+            # Import config here to avoid circular imports
+            from src.utils.loader import config
+            self.log_dir = config.LOG_DIR
+        else:
+            self.log_dir = log_dir
             
         self.date_format = "%d.%m.%Y %H:%M:%S"
         

@@ -6,7 +6,7 @@ import asyncio
 from datetime import datetime
 from typing import List, Tuple, Optional, Dict, Any
 
-from config import FILE_MESSAGE_EXPIRY
+from src.utils.loader import config
 
 
 class MessageTracker:
@@ -22,7 +22,7 @@ class MessageTracker:
                           message_type: str = "general", expire_after: Optional[int] = None) -> bool:
         """Track a message for automatic deletion."""
         if expire_after is None:
-            expire_after = FILE_MESSAGE_EXPIRY
+            expire_after = config.FILE_MESSAGE_EXPIRY
         
         message_data = self._create_message_data(channel_id, user_id, message_type, expire_after)
         

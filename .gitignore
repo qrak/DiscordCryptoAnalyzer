@@ -40,6 +40,7 @@ ENV/
 # Testing
 .pytest_cache/
 .coverage
+*.future
 htmlcov/
 
 # Project specific

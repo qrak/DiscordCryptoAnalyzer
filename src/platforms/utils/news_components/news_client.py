@@ -7,7 +7,7 @@ from typing import Dict, List, Any, Optional
 
 import aiohttp
 
-from config import RAG_NEWS_API_URL
+from src.utils.loader import config
 from src.logger.logger import Logger
 from src.utils.decorators import retry_api_call
 
@@ -35,7 +35,7 @@ class CryptoCompareNewsClient:
             if important_cats:
                 categories_param = f"&categories={','.join(important_cats[:5])}"
                 
-        url = f"{RAG_NEWS_API_URL}{categories_param}"
+        url = f"{config.RAG_NEWS_API_URL}{categories_param}"
         
         # Use provided session if available, otherwise create temporary one
         session_to_use = session or aiohttp.ClientSession()

@@ -5,7 +5,7 @@ import time
 from datetime import datetime
 from typing import Dict, List, Optional, Union
 
-from config import DATA_DIR
+from src.utils.loader import config
 from src.logger.logger import Logger
 from src.parsing.unified_parser import UnifiedParser
 
@@ -18,7 +18,7 @@ class RagFileHandler:
     def __init__(self, logger: Logger):
         self.logger = logger
         self.base_dir = self._resolve_base_dir()
-        self.data_dir = os.path.join(self.base_dir, DATA_DIR)
+        self.data_dir = os.path.join(self.base_dir, config.DATA_DIR)
         self.market_data_dir = os.path.join(self.data_dir, self.MARKET_DATA_DIR)
         self.news_file_path = os.path.join(self.data_dir, self.NEWS_FILE)
         self.tickers_file = os.path.join(self.data_dir, "known_tickers.json")

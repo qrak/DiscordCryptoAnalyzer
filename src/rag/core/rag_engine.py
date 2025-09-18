@@ -1,8 +1,8 @@
 import asyncio
 from datetime import datetime, timedelta
-from typing import List, Dict, Any, Optional, Set, Tuple, Union
+from typing import List, Dict, Any, Optional
 
-from config import RAG_UPDATE_INTERVAL_HOURS
+from src.utils.loader import config
 from src.platforms.coingecko import CoinGeckoAPI
 from src.platforms.cryptocompare import CryptoCompareAPI
 from src.logger.logger import Logger
@@ -48,7 +48,7 @@ class RagEngine:
         self.last_update: Optional[datetime] = None
 
         # Update intervals from config
-        self.update_interval = timedelta(hours=RAG_UPDATE_INTERVAL_HOURS)
+        self.update_interval = timedelta(hours=config.RAG_UPDATE_INTERVAL_HOURS)
 
         # Task management
         self._periodic_update_task = None
@@ -165,7 +165,7 @@ class RagEngine:
             updated = self.news_manager.update_news_database(articles)
             if updated:
                 self._build_indices()
-                self.logger.debug(f"Updated news database with {self.news_manager.get_database_size()} recent articles")
+                self.logger.debug("News database updated; rebuilt indices")
             else:
                 self.logger.debug("No new articles to add or only duplicates found")
 

@@ -157,9 +157,9 @@ Use the `provider` setting in the `[ai_providers]` section of `config/config.ini
 - `!analyze <symbol>`: Analyze a trading pair (e.g., `!analyze BTC/USDT`)
 - `!analyze <symbol> <language>`: Analyze in a specific language (e.g., `!analyze BTC/USDT Polish`)
 - `!cleanup`: Force cleanup of expired messages (owner only)
-- `!shutdown`: Shutdown the bot (owner only)
-- `!restart`: Restart the bot (owner only)
 - `!unmute <user>`: Unmute a user that was muted for spamming
+
+Note: There are no `!shutdown` or `!restart` Discord commands. To stop the running bot use the console keyboard shortcut `q` (Windows console) or send an OS signal (SIGINT/SIGTERM) to the process.
 
 ### Example
 

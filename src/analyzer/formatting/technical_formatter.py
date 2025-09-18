@@ -2,7 +2,7 @@
 Consolidated Technical Analysis Formatter.
 Handles all technical analysis formatting in a single comprehensive class.
 """
-from typing import Any, Dict, List, Optional
+from typing import Optional
 from src.logger.logger import Logger
 from .format_utils import fmt, fmt_ta, get_supertrend_direction_string, format_bollinger_interpretation, format_cmf_interpretation
 

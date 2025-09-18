@@ -3,8 +3,6 @@ Content formatting utilities for HTML generation.
 Handles Markdown processing and content enrichment.
 """
 import markdown
-import re
-from typing import Optional
 
 
 class ContentFormatter:

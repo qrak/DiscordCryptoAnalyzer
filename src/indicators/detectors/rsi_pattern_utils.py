@@ -2,11 +2,11 @@
 RSI Pattern Detection Utilities
 Extracted to reduce complexity in rsi_pattern_detector.py
 """
-from typing import List, Tuple, NamedTuple, Callable, Optional
+from typing import List, Tuple, NamedTuple, Callable
 import numpy as np
-from datetime import datetime
 
 from src.indicators.base.pattern_detector import MarketData, Pattern
+from src.analyzer.formatting import format_periods_ago_with_context, format_pattern_duration
 
 
 class ThresholdCondition(NamedTuple):
@@ -122,19 +122,45 @@ def get_extreme_value_in_range(rsi_values: np.ndarray, start: int, end: int, is_
 
 def create_threshold_pattern(condition: ThresholdCondition, periods: List[dict], 
                            market_data: MarketData, original_start_index: int) -> Pattern:
-    """Create a pattern from threshold condition detection."""
+    """Create a pattern from threshold condition detection with enhanced timing info using existing utilities."""
     last_period = periods[-1]
     timestamp = market_data.get_timestamp_at_index(original_start_index + last_period['end'])
     
-    description = (f"RSI entered {condition.condition_type} territory "
-                  f"({condition.comparison_symbol}{condition.threshold}) "
-                  f"{len(periods)} times in the recent period.")
+    # Enhanced description with duration and active status using existing format utilities
+    total_occurrences = len(periods)
+    duration = last_period.get('duration', 1)
+    is_active = last_period.get('end') >= len(periods) - 1
+    
+    # Calculate periods ago for the most recent occurrence
+    current_period_index = len(periods) - 1
+    periods_ago = current_period_index - last_period['end']
+    
+    # Use existing formatting utilities (DRY principle)
+    if is_active and duration > 1:
+        duration_text = format_pattern_duration(duration, is_active=True)
+        periods_ago_text = format_periods_ago_with_context(periods_ago + duration - 1)
+        description = (f"RSI {condition.condition_type} (>{condition.threshold}) for {duration_text} "
+                      f"(started {periods_ago_text}). "
+                      f"Total occurrences in recent period: {total_occurrences}")
+    elif duration > 1:
+        duration_text = format_pattern_duration(duration, is_active=False)
+        periods_ago_text = format_periods_ago_with_context(periods_ago)
+        description = (f"RSI {condition.condition_type} lasted {duration_text} "
+                      f"(ended {periods_ago_text}). "
+                      f"Total occurrences in recent period: {total_occurrences}")
+    else:
+        description = (f"RSI entered {condition.condition_type} territory "
+                      f"({condition.comparison_symbol}{condition.threshold}) "
+                      f"{len(periods)} times in the recent period.")
     
     return Pattern(
         condition.condition_type,
         description,
         timestamp=timestamp,
-        periods=periods
+        periods=periods,
+        duration=duration,
+        periods_ago=periods_ago,
+        is_active=is_active
     )
 
 
@@ -206,30 +232,48 @@ def validate_intermediate_value(intermediate_val: float, first_val: float, secon
 def create_double_pattern(config: DoublePatternConfig, rsi_array: np.ndarray, 
                          first_idx: int, second_idx: int, intermediate_val: float,
                          market_data: MarketData, original_start_index: int) -> Pattern:
-    """Create a Pattern object for double patterns."""
+    """Create a Pattern object for double patterns with enhanced timing info using existing utilities."""
     timestamp = market_data.get_timestamp_at_index(original_start_index + second_idx)
     
+    # Calculate timing information
+    pattern_duration = second_idx - first_idx
+    current_period = len(rsi_array) - 1
+    first_periods_ago = current_period - first_idx
+    second_periods_ago = current_period - second_idx
+    
+    # Use existing formatting utilities (DRY principle)
+    first_periods_text = format_periods_ago_with_context(first_periods_ago)
+    second_periods_text = format_periods_ago_with_context(second_periods_ago)
+    
     if config.is_bottom_pattern:
-        description = (f"W-bottom pattern detected in RSI with bottoms at {rsi_array[first_idx]:.1f} "
-                      f"and {rsi_array[second_idx]:.1f}, intermediate peak at {intermediate_val:.1f}. "
-                      f"Potentially bullish.")
+        description = (f"W-bottom pattern detected: First bottom {first_periods_text} ({rsi_array[first_idx]:.1f}), "
+                      f"second bottom {second_periods_text} ({rsi_array[second_idx]:.1f}), "
+                      f"intermediate peak at {intermediate_val:.1f}. "
+                      f"Pattern formed over {pattern_duration} periods. Potentially bullish.")
         return Pattern(
             config.pattern_type, description, timestamp=timestamp,
             first_bottom_idx=original_start_index + first_idx,
             second_bottom_idx=original_start_index + second_idx,
             value1=float(rsi_array[first_idx]), value2=float(rsi_array[second_idx]),
-            intermediate_peak=intermediate_val
+            intermediate_peak=intermediate_val,
+            pattern_duration=pattern_duration,
+            first_periods_ago=first_periods_ago,
+            second_periods_ago=second_periods_ago
         )
     else:
-        description = (f"M-top pattern detected in RSI with peaks at {rsi_array[first_idx]:.1f} "
-                      f"and {rsi_array[second_idx]:.1f}, intermediate trough at {intermediate_val:.1f}. "
-                      f"Potentially bearish.")
+        description = (f"M-top pattern detected: First peak {first_periods_text} ({rsi_array[first_idx]:.1f}), "
+                      f"second peak {second_periods_text} ({rsi_array[second_idx]:.1f}), "
+                      f"intermediate trough at {intermediate_val:.1f}. "
+                      f"Pattern formed over {pattern_duration} periods. Potentially bearish.")
         return Pattern(
             config.pattern_type, description, timestamp=timestamp,
             first_peak_idx=original_start_index + first_idx,
             second_peak_idx=original_start_index + second_idx,
             value1=float(rsi_array[first_idx]), value2=float(rsi_array[second_idx]),
-            intermediate_trough=intermediate_val
+            intermediate_trough=intermediate_val,
+            pattern_duration=pattern_duration,
+            first_periods_ago=first_periods_ago,
+            second_periods_ago=second_periods_ago
         )
 
 

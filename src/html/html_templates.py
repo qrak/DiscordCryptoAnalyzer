@@ -3,7 +3,6 @@ Modular HTML templates for the crypto bot analysis reports.
 Refactored to use separate CSS/JS files and keep the main file under 500 lines.
 """
 
-import os
 import base64
 from pathlib import Path
 

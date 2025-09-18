@@ -3,8 +3,7 @@ Template management for prompt building system.
 Handles system prompts, response templates, and analysis steps.
 """
 
-from typing import Optional, List
-from datetime import datetime
+from typing import Optional
 
 from src.logger.logger import Logger
 
@@ -31,9 +30,9 @@ class TemplateManager:
             str: Formatted system prompt
         """
         # Import here to avoid circular dependency
-        from config import DEFAULT_LANGUAGE
+        from src.utils.loader import config
 
-        language = language or DEFAULT_LANGUAGE
+        language = language or config.DEFAULT_LANGUAGE
 
         # Refined header with more specific instructions
         header_base = f"""You are providing educational crypto market analysis of {symbol} on 1h timeframe along with multi-timeframe technical metrics and recent market data.
@@ -43,7 +42,7 @@ Identify key price levels based solely on technical analysis concepts (Support, 
 THIS IS EDUCATIONAL CONTENT ONLY. All analysis is for informational and educational purposes - NOT financial advice.
 Always include disclaimers that this is not investment advice and users must do their own research."""
 
-        if language == DEFAULT_LANGUAGE or language == "English":
+        if language == config.DEFAULT_LANGUAGE or language == "English":
             header = header_base
         else:
             header = f"""{header_base}

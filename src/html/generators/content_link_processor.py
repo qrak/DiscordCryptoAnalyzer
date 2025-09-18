@@ -60,7 +60,13 @@ class ContentLinkProcessor:
             "Tenkan-sen": "https://www.investopedia.com/terms/i/ichimoku-cloud.asp",
             "Kijun-sen": "https://www.investopedia.com/terms/i/ichimoku-cloud.asp",
             "Senkou A": "https://www.investopedia.com/terms/i/ichimoku-cloud.asp",
-            "Senkou B": "https://www.investopedia.com/terms/i/ichimoku-cloud.asp"
+            "Senkou B": "https://www.investopedia.com/terms/i/ichimoku-cloud.asp",
+            "Weiss Rating": "https://weissratings.com/en/rating-definitions",
+            "Weiss Ratings": "https://weissratings.com/en/rating-definitions",
+            "Weiss Cryptocurrency Rating": "https://weissratings.com/en/rating-definitions",
+            "Weiss Cryptocurrency Ratings": "https://weissratings.com/en/rating-definitions",
+            "Weiss Crypto Rating": "https://weissratings.com/en/rating-definitions",
+            "Weiss Crypto Ratings": "https://weissratings.com/en/rating-definitions"
         }
     
     def add_indicator_links(self, content: str) -> str:
@@ -200,9 +206,9 @@ class ContentLinkProcessor:
         try:
             import os
             import json
-            from config import DATA_DIR
+            from src.utils.loader import config
             
-            tickers_file = os.path.join(DATA_DIR, "known_tickers.json")
+            tickers_file = os.path.join(config.DATA_DIR, "known_tickers.json")
             if os.path.exists(tickers_file):
                 with open(tickers_file, 'r', encoding='utf-8') as f:
                     data = json.load(f)

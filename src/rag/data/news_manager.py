@@ -4,9 +4,7 @@ News Management Module for RAG Engine
 Handles fetching, caching, and processing of cryptocurrency news articles.
 """
 
-import asyncio
-from datetime import datetime, timedelta
-from typing import List, Dict, Any, Optional, Set
+from typing import List, Dict, Any, Set
 from src.logger.logger import Logger
 from .file_handler import RagFileHandler
 from ..processing.article_processor import ArticleProcessor

@@ -4,7 +4,7 @@ from typing import Optional, Set
 import discord
 from discord.ext import commands
 
-from config import GUILD_ID_DISCORD
+from src.utils.loader import config
 
 
 class AntiSpam(commands.Cog):
@@ -20,7 +20,7 @@ class AntiSpam(commands.Cog):
 
     async def initialize_role(self) -> None:
         """Initializes the mute role after the bot is ready."""
-        guild = self.bot.get_guild(GUILD_ID_DISCORD)
+        guild = self.bot.get_guild(config.GUILD_ID_DISCORD)
         if guild:
             self.mute_role = discord.utils.get(guild.roles, name="Muted")
             if self.mute_role:
@@ -28,9 +28,9 @@ class AntiSpam(commands.Cog):
                     self.logger.info(f"AntiSpam: Found Muted role (ID: {self.mute_role.id})")
             else:
                 if self.logger:
-                    self.logger.warning(f"AntiSpam: Mute role 'Muted' not found in guild {GUILD_ID_DISCORD}.")
+                    self.logger.warning(f"AntiSpam: Mute role 'Muted' not found in guild {config.GUILD_ID_DISCORD}.")
         elif self.logger:
-            self.logger.warning(f"AntiSpam: Could not find guild {GUILD_ID_DISCORD} during role initialization. Cache might still be populating.")
+            self.logger.warning(f"AntiSpam: Could not find guild {config.GUILD_ID_DISCORD} during role initialization. Cache might still be populating.")
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message) -> None:

@@ -7,8 +7,7 @@ import discord
 from aiohttp import ClientSession
 from discord.ext import commands
 
-from config import (BOT_TOKEN_DISCORD, TEMPORARY_CHANNEL_ID_DISCORD)
-from config import FILE_MESSAGE_EXPIRY, SUPPORTED_LANGUAGES
+from src.utils.loader import config
 from src.discord_interface.cogs.anti_spam import AntiSpam
 from src.discord_interface.cogs.command_handler import CommandHandler
 from src.discord_interface.cogs.reaction_handler import ReactionHandler
@@ -28,7 +27,7 @@ class DiscordNotifier:
         self.symbol_manager = symbol_manager
         self.market_analyzer = market_analyzer
         self.session: Optional[ClientSession] = None
-        self.spam_allowed_channels = {TEMPORARY_CHANNEL_ID_DISCORD}
+        self.spam_allowed_channels = {config.TEMPORARY_CHANNEL_ID_DISCORD}
         self.is_initialized = False
         self._ready_event = asyncio.Event()  # New event to properly track ready state
 
@@ -134,7 +133,7 @@ class DiscordNotifier:
             
             help_embed.add_field(
                 name="Available Languages",
-                value=", ".join(sorted(SUPPORTED_LANGUAGES.keys())),
+                value=", ".join(sorted(config.SUPPORTED_LANGUAGES.keys())),
                 inline=False
             )
             
@@ -199,7 +198,7 @@ class DiscordNotifier:
             self.logger.error("Discord bot is not initialized.")
             return
         try:
-            await self.bot.start(BOT_TOKEN_DISCORD)
+            await self.bot.start(config.BOT_TOKEN_DISCORD)
         except discord.LoginFailure as e:
             self.logger.error(f"Discord Login Failure: {e}. Check your BOT_TOKEN_DISCORD.", exc_info=True)
         except discord.PrivilegedIntentsRequired as e:
@@ -221,7 +220,7 @@ class DiscordNotifier:
             file: Optional[discord.File] = None,
             embed: Optional[discord.Embed] = None,
             user_id: Optional[int] = None,
-            expire_after: Optional[int] = FILE_MESSAGE_EXPIRY
+            expire_after: Optional[int] = config.FILE_MESSAGE_EXPIRY
     ):
         await self.wait_until_ready()
         channel = self.bot.get_channel(channel_id)
@@ -410,7 +409,7 @@ class DiscordNotifier:
             message: str,
             file: Optional[discord.File] = None,
             embed: Optional[discord.Embed] = None,
-            expire_after: Optional[int] = FILE_MESSAGE_EXPIRY
+            expire_after: Optional[int] = config.FILE_MESSAGE_EXPIRY
     ):
         user_id = ctx.author.id if ctx and hasattr(ctx, 'author') else None
         return await self.send_message(

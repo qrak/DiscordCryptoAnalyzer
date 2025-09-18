@@ -4,12 +4,7 @@ from typing import Optional, Any, TYPE_CHECKING
 import discord
 from discord.ext import commands
 
-from config import (
-    MAIN_CHANNEL_ID,
-    ANALYSIS_COOLDOWN_COIN,
-    ANALYSIS_COOLDOWN_USER,
-    FILE_MESSAGE_EXPIRY
-)
+from src.utils.loader import config
 from src.utils.decorators import retry_async
 from src.discord_interface.cogs.handlers.command_validator import CommandValidator, ValidationResult
 from src.discord_interface.cogs.handlers.response_builder import ResponseBuilder
@@ -46,7 +41,7 @@ class CommandHandler(commands.Cog):
         except Exception as e:
             return await self.error_handler.handle_message_deletion_error(message, e)
 
-    async def track_user_command(self, ctx: commands.Context, expire_after: Optional[int] = FILE_MESSAGE_EXPIRY) -> None:
+    async def track_user_command(self, ctx: commands.Context, expire_after: Optional[int] = config.FILE_MESSAGE_EXPIRY) -> None:
         """Track user command message for deletion via notifier."""
         if hasattr(self.bot, 'discord_notifier') and hasattr(self.bot.discord_notifier, 'file_handler'):
             notifier = self.bot.discord_notifier
@@ -109,11 +104,11 @@ class CommandHandler(commands.Cog):
 
         # Validate channel
         if not self.validator.validate_channel(ctx.channel.id):
-            return ValidationResult(is_valid=False, error_message=self.response_builder.build_wrong_channel_message(MAIN_CHANNEL_ID))
+            return ValidationResult(is_valid=False, error_message=self.response_builder.build_wrong_channel_message(config.MAIN_CHANNEL_ID))
 
         # Parse arguments and perform comprehensive validation
         args = ctx.message.content.split()[1:]
-        return self.validator.validate_full_analysis_request(ctx, args, ANALYSIS_COOLDOWN_COIN, ANALYSIS_COOLDOWN_USER)
+        return self.validator.validate_full_analysis_request(ctx, args, config.ANALYSIS_COOLDOWN_COIN, config.ANALYSIS_COOLDOWN_USER)
 
     async def _perform_analysis_workflow(self, symbol: str, ctx: commands.Context, language: Optional[str]) -> None:
         """Perform the complete analysis workflow using the specialized components."""

@@ -8,7 +8,7 @@ from typing import Dict, Optional, Tuple, Union
 from dataclasses import dataclass
 from discord.ext import commands
 
-from config import MAIN_CHANNEL_ID, SUPPORTED_LANGUAGES
+from src.utils.loader import config
 
 
 @dataclass
@@ -44,13 +44,13 @@ class CommandValidator:
             return True, None
             
         requested_lang = language.capitalize()
-        if requested_lang in SUPPORTED_LANGUAGES:
+        if requested_lang in config.SUPPORTED_LANGUAGES:
             return True, requested_lang
         return False, None
     
     def validate_channel(self, channel_id: int) -> bool:
         """Validate that command is used in correct channel."""
-        return channel_id == MAIN_CHANNEL_ID
+        return channel_id == config.MAIN_CHANNEL_ID
     
     def validate_command_args(self, args: list) -> Tuple[bool, Optional[str], Optional[str]]:
         """
@@ -70,7 +70,7 @@ class CommandValidator:
         if len(args) > 1:
             is_valid_lang, validated_lang = self.validate_language(args[1])
             if not is_valid_lang:
-                supported_langs = ", ".join(SUPPORTED_LANGUAGES.keys())
+                supported_langs = ", ".join(config.SUPPORTED_LANGUAGES.keys())
                 return False, f"Unsupported language '{args[1]}'. Available: {supported_langs}", None
             language = validated_lang
         

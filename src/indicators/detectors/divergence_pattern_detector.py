@@ -70,23 +70,53 @@ class DivergencePatternDetector(BasePatternDetector):
         # Get current timestamp
         timestamp = market_data.get_timestamp_at_index(len(market_data.ohlcv) - 1)
         
-        # RSI divergences
+        # Find the indices where the extreme values occur for better timing
+        price_low_idx = len(recent_prices) - 1 - recent_prices[::-1].index(min(recent_prices[-self.price_lookback:]))
+        rsi_low_idx = len(recent_rsi) - 1 - recent_rsi[::-1].index(min(recent_rsi[-self.price_lookback:]))
+        price_high_idx = len(recent_prices) - 1 - recent_prices[::-1].index(max(recent_prices[-self.price_lookback:]))
+        rsi_high_idx = len(recent_rsi) - 1 - recent_rsi[::-1].index(max(recent_rsi[-self.price_lookback:]))
+        
+        current_period = len(recent_prices) - 1
+        
+        # RSI divergences with enhanced timing
         if price_making_lower_low and not rsi_making_lower_low:
+            price_periods_ago = current_period - price_low_idx
+            rsi_periods_ago = current_period - rsi_low_idx
+            
+            description = (f"Bullish RSI divergence: Price low {price_periods_ago} periods ago "
+                          f"({recent_prices[price_low_idx]:.2f}), RSI higher low {rsi_periods_ago} periods ago "
+                          f"({recent_rsi[rsi_low_idx]:.1f}). Suggests potential upward reversal.")
+            
             pattern = Pattern(
                 "bullish_divergence",
-                "Bullish divergence detected: price making lower lows while RSI is not. This suggests potential upward reversal.",
-                timestamp=timestamp,  # Add timestamp
-                indicator="RSI"
+                description,
+                timestamp=timestamp,
+                indicator="RSI",
+                price_periods_ago=price_periods_ago,
+                indicator_periods_ago=rsi_periods_ago,
+                price_value=recent_prices[price_low_idx],
+                indicator_value=recent_rsi[rsi_low_idx]
             )
             self._log_detection(pattern)
             patterns.append(pattern)
 
         if price_making_higher_high and not rsi_making_higher_high:
+            price_periods_ago = current_period - price_high_idx
+            rsi_periods_ago = current_period - rsi_high_idx
+            
+            description = (f"Bearish RSI divergence: Price high {price_periods_ago} periods ago "
+                          f"({recent_prices[price_high_idx]:.2f}), RSI lower high {rsi_periods_ago} periods ago "
+                          f"({recent_rsi[rsi_high_idx]:.1f}). Suggests potential downward reversal.")
+            
             pattern = Pattern(
                 "bearish_divergence",
-                "Bearish divergence detected: price making higher highs while RSI is not. This suggests potential downward reversal.",
-                timestamp=timestamp,  # Add timestamp
-                indicator="RSI"
+                description,
+                timestamp=timestamp,
+                indicator="RSI",
+                price_periods_ago=price_periods_ago,
+                indicator_periods_ago=rsi_periods_ago,
+                price_value=recent_prices[price_high_idx],
+                indicator_value=recent_rsi[rsi_high_idx]
             )
             self._log_detection(pattern)
             patterns.append(pattern)
@@ -114,23 +144,45 @@ class DivergencePatternDetector(BasePatternDetector):
         # Get current timestamp
         timestamp = market_data.get_timestamp_at_index(len(market_data.ohlcv) - 1)
         
-        # Check for divergence patterns
+        # Enhanced timing information
+        price_change_periods = self.short_term_lookback - 1
+        indicator_change_periods = self.short_term_lookback - 1
+        
+        # Check for divergence patterns with timing
         if price_short_term_lower and indicator_short_term_higher:
+            enhanced_message = (f"Bullish {indicator_name} divergence: Price declined over {price_change_periods} periods "
+                              f"({recent_prices[-self.short_term_lookback]:.2f} to {recent_prices[-1]:.2f}) while "
+                              f"{indicator_name} increased ({recent_indicator[-self.short_term_lookback]:.2f} to {recent_indicator[-1]:.2f})")
+            
             pattern = Pattern(
                 "bullish_divergence",
-                bullish_message,
+                enhanced_message,
                 timestamp=timestamp,
-                indicator=indicator_name
+                indicator=indicator_name,
+                lookback_periods=price_change_periods,
+                price_start=recent_prices[-self.short_term_lookback],
+                price_end=recent_prices[-1],
+                indicator_start=recent_indicator[-self.short_term_lookback],
+                indicator_end=recent_indicator[-1]
             )
             self._log_detection(pattern)
             patterns.append(pattern)
 
         if price_short_term_higher and indicator_short_term_lower:
+            enhanced_message = (f"Bearish {indicator_name} divergence: Price increased over {price_change_periods} periods "
+                              f"({recent_prices[-self.short_term_lookback]:.2f} to {recent_prices[-1]:.2f}) while "
+                              f"{indicator_name} decreased ({recent_indicator[-self.short_term_lookback]:.2f} to {recent_indicator[-1]:.2f})")
+            
             pattern = Pattern(
                 "bearish_divergence",
-                bearish_message,
+                enhanced_message,
                 timestamp=timestamp,
-                indicator=indicator_name
+                indicator=indicator_name,
+                lookback_periods=price_change_periods,
+                price_start=recent_prices[-self.short_term_lookback],
+                price_end=recent_prices[-1],
+                indicator_start=recent_indicator[-self.short_term_lookback],
+                indicator_end=recent_indicator[-1]
             )
             self._log_detection(pattern)
             patterns.append(pattern)

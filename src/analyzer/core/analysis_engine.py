@@ -1,6 +1,6 @@
 from typing import Dict, Any
 
-import config as config
+from src.utils.loader import config
 from src.platforms.alternative_me import AlternativeMeAPI
 from src.platforms.coingecko import CoinGeckoAPI
 from .analysis_context import AnalysisContext
@@ -40,8 +40,8 @@ class AnalysisEngine:
 
         # Load configuration
         try:
-            self.timeframe = getattr(config, "TIMEFRAME", "1h")
-            self.limit = getattr(config, "CANDLE_LIMIT", 100)
+            self.timeframe = config.TIMEFRAME
+            self.limit = config.CANDLE_LIMIT
         except Exception as e:
             self.logger.exception(f"Error loading configuration values: {e}.")
             raise

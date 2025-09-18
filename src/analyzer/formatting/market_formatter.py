@@ -5,7 +5,7 @@ Handles all market analysis formatting in a single comprehensive class.
 from typing import Dict, List, Optional, Any
 from src.logger.logger import Logger
 from src.utils.token_counter import TokenCounter
-from .format_utils import fmt, fmt_ta, format_timestamp, format_value
+from .format_utils import fmt, format_value
 
 
 class MarketFormatter:
@@ -426,16 +426,11 @@ class MarketFormatter:
                 tech_rating = weiss.get("TechnologyAdoptionRating")
                 if tech_rating:
                     section += f"- Technology/Adoption Grade: {tech_rating}\n"
-                    section += "  * Evaluates: Transaction speeds, scalability, decentralization, energy efficiency\n"
-                    section += "  * Measures: Real-world network security, capacity, developer participation, public acceptance\n"
-                    section += "  * Focus: Long-term sustainability and technological advancement potential\n"
                 
                 market_rating = weiss.get("MarketPerformanceRating")
                 if market_rating:
                     section += f"- Market Performance Grade: {market_rating}\n"
-                    section += "  * Evaluates: Price momentum, volatility patterns, trading volume dynamics\n"
-                    section += "  * Measures: Risk vs reward ratio, market manipulation resistance\n"
-                    section += "  * Focus: Short-term investment viability and price stability\n"
+
         
         # Project description (keep last as it can be long)
         description = coin_details.get("description", "")
