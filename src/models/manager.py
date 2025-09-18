@@ -1,4 +1,5 @@
 import json
+import io
 from typing import Optional, Dict, Any, List, Union, cast
 
 from src.utils.loader import config
@@ -110,6 +111,39 @@ class ModelManager:
         
         # Fallback to regular prompt for other providers or if streaming fails
         return await self.send_prompt(prompt, system_message, prepared_messages=messages)
+    
+    async def send_prompt_with_chart_analysis(self, prompt: str, chart_image: Union[io.BytesIO, bytes], 
+                                            system_message: str = None) -> str:
+        """Send a prompt with chart image for pattern analysis (Google AI only)"""
+        if not self.google_client:
+            self.logger.warning("Chart analysis requested but Google AI client not available. Falling back to text-only analysis.")
+            return await self.send_prompt(prompt, system_message)
+        
+        try:
+            messages = self._prepare_messages(prompt, system_message)
+            
+            self.logger.info("Sending prompt with chart image to Google AI for pattern analysis")
+            google_config = self.config_manager.get_config(config.GOOGLE_STUDIO_MODEL)
+            
+            # Use the new chart analysis method
+            response_json = await self.google_client.chat_completion_with_chart_analysis(
+                messages, chart_image, google_config
+            )
+            
+            if self._is_valid_response(response_json):
+                return self._process_response(response_json)
+            else:
+                self.logger.warning("Google AI chart analysis failed. Falling back to text-only analysis.")
+                return await self.send_prompt(prompt, system_message)
+        
+        except Exception as e:
+            self.logger.error(f"Error during chart analysis: {str(e)}. Falling back to text-only analysis.")
+            return await self.send_prompt(prompt, system_message)
+        
+    def supports_image_analysis(self) -> bool:
+        """Check if current configuration supports image analysis"""
+        return (self.provider in ["googleai", "all"] and 
+                self.google_client is not None)
         
     def _prepare_messages(self, prompt: str, system_message: Optional[str] = None) -> List[Dict[str, str]]:
         """Prepare message structure and track tokens"""

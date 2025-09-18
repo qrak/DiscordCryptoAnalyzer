@@ -1,6 +1,7 @@
 import json
+import io
 import re
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Union
 
 from src.logger.logger import Logger
 from src.models.manager import ModelManager
@@ -55,16 +56,26 @@ class AnalysisResultProcessor:
         except Exception:
             return None
         
-    async def process_analysis(self, system_prompt: str, prompt: str, language: Optional[str] = None) -> Dict[str, Any]:
+    async def process_analysis(self, system_prompt: str, prompt: str, language: Optional[str] = None, 
+                              chart_image: Optional[Union[io.BytesIO, bytes]] = None) -> Dict[str, Any]:
         """Process analysis by sending prompts to AI model and formatting response"""
         # Send the prompt to the model
         self.logger.debug("Sending prompt to AI model for analysis")
         
-        # Use the send_prompt_streaming method with the correct parameters
-        complete_response = await self.model_manager.send_prompt_streaming(
-            prompt=prompt,
-            system_message=system_prompt
-        )
+        # Use chart analysis if image is provided and model supports it
+        if chart_image is not None and self.model_manager.supports_image_analysis():
+            self.logger.info("Using chart image analysis with Google AI")
+            complete_response = await self.model_manager.send_prompt_with_chart_analysis(
+                prompt=prompt,
+                chart_image=chart_image,
+                system_message=system_prompt
+            )
+        else:
+            # Use the standard send_prompt_streaming method
+            complete_response = await self.model_manager.send_prompt_streaming(
+                prompt=prompt,
+                system_message=system_prompt
+            )
         
         self.logger.debug("Received response from AI model")
         cleaned_response = self._clean_response(complete_response)

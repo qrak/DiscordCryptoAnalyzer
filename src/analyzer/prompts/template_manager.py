@@ -51,9 +51,12 @@ Use appropriate {language} terminology for technical analysis concepts."""
 
         return header
     
-    def build_response_template(self) -> str:
+    def build_response_template(self, has_chart_analysis: bool = False) -> str:
         """Build the response template for structured output.
         
+        Args:
+            has_chart_analysis: Whether chart image analysis is available
+            
         Returns:
             str: Formatted response template
         """
@@ -100,23 +103,34 @@ Use appropriate {language} terminology for technical analysis concepts."""
         4. Technical Indicators Summary (describe indicators in organized paragraphs grouped by category)
         5. Key Technical Levels (describe support and resistance levels in text format with specific prices and distances)
         6. Market Context (describe asset performance vs broader market)
-        7. News Summary (summarize relevant recent news and their potential impact on the asset)
-        8. Potential Catalysts (Summarize factors like news, events, strong technical signals that could drive future price movement)
-        9. Educational Context (explain technical concepts related to the current market conditions)
-        10. Historical Patterns (similar technical setups in the past and what they typically indicate)
-        11. Risk Considerations (discuss technical factors that may invalidate the analysis)
+        7. News Summary (summarize relevant recent news and their potential impact on the asset)'''
+        
+        # Add chart analysis sections only if chart images are available
+        section_number = 8
+        if has_chart_analysis:
+            response_template += f'''
+        {section_number}. Chart Pattern Analysis (describe visual patterns observed in the price chart image)
+        {section_number + 1}. Visual Pattern Integration (explain how chart patterns align with technical indicators)'''
+            section_number += 2
+        
+        response_template += f'''
+        {section_number}. Potential Catalysts (Summarize factors like news, events, strong technical signals that could drive future price movement)
+        {section_number + 1}. Educational Context (explain technical concepts related to the current market conditions)
+        {section_number + 2}. Historical Patterns (similar technical setups in the past and what they typically indicate)
+        {section_number + 3}. Risk Considerations (discuss technical factors that may invalidate the analysis)
         
         End with another reminder that users must do their own research and that this analysis is purely educational.
         '''
         
         return response_template
     
-    def build_analysis_steps(self, symbol: str, has_advanced_support_resistance: bool = False) -> str:
+    def build_analysis_steps(self, symbol: str, has_advanced_support_resistance: bool = False, has_chart_analysis: bool = False) -> str:
         """Build analysis steps instructions for the AI model.
         
         Args:
             symbol: Trading symbol being analyzed
             has_advanced_support_resistance: Whether advanced S/R indicators are detected
+            has_chart_analysis: Whether chart image analysis is available (Google AI only)
             
         Returns:
             str: Formatted analysis steps
@@ -188,9 +202,31 @@ Use appropriate {language} terminology for technical analysis concepts."""
            - Evaluate statistical indicators like Z-Score and Kurtosis
            - Consider Hurst Exponent for trending vs mean-reverting behavior
            - Note abnormal distribution patterns in price/volume
-           - Assess volatility cycles and potential expansion/contraction phases
+           - Assess volatility cycles and potential expansion/contraction phases"""
         
-        8. Educational Information:
+        # Add chart analysis steps only if chart images are available
+        step_number = 8
+        if has_chart_analysis:
+            analysis_steps += f"""
+        
+        {step_number}. Chart Pattern Analysis:
+           - Analyze the provided price chart image showing the last 200 candles
+           - Identify candlestick patterns (doji, hammer, engulfing, shooting star, etc.)
+           - Look for support and resistance levels clearly visible on the chart
+           - Detect trend lines, channels, and price patterns (triangles, flags, head & shoulders)
+           - Note key breakout or breakdown levels and price structure patterns
+        
+        {step_number + 1}. Visual Pattern Integration:
+           - Combine numerical technical indicators with visual chart patterns
+           - Cross-reference chart patterns with momentum and trend indicators
+           - Validate support/resistance levels using both price history and visual confirmation
+           - Integrate candlestick analysis with volume and momentum readings
+           - Look for convergences and divergences between technical data and visual patterns"""
+            step_number += 2
+        
+        analysis_steps += f"""
+        
+        {step_number}. Educational Information:
            - Explain possible scenarios based on technical analysis concepts
            - Describe what traders typically watch for in similar situations
            - Present educational information about risk management concepts

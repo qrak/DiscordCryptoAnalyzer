@@ -1,8 +1,10 @@
 """
 Google GenAI client implementation using the official Google GenAI SDK.
 Replaces the previous custom HTTP-based implementation with the official SDK.
+Supports both text-only and multimodal (text + image) requests for pattern analysis.
 """
 
+import io
 from typing import Optional, Dict, Any, List, Union, cast
 
 from google import genai
@@ -127,6 +129,81 @@ class GoogleAIClient:
             
         except Exception as e:
             self.logger.error(f"Error during Google AI request: {str(e)}")
+            return self._handle_exception(e)
+    
+    async def chat_completion_with_chart_analysis(self, 
+                                                 messages: List[Dict[str, Any]], 
+                                                 chart_image: Union[io.BytesIO, bytes],
+                                                 model_config: Dict[str, Any]) -> Optional[ResponseDict]:
+        """
+        Send a chat completion request with a chart image for pattern analysis.
+        
+        Args:
+            messages: List of OpenAI-style messages
+            chart_image: Chart image as BytesIO or bytes
+            model_config: Configuration parameters for the model
+            
+        Returns:
+            Response in OpenRouter-compatible format or None if failed
+        """
+        try:
+            client = self._ensure_client()
+            
+            # Extract text prompt
+            prompt = self._extract_text_from_messages(messages)
+            
+            # Process chart image
+            if isinstance(chart_image, io.BytesIO):
+                # Read from BytesIO
+                chart_image.seek(0)
+                img_data = chart_image.read()
+                chart_image.seek(0)  # Reset for potential reuse
+            else:
+                # Assume it's already bytes
+                img_data = chart_image
+            
+            # Create image part for the API
+            image_part = types.Part.from_bytes(
+                data=img_data,
+                mime_type='image/png'
+            )
+            
+            # Combine prompt and image
+            contents = [prompt, image_part]
+            
+            # Create generation config
+            generation_config = types.GenerateContentConfig(
+                temperature=model_config.get("temperature", 0.7),
+                top_p=model_config.get("top_p", 0.9),
+                top_k=model_config.get("top_k", 40),
+                max_output_tokens=model_config.get("max_tokens", 32768),
+            )
+            
+            self.logger.debug(f"Sending chart analysis request to Google AI with chart image ({len(img_data)} bytes)")
+            
+            # Generate content
+            response = await client.aio.models.generate_content(
+                model=self.model,
+                contents=contents,
+                config=generation_config
+            )
+            
+            # Extract content directly
+            content_text = response.text
+            
+            self.logger.debug("Received successful chart analysis response from Google AI")
+            
+            return cast(ResponseDict, {
+                "choices": [{
+                    "message": {
+                        "content": content_text,
+                        "role": "assistant"
+                    }
+                }]
+            })
+            
+        except Exception as e:
+            self.logger.error(f"Error during Google AI chart analysis request: {str(e)}")
             return self._handle_exception(e)
     
     async def chat_completion_with_images(self, 

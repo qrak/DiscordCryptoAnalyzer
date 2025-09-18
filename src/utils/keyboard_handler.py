@@ -1,8 +1,16 @@
 import asyncio
-import msvcrt
+import sys
 from typing import Dict, Callable, Awaitable, Optional, Tuple
 
 from src.logger.logger import Logger
+
+# Platform-specific imports
+if sys.platform == "win32":
+    import msvcrt
+else:
+    import select
+    import tty
+    import termios
 
 
 class KeyboardHandler:
@@ -56,17 +64,36 @@ class KeyboardHandler:
 
     async def _process_keyboard_input(self) -> None:
         """Process keyboard input if available."""
-        if not msvcrt.kbhit():
+        if not self._has_input():
             return
             
         key = self._read_key()
         if key and key in self._commands:
             await self._execute_command(key)
 
+    def _has_input(self) -> bool:
+        """Check if keyboard input is available."""
+        if sys.platform == "win32":
+            return msvcrt.kbhit()
+        else:
+            # Linux/Unix implementation using select
+            return select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], [])
+
     def _read_key(self) -> Optional[str]:
         """Read a single character from keyboard input."""
         try:
-            return msvcrt.getch().decode('utf-8', errors='ignore').lower()
+            if sys.platform == "win32":
+                return msvcrt.getch().decode('utf-8', errors='ignore').lower()
+            else:
+                # Linux/Unix implementation
+                fd = sys.stdin.fileno()
+                old_settings = termios.tcgetattr(fd)
+                try:
+                    tty.setraw(sys.stdin.fileno())
+                    char = sys.stdin.read(1)
+                    return char.lower() if char else None
+                finally:
+                    termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
         except Exception:
             return None
 

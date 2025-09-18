@@ -1,4 +1,5 @@
 from typing import Dict, Any
+import io
 
 from src.utils.loader import config
 from src.platforms.alternative_me import AlternativeMeAPI
@@ -11,6 +12,7 @@ from ..data.market_data_collector import MarketDataCollector
 from ..calculations.market_metrics_calculator import MarketMetricsCalculator
 from ..prompts.prompt_builder import PromptBuilder
 from src.html.html_generator import AnalysisHtmlGenerator
+from src.html.chart_generator import ChartGenerator
 from src.logger.logger import Logger
 from src.models.manager import ModelManager
 from src.rag import RagEngine
@@ -55,6 +57,7 @@ class AnalysisEngine:
             indicator_calculator=self.indicator_calculator
         )
         self.html_generator = AnalysisHtmlGenerator(logger=logger)
+        self.chart_generator = ChartGenerator(logger=logger)
         
         # Create specialized components for separated concerns
         self.data_collector = MarketDataCollector(
@@ -203,11 +206,33 @@ class AnalysisEngine:
             else:
                 self.logger.warning(f"No market context available for {self.symbol}")
             
-            # Step 7: Build prompts for AI analysis
+                        # Step 7: Build prompts for analysis
             self.prompt_builder.language = self.language
             system_prompt = self.prompt_builder.build_system_prompt(self.symbol)
-            prompt = self.prompt_builder.build_prompt(self.context)
-            # Step 8: Process analysis through appropriate processor
+            
+            # Step 8: Generate chart image for AI analysis (Google AI only)
+            chart_image = None
+            has_chart_analysis = self.model_manager.supports_image_analysis()
+            if has_chart_analysis:
+                try:
+                    self.logger.info("Generating chart image for AI pattern analysis")
+                    chart_image = self.chart_generator.create_chart_image(
+                        ohlcv=self.context.ohlcv_candles,
+                        technical_history=self.context.technical_history,
+                        pair_symbol=self.symbol,
+                        timeframe=self.timeframe,
+                        save_to_disk=config.DEBUG_SAVE_CHARTS if hasattr(config, 'DEBUG_SAVE_CHARTS') else False
+                    )
+                    
+                except Exception as e:
+                    self.logger.warning(f"Failed to generate chart image for AI analysis: {e}")
+                    chart_image = None
+                    has_chart_analysis = False
+            
+            # Build prompt with chart analysis information
+            prompt = self.prompt_builder.build_prompt(self.context, has_chart_analysis)
+            
+            # Step 9: Process analysis through appropriate processor
             if config.TEST_ENVIRONMENT:
                 self.logger.debug(f"TEST_ENVIRONMENT is True - using mock analysis")
                 analysis_result = self.result_processor.process_mock_analysis(
@@ -222,7 +247,8 @@ class AnalysisEngine:
                 analysis_result = await self.result_processor.process_analysis(
                     system_prompt, 
                     prompt,
-                    self.language
+                    self.language,
+                    chart_image=chart_image
                 )
                 
             # Add article URLs to result

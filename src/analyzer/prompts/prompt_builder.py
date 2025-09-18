@@ -35,11 +35,12 @@ class PromptBuilder:
         self.technical_analysis_formatter = TechnicalFormatter(self.indicator_calculator, logger)
         self.context_builder = ContextBuilder(timeframe, logger)
 
-    def build_prompt(self, context: AnalysisContext) -> str:
+    def build_prompt(self, context: AnalysisContext, has_chart_analysis: bool = False) -> str:
         """Build the complete prompt using component managers.
         
         Args:
             context: Analysis context containing all required data
+            has_chart_analysis: Whether chart image analysis is available
             
         Returns:
             str: Complete formatted prompt
@@ -77,10 +78,10 @@ class PromptBuilder:
         advanced_support_resistance_detected = self._has_advanced_support_resistance()
 
         # Add analysis steps right before response template
-        sections.append(self.template_manager.build_analysis_steps(context.symbol, advanced_support_resistance_detected))
+        sections.append(self.template_manager.build_analysis_steps(context.symbol, advanced_support_resistance_detected, has_chart_analysis))
 
         # Response template should always be last
-        sections.append(self.template_manager.build_response_template())
+        sections.append(self.template_manager.build_response_template(has_chart_analysis))
 
         final_prompt = "\n\n".join(filter(None, sections))
 

@@ -177,11 +177,11 @@ class Config:
     # General Configuration
     @property
     def LOGGER_DEBUG(self):
-        return self.get_config('general', 'logger_debug', False)
+        return self.get_config('debug', 'logger_debug', False)
     
     @property
     def TEST_ENVIRONMENT(self):
-        return self.get_config('general', 'test_environment', False)
+        return self.get_config('debug', 'test_environment', False)
     
     @property
     def TIMEFRAME(self):
@@ -190,6 +190,15 @@ class Config:
     @property
     def CANDLE_LIMIT(self):
         return self.get_config('general', 'candle_limit', 999)
+    
+    # Debug Configuration
+    @property
+    def DEBUG_SAVE_CHARTS(self):
+        return self.get_config('debug', 'save_chart_images', False)
+    
+    @property
+    def DEBUG_CHART_SAVE_PATH(self):
+        return self.get_config('debug', 'chart_save_path', 'test_images')
     
     # Directory Configuration
     @property
