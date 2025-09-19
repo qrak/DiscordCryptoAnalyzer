@@ -4,7 +4,6 @@ from typing import Optional, Dict, Any, List, Union, cast
 
 from src.utils.loader import config
 from src.logger.logger import Logger
-from src.models.config import ModelConfigManager
 from src.parsing.unified_parser import UnifiedParser
 from src.platforms.ai_providers.openrouter import ResponseDict
 from src.platforms.ai_providers import OpenRouterClient, GoogleAIClient, LMStudioClient
@@ -46,12 +45,14 @@ class ModelManager:
             )
             self.logger.info(f"LM Studio client initialized for URL: {config.LM_STUDIO_BASE_URL}")
 
-        # Create configuration manager
-        self.config_manager = ModelConfigManager()
-
         # Create helper components
         self.unified_parser = UnifiedParser(logger)
         self.token_counter = TokenCounter()
+
+        # Create model configurations as instance variables
+        self.model_config = config.get_model_config(config.LM_STUDIO_MODEL)
+        self.google_config = config.get_model_config(config.GOOGLE_STUDIO_MODEL)
+        self.openrouter_config = config.get_model_config(config.OPENROUTER_BASE_MODEL)
 
         # Set up models and their configurations
         if self.provider == "local":
@@ -100,8 +101,7 @@ class ModelManager:
         # Only try streaming if using local provider (LM Studio) or all providers
         if (self.provider == "local" or self.provider == "all") and self.lm_studio_client:
             try:
-                model_config = self.config_manager.get_config(config.LM_STUDIO_MODEL)
-                response_json = await self.lm_studio_client.console_stream(config.LM_STUDIO_MODEL, messages, model_config)
+                response_json = await self.lm_studio_client.console_stream(config.LM_STUDIO_MODEL, messages, self.model_config)
                 if response_json is not None:  # Check for valid response before processing
                     return self._process_response(response_json)
                 else:
@@ -123,11 +123,10 @@ class ModelManager:
             messages = self._prepare_messages(prompt, system_message)
             
             self.logger.info("Sending prompt with chart image to Google AI for pattern analysis")
-            google_config = self.config_manager.get_config(config.GOOGLE_STUDIO_MODEL)
             
             # Use the new chart analysis method
             response_json = await self.google_client.chat_completion_with_chart_analysis(
-                messages, chart_image, google_config
+                messages, chart_image, self.google_config
             )
             
             if self._is_valid_response(response_json):
@@ -193,8 +192,7 @@ class ModelManager:
         # Start with Google AI Studio
         if self.google_client:
             self.logger.info(f"Attempting request with Google AI Studio model: {config.GOOGLE_STUDIO_MODEL}")
-            google_config = self.config_manager.get_config(config.GOOGLE_STUDIO_MODEL)
-            response_json = await self.google_client.chat_completion(messages, google_config)
+            response_json = await self.google_client.chat_completion(messages, self.google_config)
 
             if self._is_valid_response(response_json):
                 return response_json
@@ -205,8 +203,7 @@ class ModelManager:
         if self.lm_studio_client:
             try:
                 self.logger.info(f"Attempting request with LM Studio model: {config.LM_STUDIO_MODEL}")
-                model_config = self.config_manager.get_config(config.LM_STUDIO_MODEL)
-                response_json = await self.lm_studio_client.chat_completion(config.LM_STUDIO_MODEL, messages, model_config)
+                response_json = await self.lm_studio_client.chat_completion(config.LM_STUDIO_MODEL, messages, self.model_config)
 
                 if self._is_valid_response(response_json):
                     return response_json
@@ -225,8 +222,7 @@ class ModelManager:
     async def _try_google_only(self, messages: List[Dict[str, str]]) -> Dict[str, Any]:
         """Use Google AI Studio only"""
         self.logger.info(f"Using Google AI Studio model: {config.GOOGLE_STUDIO_MODEL}")
-        google_config = self.config_manager.get_config(config.GOOGLE_STUDIO_MODEL)
-        response_json = await self.google_client.chat_completion(messages, google_config)
+        response_json = await self.google_client.chat_completion(messages, self.google_config)
 
         if not self._is_valid_response(response_json):
             self.logger.error("Google AI Studio request failed or returned invalid response")
@@ -239,8 +235,7 @@ class ModelManager:
         """Use LM Studio only"""
         try:
             self.logger.info(f"Using LM Studio model: {config.LM_STUDIO_MODEL}")
-            model_config = self.config_manager.get_config(config.LM_STUDIO_MODEL)
-            response_json = await self.lm_studio_client.chat_completion(config.LM_STUDIO_MODEL, messages, model_config)
+            response_json = await self.lm_studio_client.chat_completion(config.LM_STUDIO_MODEL, messages, self.model_config)
 
             if not self._is_valid_response(response_json):
                 self.logger.error("LM Studio request failed or returned invalid response")
@@ -255,8 +250,7 @@ class ModelManager:
     async def _try_openrouter_only(self, messages: List[Dict[str, str]]) -> Dict[str, Any]:
         """Use OpenRouter only"""
         self.logger.info(f"Using OpenRouter model: {config.OPENROUTER_BASE_MODEL}")
-        model_config = self.config_manager.get_config(config.OPENROUTER_BASE_MODEL)
-        response_json = await self.openrouter_client.chat_completion(config.OPENROUTER_BASE_MODEL, messages, model_config)
+        response_json = await self.openrouter_client.chat_completion(config.OPENROUTER_BASE_MODEL, messages, self.openrouter_config)
 
         if not self._is_valid_response(response_json) or self._rate_limited(response_json):
             self.logger.error("OpenRouter request failed or returned invalid response")
@@ -269,8 +263,7 @@ class ModelManager:
         """Use OpenRouter as fallback"""
         self.logger.warning("Google AI Studio and LM Studio (if enabled) failed. Falling back to OpenRouter...")
         
-        model_config = self.config_manager.get_config(config.OPENROUTER_BASE_MODEL)
-        response_json = await self.openrouter_client.chat_completion(config.OPENROUTER_BASE_MODEL, messages, model_config)
+        response_json = await self.openrouter_client.chat_completion(config.OPENROUTER_BASE_MODEL, messages, self.openrouter_config)
 
         if not self._is_valid_response(response_json) or self._rate_limited(response_json):
             self.logger.error("OpenRouter request failed or returned invalid response")
@@ -294,8 +287,7 @@ class ModelManager:
     async def _try_google_api(self, messages: List[Dict[str, str]]) -> Optional[ResponseDict]:
         """Use Google Studio API as fallback"""
         self.logger.warning("OpenRouter rate limit hit or LM Studio/OpenRouter failed. Switching to Google Studio API...")
-        google_config = self.config_manager.get_config(config.GOOGLE_STUDIO_MODEL)
-        response_json = await self.google_client.chat_completion(messages, google_config)
+        response_json = await self.google_client.chat_completion(messages, self.google_config)
 
         if not response_json or not self._is_valid_response(response_json):
             self.logger.error("Google Studio API request failed or returned invalid response")

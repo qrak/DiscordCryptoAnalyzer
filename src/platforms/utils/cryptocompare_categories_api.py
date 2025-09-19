@@ -206,19 +206,12 @@ class CryptoCompareCategoriesAPI:
                 if winner != existing_category:
                     # New category wins, update mapping
                     self.category_word_map[word_lower] = winner
-                    self.logger.debug(f"Mapping collision for word '{word_lower}': replacing '{existing_category}' with '{winner}' (priority)")
-                else:
-                    # Existing category wins, keep as is
-                    self.logger.debug(f"Mapping collision for word '{word_lower}': keeping '{existing_category}' over '{category_name}' (priority)")
-                
+                # collisions intentionally not logged (user requested removal)
                 collision_count += 1
             else:
                 self.category_word_map[word_lower] = category_name
         
-        if collision_count > 0:
-            self.logger.debug(f"Category '{category_name}': {collision_count} mapping collisions detected")
-        if excluded_count > 0:
-            self.logger.debug(f"Category '{category_name}': {excluded_count} words excluded (too short or invalid)")
+        # Collision and exclusion counts are kept for internal use but not logged per user request
     
     def get_category_word_map(self) -> Dict[str, str]:
         """Get the current category word mapping"""

@@ -59,7 +59,7 @@ class AnalysisEngine:
             technical_calculator=self.technical_calculator
         )
         self.html_generator = AnalysisHtmlGenerator(logger=logger)
-        self.chart_generator = ChartGenerator(logger=logger)
+        self.chart_generator = ChartGenerator(logger=logger, config=config)
         
         # Create specialized components for separated concerns
         self.data_collector = MarketDataCollector(
@@ -222,7 +222,7 @@ class AnalysisEngine:
                         technical_history=self.context.technical_history,
                         pair_symbol=self.symbol,
                         timeframe=self.timeframe,
-                        save_to_disk=config.DEBUG_SAVE_CHARTS if hasattr(config, 'DEBUG_SAVE_CHARTS') else False
+                        save_to_disk=config.DEBUG_SAVE_CHARTS
                     )
                     
                 except Exception as e:

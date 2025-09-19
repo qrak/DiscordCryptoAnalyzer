@@ -210,10 +210,13 @@ Use appropriate {language} terminology for technical analysis concepts."""
         # Add chart analysis steps only if chart images are available
         step_number = 8
         if has_chart_analysis:
+            from src.utils.loader import config
+            cfg_limit = int(config.AI_CHART_CANDLE_LIMIT)
+
             analysis_steps += f"""
         
             {step_number}. Chart Pattern Analysis & Visual Integration:
-           - Analyze the provided price chart IMAGE showing the last 200 candles
+           - Analyze the provided price chart IMAGE showing the last {cfg_limit} candles
            - Look at the VISUAL candlestick patterns in the image (doji, hammer, engulfing, shooting star, etc.)
            - Identify support and resistance levels that are VISUALLY apparent on the chart
            - Detect trend lines, channels, and price patterns that you can SEE in the image (triangles, flags, head & shoulders)

@@ -90,7 +90,10 @@ class Logger(logging.Logger):
         return log_dir
 
     def _get_log_filename(self, log_dir: str, suffix: str = '') -> str:
-        return os.path.join(log_dir, f"{self.log_filename_prefix}{self.name}{suffix}.log")
+        # Ensure we have a valid filename even if prefix or name are empty
+        prefix = self.log_filename_prefix if self.log_filename_prefix else ""
+        name = self.name if self.name else "default"
+        return os.path.join(log_dir, f"{prefix}{name}{suffix}.log")
 
     def _plain_formatter(self) -> logging.Formatter:
         format_string = "[{asctime}] {filename}.{funcName} - {message}" if self.level == logging.DEBUG else "[{asctime}] - {message}"

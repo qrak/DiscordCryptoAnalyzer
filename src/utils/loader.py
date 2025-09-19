@@ -25,6 +25,7 @@ class Config:
         self._load_environment()
         self._load_ini_config()
         self._build_dynamic_urls()
+        self._build_model_configs()
     
     def _load_environment(self):
         """Load environment variables from keys.env file using python-dotenv."""
@@ -103,6 +104,25 @@ class Config:
             self.RAG_NEWS_API_URL = f"https://min-api.cryptocompare.com/data/v2/news/?lang=EN&limit=200&extraParams=KurusDiscordCryptoBot&api_key={cryptocompare_key}"
             self.RAG_CATEGORIES_API_URL = f"https://min-api.cryptocompare.com/data/news/categories?api_key={cryptocompare_key}"
             self.RAG_PRICE_API_URL = f"https://min-api.cryptocompare.com/data/pricemultifull?fsyms=BTC,ETH,BNB,SOL,XRP&tsyms=USD&api_key={cryptocompare_key}"
+    
+    def _build_model_configs(self):
+        """Build model configuration dictionaries as instance variables."""
+        # Default model configuration
+        self._default_model_config = {
+            "temperature": self.get_config('model_config', 'temperature', 0.7),
+            "top_p": self.get_config('model_config', 'top_p', 0.9),
+            "freq_penalty": self.get_config('model_config', 'freq_penalty', 0.1),
+            "pres_penalty": self.get_config('model_config', 'pres_penalty', 0.1),
+            "max_tokens": self.get_config('model_config', 'max_tokens', 16000)
+        }
+        
+        # Google-specific model configuration
+        self._google_model_config = {
+            "temperature": self.get_config('model_config', 'google_temperature', 0.7),
+            "top_p": self.get_config('model_config', 'google_top_p', 0.9),
+            "top_k": self.get_config('model_config', 'google_top_k', 40),
+            "max_tokens": self.get_config('model_config', 'google_max_tokens', 32768)
+        }
     
     def get_env(self, key: str, default: Any = None) -> Any:
         """Get environment variable."""
@@ -190,6 +210,11 @@ class Config:
     @property
     def CANDLE_LIMIT(self):
         return self.get_config('general', 'candle_limit', 999)
+
+    @property
+    def AI_CHART_CANDLE_LIMIT(self):
+        """Configured candle limit to use for AI chart images (must be present in config.ini)."""
+        return int(self.get_config('general', 'ai_chart_candle_limit', 200))
     
     # Debug Configuration
     @property
@@ -265,6 +290,29 @@ class Config:
     @property
     def MARKET_REFRESH_HOURS(self):
         return self.get_config('exchanges', 'market_refresh_hours', 24)
+    
+    def get_model_config(self, model_name: str, overrides: Dict[str, Any] = None) -> Dict[str, Any]:
+        """
+        Get configuration parameters for a specific model.
+        
+        Args:
+            model_name: The name of the model
+            overrides: Optional parameter overrides for this specific call
+            
+        Returns:
+            A dictionary with configuration parameters
+        """
+        # Use Google-specific config for Google models
+        if 'gemini' in model_name.lower():
+            config_dict = self._google_model_config.copy()
+        else:
+            config_dict = self._default_model_config.copy()
+        
+        # Apply any overrides
+        if overrides:
+            config_dict.update(overrides)
+            
+        return config_dict
 
 
 # Create global config instance
