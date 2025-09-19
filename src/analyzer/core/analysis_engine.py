@@ -206,13 +206,13 @@ class AnalysisEngine:
             else:
                 self.logger.warning(f"No market context available for {self.symbol}")
             
-                        # Step 7: Build prompts for analysis
+                        # Step 7: Check if chart analysis is supported and build system prompt accordingly
             self.prompt_builder.language = self.language
-            system_prompt = self.prompt_builder.build_system_prompt(self.symbol)
+            has_chart_analysis = self.model_manager.supports_image_analysis()
+            system_prompt = self.prompt_builder.build_system_prompt(self.symbol, has_chart_analysis)
             
             # Step 8: Generate chart image for AI analysis (Google AI only)
             chart_image = None
-            has_chart_analysis = self.model_manager.supports_image_analysis()
             if has_chart_analysis:
                 try:
                     self.logger.info("Generating chart image for AI pattern analysis")
@@ -244,12 +244,37 @@ class AnalysisEngine:
                     technical_data=getattr(self.context, 'technical_data', None)
                 )
             else:
-                analysis_result = await self.result_processor.process_analysis(
-                    system_prompt, 
-                    prompt,
-                    self.language,
-                    chart_image=chart_image
-                )
+                # First try chart analysis if available
+                if chart_image is not None and self.model_manager.supports_image_analysis():
+                    self.logger.info("Attempting chart image analysis with Google AI")
+                    try:
+                        analysis_result = await self.result_processor.process_analysis(
+                            system_prompt, 
+                            prompt,
+                            self.language,
+                            chart_image=chart_image
+                        )
+                    except ValueError:
+                        # Chart analysis failed, rebuild prompts without chart analysis and try again
+                        self.logger.warning("Chart analysis failed, rebuilding prompts for text-only analysis")
+                        has_chart_analysis = False
+                        system_prompt = self.prompt_builder.build_system_prompt(self.symbol, has_chart_analysis)
+                        prompt = self.prompt_builder.build_prompt(self.context, has_chart_analysis)
+                        
+                        analysis_result = await self.result_processor.process_analysis(
+                            system_prompt, 
+                            prompt,
+                            self.language,
+                            chart_image=None
+                        )
+                else:
+                    # No chart analysis available, use text-only
+                    analysis_result = await self.result_processor.process_analysis(
+                        system_prompt, 
+                        prompt,
+                        self.language,
+                        chart_image=None
+                    )
                 
             # Add article URLs to result
             analysis_result["article_urls"] = self.article_urls

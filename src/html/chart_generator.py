@@ -82,9 +82,11 @@ class ChartGenerator:
         
         # Choose color scheme based on usage
         colors = self.ai_colors if for_ai else self.default_colors
-        
-        # Convert timestamps to pandas datetime for proper formatting
+
+        # Convert timestamps to Python datetime for reliable Plotly date axes
+        # Using Python datetime objects avoids axis type inference issues in static image export
         timestamps = pd.to_datetime(ohlcv[:, 0], unit='ms')
+        timestamps_py = timestamps.to_pydatetime().tolist()
         
         # Determine if RSI data is available
         has_rsi = technical_history and 'rsi' in technical_history and len(technical_history['rsi']) == len(timestamps)
@@ -116,7 +118,7 @@ class ChartGenerator:
         
         # --- Plot 1: Price Candlesticks ---
         candle = go.Candlestick(
-            x=timestamps,
+            x=timestamps_py,
             open=ohlcv[:, 1],
             high=ohlcv[:, 2],
             low=ohlcv[:, 3],
@@ -129,7 +131,7 @@ class ChartGenerator:
         
         # --- Plot 2: Volume ---
         volume = go.Bar(
-            x=timestamps,
+            x=timestamps_py,
             y=ohlcv[:, 5],
             name="Volume",
             marker_color=colors['volume'],
@@ -143,7 +145,7 @@ class ChartGenerator:
             
             # Add RSI line in the third row
             fig.add_trace(go.Scatter(
-                x=timestamps,
+                x=timestamps_py,
                 y=rsi_values,
                 name="RSI (14)",
                 line=dict(color=colors['rsi'], width=2 if for_ai else 1.5)  # Thicker line for AI
@@ -155,7 +157,7 @@ class ChartGenerator:
             
             for level, color, dash in [(70, overbought_color, 'dash'), (30, oversold_color, 'dash')]:
                 fig.add_trace(go.Scatter(
-                    x=[timestamps[0], timestamps[-1]],
+                    x=[timestamps_py[0], timestamps_py[-1]],
                     y=[level, level],
                     mode='lines',
                     line=dict(color=color, width=2 if for_ai else 1, dash=dash),
@@ -243,14 +245,15 @@ class ChartGenerator:
             tickformat=tick_format,
             tickangle=tick_angle,
             showticklabels=True,
+            type='date',
             row=rows, col=1  # Apply to the bottom-most x-axis
         )
         
         # Hide tick labels on the top x-axis if there are multiple rows
         if rows > 1:
-            fig.update_xaxes(showticklabels=False, row=1, col=1)
+            fig.update_xaxes(showticklabels=False, type='date', row=1, col=1)
             if rows > 2:
-                fig.update_xaxes(showticklabels=False, row=2, col=1)
+                fig.update_xaxes(showticklabels=False, type='date', row=2, col=1)
         
         # Configure RSI Y-axis (Row 3, if exists)
         if has_rsi:
@@ -452,15 +455,16 @@ class ChartGenerator:
         # Limit to last 200 candles for AI analysis
         if len(ohlcv) > 200:
             ohlcv = ohlcv[-200:]
-        
+
         timestamps = pd.to_datetime(ohlcv[:, 0], unit='ms')
+        timestamps_py = timestamps.to_pydatetime().tolist()
         
         # Create single subplot for price only
         fig = go.Figure()
         
         # Add candlestick chart with AI-optimized colors
         candle = go.Candlestick(
-            x=timestamps,
+            x=timestamps_py,
             open=ohlcv[:, 1],
             high=ohlcv[:, 2],
             low=ohlcv[:, 3],
@@ -502,7 +506,8 @@ class ChartGenerator:
             zeroline=False,
             tickformat='%b %d, %H:%M',  # More readable format for AI: "Sep 18, 14:30"
             tickangle=45,
-            nticks=8  # Limit number of ticks for cleaner display
+            nticks=8,  # Limit number of ticks for cleaner display
+            type='date'
         )
         
         return fig

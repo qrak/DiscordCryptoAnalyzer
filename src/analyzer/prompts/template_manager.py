@@ -19,12 +19,13 @@ class TemplateManager:
         """
         self.logger = logger
     
-    def build_system_prompt(self, symbol: str, language: Optional[str] = None) -> str:
+    def build_system_prompt(self, symbol: str, language: Optional[str] = None, has_chart_image: bool = False) -> str:
         """Build the system prompt for the AI model.
         
         Args:
             symbol: Trading symbol (e.g., "BTC/USDT")
             language: Optional language for response (defaults to English)
+            has_chart_image: Whether a chart image is being provided for visual analysis
             
         Returns:
             str: Formatted system prompt
@@ -38,7 +39,14 @@ class TemplateManager:
         header_base = f"""You are providing educational crypto market analysis of {symbol} on 1h timeframe along with multi-timeframe technical metrics and recent market data.
 Focus on objective technical indicator readings and historical pattern recognition (e.g., identify potential chart patterns like triangles, head and shoulders, flags based on OHLCV data) for educational purposes only.
 Present clear, data-driven observations with specific numeric values from the provided metrics. Prioritize recent price action and technical indicators over older news unless the news is highly significant.
-Identify key price levels based solely on technical analysis concepts (Support, Resistance, Pivot Points, Fibonacci levels if applicable).
+Identify key price levels based solely on technical analysis concepts (Support, Resistance, Pivot Points, Fibonacci levels if applicable)."""
+
+        # Add chart analysis instructions if image is provided
+        if has_chart_image:
+            header_base += """
+IMPORTANT: You have been provided with a price chart IMAGE showing recent candlestick data. Use BOTH the numerical technical data AND the visual patterns you can observe in the chart image for your analysis. Pay special attention to visual chart patterns, candlestick formations, support/resistance levels that are clearly visible in the image, and price structure patterns you can see."""
+
+        header_base += """
 THIS IS EDUCATIONAL CONTENT ONLY. All analysis is for informational and educational purposes - NOT financial advice.
 Always include disclaimers that this is not investment advice and users must do their own research."""
 
@@ -210,18 +218,19 @@ Use appropriate {language} terminology for technical analysis concepts."""
             analysis_steps += f"""
         
         {step_number}. Chart Pattern Analysis:
-           - Analyze the provided price chart image showing the last 200 candles
-           - Identify candlestick patterns (doji, hammer, engulfing, shooting star, etc.)
-           - Look for support and resistance levels clearly visible on the chart
-           - Detect trend lines, channels, and price patterns (triangles, flags, head & shoulders)
-           - Note key breakout or breakdown levels and price structure patterns
+           - IMPORTANT: Analyze the provided price chart IMAGE showing the last 200 candles
+           - Look at the VISUAL candlestick patterns in the image (doji, hammer, engulfing, shooting star, etc.)
+           - Identify support and resistance levels that are VISUALLY apparent on the chart
+           - Detect trend lines, channels, and price patterns that you can SEE in the image (triangles, flags, head & shoulders)
+           - Note key breakout or breakdown levels and price structure patterns visible in the chart image
+           - Focus on what you can observe visually in the image, not just the numerical data
         
         {step_number + 1}. Visual Pattern Integration:
-           - Combine numerical technical indicators with visual chart patterns
-           - Cross-reference chart patterns with momentum and trend indicators
-           - Validate support/resistance levels using both price history and visual confirmation
-           - Integrate candlestick analysis with volume and momentum readings
-           - Look for convergences and divergences between technical data and visual patterns"""
+           - Combine the numerical technical indicators with the VISUAL chart patterns you observed in the image
+           - Cross-reference chart patterns you can SEE with momentum and trend indicators from the data
+           - Validate support/resistance levels using both price history data AND visual confirmation from the chart
+           - Integrate candlestick analysis from the IMAGE with volume and momentum readings from the data
+           - Look for convergences and divergences between technical data and the visual patterns in the chart image"""
             step_number += 2
         
         analysis_steps += f"""

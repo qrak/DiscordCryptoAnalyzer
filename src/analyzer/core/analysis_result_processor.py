@@ -57,7 +57,7 @@ class AnalysisResultProcessor:
             return None
         
     async def process_analysis(self, system_prompt: str, prompt: str, language: Optional[str] = None, 
-                              chart_image: Optional[Union[io.BytesIO, bytes]] = None) -> Dict[str, Any]:
+                              chart_image: Optional[Union[io.BytesIO, bytes, str]] = None) -> Dict[str, Any]:
         """Process analysis by sending prompts to AI model and formatting response"""
         # Send the prompt to the model
         self.logger.debug("Sending prompt to AI model for analysis")
@@ -65,11 +65,16 @@ class AnalysisResultProcessor:
         # Use chart analysis if image is provided and model supports it
         if chart_image is not None and self.model_manager.supports_image_analysis():
             self.logger.info("Using chart image analysis with Google AI")
-            complete_response = await self.model_manager.send_prompt_with_chart_analysis(
-                prompt=prompt,
-                chart_image=chart_image,
-                system_message=system_prompt
-            )
+            try:
+                complete_response = await self.model_manager.send_prompt_with_chart_analysis(
+                    prompt=prompt,
+                    chart_image=chart_image,
+                    system_message=system_prompt
+                )
+            except ValueError as e:
+                # Chart analysis failed, re-raise to let analysis engine handle fallback
+                self.logger.warning(f"Chart analysis failed: {e}")
+                raise
         else:
             # Use the standard send_prompt_streaming method
             complete_response = await self.model_manager.send_prompt_streaming(

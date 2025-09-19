@@ -112,12 +112,12 @@ class ModelManager:
         # Fallback to regular prompt for other providers or if streaming fails
         return await self.send_prompt(prompt, system_message, prepared_messages=messages)
     
-    async def send_prompt_with_chart_analysis(self, prompt: str, chart_image: Union[io.BytesIO, bytes], 
+    async def send_prompt_with_chart_analysis(self, prompt: str, chart_image: Union[io.BytesIO, bytes, str], 
                                             system_message: str = None) -> str:
         """Send a prompt with chart image for pattern analysis (Google AI only)"""
         if not self.google_client:
             self.logger.warning("Chart analysis requested but Google AI client not available. Falling back to text-only analysis.")
-            return await self.send_prompt(prompt, system_message)
+            raise ValueError("Chart analysis unavailable - no Google AI client")
         
         try:
             messages = self._prepare_messages(prompt, system_message)
@@ -134,11 +134,14 @@ class ModelManager:
                 return self._process_response(response_json)
             else:
                 self.logger.warning("Google AI chart analysis failed. Falling back to text-only analysis.")
-                return await self.send_prompt(prompt, system_message)
+                raise ValueError("Chart analysis failed - invalid response")
         
+        except ValueError:
+            # Re-raise ValueError (our custom exceptions)
+            raise
         except Exception as e:
             self.logger.error(f"Error during chart analysis: {str(e)}. Falling back to text-only analysis.")
-            return await self.send_prompt(prompt, system_message)
+            raise ValueError(f"Chart analysis exception: {str(e)}")
         
     def supports_image_analysis(self) -> bool:
         """Check if current configuration supports image analysis"""

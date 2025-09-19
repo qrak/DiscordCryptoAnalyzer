@@ -87,16 +87,17 @@ class PromptBuilder:
 
         return final_prompt
     
-    def build_system_prompt(self, symbol: str) -> str:
+    def build_system_prompt(self, symbol: str, has_chart_image: bool = False) -> str:
         """Build system prompt using template manager.
         
         Args:
             symbol: Trading symbol
+            has_chart_image: Whether a chart image is being provided
             
         Returns:
             str: Formatted system prompt
         """
-        return self.template_manager.build_system_prompt(symbol, self.language)
+        return self.template_manager.build_system_prompt(symbol, self.language, has_chart_image)
 
     def add_custom_instruction(self, instruction: str) -> None:
         """Add custom instruction to the prompt.

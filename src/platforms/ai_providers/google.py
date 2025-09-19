@@ -133,14 +133,14 @@ class GoogleAIClient:
     
     async def chat_completion_with_chart_analysis(self, 
                                                  messages: List[Dict[str, Any]], 
-                                                 chart_image: Union[io.BytesIO, bytes],
+                                                 chart_image: Union[io.BytesIO, bytes, str],
                                                  model_config: Dict[str, Any]) -> Optional[ResponseDict]:
         """
         Send a chat completion request with a chart image for pattern analysis.
         
         Args:
             messages: List of OpenAI-style messages
-            chart_image: Chart image as BytesIO or bytes
+            chart_image: Chart image as BytesIO, bytes, or file path string
             model_config: Configuration parameters for the model
             
         Returns:
@@ -158,6 +158,10 @@ class GoogleAIClient:
                 chart_image.seek(0)
                 img_data = chart_image.read()
                 chart_image.seek(0)  # Reset for potential reuse
+            elif isinstance(chart_image, str):
+                # File path - read the file
+                with open(chart_image, 'rb') as f:
+                    img_data = f.read()
             else:
                 # Assume it's already bytes
                 img_data = chart_image
@@ -227,17 +231,23 @@ class GoogleAIClient:
             # Extract text prompt
             prompt = self._extract_text_from_messages(messages)
             
-            # Process images - trust that the correct types are passed
+            # Process images - handle different input types correctly
             image_parts = []
             for image in images:
                 if isinstance(image, Image.Image):
-                    # PIL Image - the SDK handles this directly
-                    image_parts.append(image)
+                    # PIL Image - convert to bytes first
+                    img_buffer = io.BytesIO()
+                    image.save(img_buffer, format='PNG')
+                    img_data = img_buffer.getvalue()
+                    image_parts.append(types.Part.from_bytes(
+                        data=img_data,
+                        mime_type='image/png'
+                    ))
                 elif isinstance(image, bytes):
                     # Raw bytes
                     image_parts.append(types.Part.from_bytes(
                         data=image,
-                        mime_type='image/jpeg'
+                        mime_type='image/png'
                     ))
                 elif isinstance(image, str):
                     # File path or URL
@@ -245,15 +255,15 @@ class GoogleAIClient:
                         # URL or Cloud Storage URI
                         image_parts.append(types.Part.from_uri(
                             file_uri=image,
-                            mime_type='image/jpeg'
+                            mime_type='image/png'
                         ))
                     else:
-                        # Local file path
+                        # Local file path - read the file content
                         with open(image, 'rb') as f:
                             img_data = f.read()
                         image_parts.append(types.Part.from_bytes(
                             data=img_data,
-                            mime_type='image/jpeg'
+                            mime_type='image/png'
                         ))
             
             # Combine prompt and images
