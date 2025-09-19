@@ -105,27 +105,24 @@ Use appropriate {language} terminology for technical analysis concepts."""
         
         Organize the Markdown analysis into these sections:
         
-        1. Disclaimer (emphasize this is for educational purposes only, not financial advice)
-        2. Technical Analysis Overview (objective description of what the indicators show, quantified)
-        3. Multi-Timeframe Assessment (describe short, medium, long-term patterns with quantified changes)
-        4. Technical Indicators Summary (describe indicators in organized paragraphs grouped by category)
-        5. Key Technical Levels (describe support and resistance levels in text format with specific prices and distances)
-        6. Market Context (describe asset performance vs broader market)
-        7. News Summary (summarize relevant recent news and their potential impact on the asset)'''
+        - Disclaimer (emphasize this is for educational purposes only, not financial advice)
+        - Technical Analysis Overview (objective description of what the indicators show, quantified)
+        - Multi-Timeframe Assessment (describe short, medium, long-term patterns with quantified changes)
+        - Technical Indicators Summary (describe indicators in organized paragraphs grouped by category)
+        - Key Technical Levels (describe support and resistance levels in text format with specific prices and distances)
+        - Market Context (describe asset performance vs broader market)
+        - News Summary (summarize relevant recent news and their potential impact on the asset)'''
         
         # Add chart analysis sections only if chart images are available
-        section_number = 8
         if has_chart_analysis:
-            response_template += f'''
-        {section_number}. Chart Pattern Analysis (describe visual patterns observed in the price chart image)
-        {section_number + 1}. Visual Pattern Integration (explain how chart patterns align with technical indicators)'''
-            section_number += 2
+            response_template += '''
+        - Chart Pattern Analysis & Visual Integration (describe visual patterns observed in the price chart image and how they align with technical indicators)'''
         
-        response_template += f'''
-        {section_number}. Potential Catalysts (Summarize factors like news, events, strong technical signals that could drive future price movement)
-        {section_number + 1}. Educational Context (explain technical concepts related to the current market conditions)
-        {section_number + 2}. Historical Patterns (similar technical setups in the past and what they typically indicate)
-        {section_number + 3}. Risk Considerations (discuss technical factors that may invalidate the analysis)
+        response_template += '''
+        - Potential Catalysts (Summarize factors like news, events, strong technical signals that could drive future price movement)
+        - Educational Context (explain technical concepts related to the current market conditions)
+        - Historical Patterns (similar technical setups in the past and what they typically indicate)
+        - Risk Considerations (discuss technical factors that may invalidate the analysis)
         
         End with another reminder that users must do their own research and that this analysis is purely educational.
         '''
@@ -217,21 +214,19 @@ Use appropriate {language} terminology for technical analysis concepts."""
         if has_chart_analysis:
             analysis_steps += f"""
         
-        {step_number}. Chart Pattern Analysis:
-           - IMPORTANT: Analyze the provided price chart IMAGE showing the last 200 candles
+            {step_number}. Chart Pattern Analysis & Visual Integration:
+           - Analyze the provided price chart IMAGE showing the last 200 candles
            - Look at the VISUAL candlestick patterns in the image (doji, hammer, engulfing, shooting star, etc.)
            - Identify support and resistance levels that are VISUALLY apparent on the chart
            - Detect trend lines, channels, and price patterns that you can SEE in the image (triangles, flags, head & shoulders)
            - Note key breakout or breakdown levels and price structure patterns visible in the chart image
-           - Focus on what you can observe visually in the image, not just the numerical data
-        
-        {step_number + 1}. Visual Pattern Integration:
            - Combine the numerical technical indicators with the VISUAL chart patterns you observed in the image
            - Cross-reference chart patterns you can SEE with momentum and trend indicators from the data
            - Validate support/resistance levels using both price history data AND visual confirmation from the chart
            - Integrate candlestick analysis from the IMAGE with volume and momentum readings from the data
-           - Look for convergences and divergences between technical data and the visual patterns in the chart image"""
-            step_number += 2
+           - Look for convergences and divergences between technical data and the visual patterns in the chart image
+           - Focus on what you can observe visually in the image, not just the numerical data"""
+            step_number += 1
         
         analysis_steps += f"""
         
