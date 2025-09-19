@@ -127,9 +127,7 @@ class DivergencePatternDetector(BasePatternDetector):
                                       recent_prices: List[float],
                                       recent_indicator: List[float],
                                       market_data: MarketData,
-                                      indicator_name: str,
-                                      bullish_message: str,
-                                      bearish_message: str) -> List[Pattern]:
+                                      indicator_name: str) -> List[Pattern]:
         """Generic method to detect short-term divergences between price and an indicator"""
         patterns = []
         
@@ -145,12 +143,11 @@ class DivergencePatternDetector(BasePatternDetector):
         timestamp = market_data.get_timestamp_at_index(len(market_data.ohlcv) - 1)
         
         # Enhanced timing information
-        price_change_periods = self.short_term_lookback - 1
-        indicator_change_periods = self.short_term_lookback - 1
+        change_periods = self.short_term_lookback - 1
         
         # Check for divergence patterns with timing
         if price_short_term_lower and indicator_short_term_higher:
-            enhanced_message = (f"Bullish {indicator_name} divergence: Price declined over {price_change_periods} periods "
+            enhanced_message = (f"Bullish {indicator_name} divergence: Price declined over {change_periods} periods "
                               f"({recent_prices[-self.short_term_lookback]:.2f} to {recent_prices[-1]:.2f}) while "
                               f"{indicator_name} increased ({recent_indicator[-self.short_term_lookback]:.2f} to {recent_indicator[-1]:.2f})")
             
@@ -159,7 +156,7 @@ class DivergencePatternDetector(BasePatternDetector):
                 enhanced_message,
                 timestamp=timestamp,
                 indicator=indicator_name,
-                lookback_periods=price_change_periods,
+                lookback_periods=change_periods,
                 price_start=recent_prices[-self.short_term_lookback],
                 price_end=recent_prices[-1],
                 indicator_start=recent_indicator[-self.short_term_lookback],
@@ -169,7 +166,7 @@ class DivergencePatternDetector(BasePatternDetector):
             patterns.append(pattern)
 
         if price_short_term_higher and indicator_short_term_lower:
-            enhanced_message = (f"Bearish {indicator_name} divergence: Price increased over {price_change_periods} periods "
+            enhanced_message = (f"Bearish {indicator_name} divergence: Price increased over {change_periods} periods "
                               f"({recent_prices[-self.short_term_lookback]:.2f} to {recent_prices[-1]:.2f}) while "
                               f"{indicator_name} decreased ({recent_indicator[-self.short_term_lookback]:.2f} to {recent_indicator[-1]:.2f})")
             
@@ -178,7 +175,7 @@ class DivergencePatternDetector(BasePatternDetector):
                 enhanced_message,
                 timestamp=timestamp,
                 indicator=indicator_name,
-                lookback_periods=price_change_periods,
+                lookback_periods=change_periods,
                 price_start=recent_prices[-self.short_term_lookback],
                 price_end=recent_prices[-1],
                 indicator_start=recent_indicator[-self.short_term_lookback],
@@ -196,9 +193,7 @@ class DivergencePatternDetector(BasePatternDetector):
                                       original_start_index: int) -> List[Pattern]:
         """Detect divergences between price and Stochastic"""
         return self._detect_short_term_divergences(
-            recent_prices, recent_stoch, market_data, "Stochastic",
-            "Bullish stochastic divergence: price making lower lows while stochastic making higher lows.",
-            "Bearish stochastic divergence: price making higher highs while stochastic making lower highs."
+            recent_prices, recent_stoch, market_data, "Stochastic"
         )
     
     def _detect_macd_divergences(self, 
@@ -208,7 +203,5 @@ class DivergencePatternDetector(BasePatternDetector):
                                 original_start_index: int) -> List[Pattern]:
         """Detect divergences between price and MACD"""
         return self._detect_short_term_divergences(
-            recent_prices, recent_macd, market_data, "MACD",
-            "Bullish MACD divergence: price moving down while MACD trending up.",
-            "Bearish MACD divergence: price moving up while MACD trending down."
+            recent_prices, recent_macd, market_data, "MACD"
         )

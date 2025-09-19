@@ -7,26 +7,6 @@ import numpy as np
 from numba import njit
 
 
-class SARConfig(NamedTuple):
-    """Configuration for Parabolic SAR calculation."""
-    step: float = 0.02
-    max_step: float = 0.2
-
-
-class IchimokuConfig(NamedTuple):
-    """Configuration for Ichimoku Cloud calculation."""
-    conversion_length: int = 9
-    base_length: int = 26
-    lagging_span2_length: int = 52
-    displacement: int = 26
-
-
-class SupertrendConfig(NamedTuple):
-    """Configuration for Supertrend calculation."""
-    length: int = 10
-    multiplier: float = 3.0
-
-
 @njit(cache=True)
 def calculate_directional_movement(high: np.ndarray, low: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
     """Calculate positive and negative directional movement."""

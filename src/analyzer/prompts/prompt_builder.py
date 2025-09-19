@@ -3,7 +3,7 @@ from typing import Optional
 
 from src.logger.logger import Logger
 from ..core.analysis_context import AnalysisContext
-from ..calculations.indicator_calculator import IndicatorCalculator
+from ..calculations.technical_calculator import TechnicalCalculator
 from .template_manager import TemplateManager
 from ..formatting.market_formatter import MarketFormatter
 from ..formatting.technical_formatter import TechnicalFormatter
@@ -11,28 +11,28 @@ from .context_builder import ContextBuilder
 
 
 class PromptBuilder:
-    def __init__(self, timeframe: str = "1h", logger: Optional[Logger] = None, indicator_calculator: Optional[IndicatorCalculator] = None) -> None:
+    def __init__(self, timeframe: str = "1h", logger: Optional[Logger] = None, technical_calculator: Optional[TechnicalCalculator] = None) -> None:
         """Initialize the PromptBuilder
         
         Args:
             timeframe: The primary timeframe for analysis (e.g. "1h")
             logger: Optional logger instance for debugging
-            indicator_calculator: Calculator for technical indicators
+            technical_calculator: Calculator for technical indicators
         """
         self.timeframe = timeframe
         self.logger = logger
         self.custom_instructions: list[str] = []
         self.language: Optional[str] = None
         self.context: Optional[AnalysisContext] = None
-        self.indicator_calculator = indicator_calculator or IndicatorCalculator(logger)
+        self.technical_calculator = technical_calculator or TechnicalCalculator(logger)
         
         # Access indicator thresholds from the calculator
-        self.INDICATOR_THRESHOLDS = self.indicator_calculator.INDICATOR_THRESHOLDS
+        self.INDICATOR_THRESHOLDS = self.technical_calculator.INDICATOR_THRESHOLDS
         
         # Initialize component managers
         self.template_manager = TemplateManager(logger)
         self.market_formatter = MarketFormatter(logger)
-        self.technical_analysis_formatter = TechnicalFormatter(self.indicator_calculator, logger)
+        self.technical_analysis_formatter = TechnicalFormatter(self.technical_calculator, logger)
         self.context_builder = ContextBuilder(timeframe, logger)
 
     def build_prompt(self, context: AnalysisContext, has_chart_analysis: bool = False) -> str:
@@ -58,7 +58,7 @@ class PromptBuilder:
 
         # Add cryptocurrency details if available
         coin_details_section = self.context_builder.build_coin_details_section(
-            context.coin_details, self.indicator_calculator
+            context.coin_details
         )
         if coin_details_section:
             sections.append(coin_details_section)
@@ -66,8 +66,8 @@ class PromptBuilder:
         sections.extend([
             self.context_builder.build_market_data_section(context.ohlcv_candles),
             self.technical_analysis_formatter.format_technical_analysis(context, self.timeframe),
-            self.context_builder.build_market_period_metrics_section(context.market_metrics, self.indicator_calculator),
-            self.context_builder.build_long_term_analysis_section(context.long_term_data, context.current_price, self.indicator_calculator),
+            self.context_builder.build_market_period_metrics_section(context.market_metrics),
+            self.context_builder.build_long_term_analysis_section(context.long_term_data, context.current_price),
         ])
 
         # Add custom instructions if available

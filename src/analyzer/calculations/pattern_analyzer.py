@@ -15,7 +15,6 @@ class PatternAnalyzer:
         self.logger = logger
         self.pattern_recognizer = PatternRecognizer(logger=logger)
         self.data_processor = DataProcessor()
-        self.formatter = IndicatorFormatter(logger=logger)
         
         # Cache storage for pattern detection
         self._pattern_cache = {}

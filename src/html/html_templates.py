@@ -155,7 +155,6 @@ def get_analysis_template(title: str, content: str, sources_section: str = "",
                          discord_summary_section: str = "") -> str:
     """
     Public API function for getting analysis templates.
-    Maintains backward compatibility with existing code.
     
     Args:
         title: The title of the analysis
@@ -179,7 +178,6 @@ def get_analysis_template(title: str, content: str, sources_section: str = "",
 def get_error_template(error_message: str) -> str:
     """
     Public API function for getting error templates.
-    Maintains backward compatibility with existing code.
     
     Args:
         error_message: The error message to display

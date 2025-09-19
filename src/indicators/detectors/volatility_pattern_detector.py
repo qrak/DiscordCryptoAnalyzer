@@ -30,9 +30,6 @@ class VolatilityPatternDetector(BasePatternDetector):
         # Calculate original data starting index
         original_start_index = max(0, len(data.ohlcv) - len(recent_atr))
         
-        # Get current timestamp (most recent)
-        current_timestamp = data.get_timestamp_at_index(len(data.ohlcv) - 1)
-        
         # Detect volatility trend patterns
         trend_patterns = self._detect_volatility_trend(recent_atr.tolist(), data, original_start_index)
         patterns.extend(trend_patterns)

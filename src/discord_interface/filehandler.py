@@ -89,13 +89,6 @@ class DiscordFileHandler:
         
         return False
     
-    async def delete_message_now(self, message_id: int, channel_id: int) -> bool:
-        """Immediately delete a specific message."""
-        success = await self.deleter.try_delete_message(message_id, channel_id)
-        if success:
-            await self.tracker.remove_message_tracking(message_id)
-        return success
-    
     async def get_tracking_stats(self):
         """Get statistics about tracked messages."""
         stats = await self.tracker.get_tracking_stats()

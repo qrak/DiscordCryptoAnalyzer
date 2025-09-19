@@ -5,7 +5,7 @@ Handles all market analysis formatting in a single comprehensive class.
 from typing import Dict, List, Optional, Any
 from src.logger.logger import Logger
 from src.utils.token_counter import TokenCounter
-from .format_utils import fmt, format_value
+from .format_utils import FormatUtils
 
 
 class MarketFormatter:
@@ -15,6 +15,7 @@ class MarketFormatter:
         """Initialize the market formatter."""
         self.logger = logger
         self.token_counter = TokenCounter()
+        self.format_utils = FormatUtils()
         # Define indicator thresholds locally since we don't have indicator_calculator here
         self.INDICATOR_THRESHOLDS = {
             'rsi': {'oversold': 30, 'overbought': 70},
@@ -111,25 +112,25 @@ class MarketFormatter:
         # Market cap and dominance
         if 'total_market_cap_usd' in market_overview:
             market_cap = market_overview['total_market_cap_usd']
-            sections.append(f"📊 Total Market Cap: ${fmt(market_cap)}")
+            sections.append(f"📊 Total Market Cap: ${self.format_utils.fmt(market_cap)}")
         
         if 'bitcoin_dominance' in market_overview:
             btc_dom = market_overview['bitcoin_dominance']
-            sections.append(f"₿ Bitcoin Dominance: {fmt(btc_dom)}%")
+            sections.append(f"₿ Bitcoin Dominance: {self.format_utils.fmt(btc_dom)}%")
         
         if 'ethereum_dominance' in market_overview:
             eth_dom = market_overview['ethereum_dominance']
-            sections.append(f"Ξ Ethereum Dominance: {fmt(eth_dom)}%")
+            sections.append(f"Ξ Ethereum Dominance: {self.format_utils.fmt(eth_dom)}%")
         
         # Market metrics
         if 'total_volume_24h_usd' in market_overview:
             volume = market_overview['total_volume_24h_usd']
-            sections.append(f"📈 24h Volume: ${fmt(volume)}")
+            sections.append(f"📈 24h Volume: ${self.format_utils.fmt(volume)}")
         
         if 'market_cap_change_24h_percentage_usd' in market_overview:
             change = market_overview['market_cap_change_24h_percentage_usd']
             direction = "📈" if change >= 0 else "📉"
-            sections.append(f"{direction} Market Cap Change (24h): {fmt(change)}%")
+            sections.append(f"{direction} Market Cap Change (24h): {self.format_utils.fmt(change)}%")
         
         if sections:
             return "## Market Overview:\n" + "\n".join([f"- {section}" for section in sections])
@@ -149,14 +150,14 @@ class MarketFormatter:
         change_percent = metrics.get('change_percent')
         
         if open_price and close_price:
-            price_sections.append(f"  💰 Price: ${fmt(open_price)} → ${fmt(close_price)}")
+            price_sections.append(f"  💰 Price: ${self.format_utils.fmt(open_price)} → ${self.format_utils.fmt(close_price)}")
         
         if high_price and low_price:
-            price_sections.append(f"  📈 Range: ${fmt(low_price)} - ${fmt(high_price)}")
+            price_sections.append(f"  📈 Range: ${self.format_utils.fmt(low_price)} - ${self.format_utils.fmt(high_price)}")
         
         if change is not None and change_percent is not None:
             direction = "📈" if change >= 0 else "📉"
-            price_sections.append(f"  {direction} Change: ${fmt(change)} ({fmt(change_percent)}%)")
+            price_sections.append(f"  {direction} Change: ${self.format_utils.fmt(change)} ({self.format_utils.fmt(change_percent)}%)")
         
         return price_sections
     
@@ -168,11 +169,11 @@ class MarketFormatter:
         volume_change = metrics.get('volume_change_percent')
         
         if volume is not None:
-            volume_sections.append(f"  📊 Volume: {fmt(volume)}")
+            volume_sections.append(f"  📊 Volume: {self.format_utils.fmt(volume)}")
         
         if volume_change is not None:
             direction = "🔊" if volume_change >= 0 else "🔉"
-            volume_sections.append(f"  {direction} Volume Change: {fmt(volume_change)}%")
+            volume_sections.append(f"  {direction} Volume Change: {self.format_utils.fmt(volume_change)}%")
         
         return volume_sections
     
@@ -187,37 +188,37 @@ class MarketFormatter:
         rsi_change = indicator_changes.get('rsi_change')
         if rsi_change is not None:
             rsi_direction = "📈" if rsi_change >= 0 else "📉"
-            changes_sections.append(f"    • RSI: {rsi_direction} {fmt(abs(rsi_change))} value change")
+            changes_sections.append(f"    • RSI: {rsi_direction} {self.format_utils.fmt(abs(rsi_change))} value change")
         
         # MACD changes (use macd_line which is the main MACD indicator)
         macd_change = indicator_changes.get('macd_line_change')
         if macd_change is not None:
             macd_direction = "📈" if macd_change >= 0 else "📉"
-            changes_sections.append(f"    • MACD Line: {macd_direction} {fmt(abs(macd_change))}")
+            changes_sections.append(f"    • MACD Line: {macd_direction} {self.format_utils.fmt(abs(macd_change))}")
         
         # MACD Histogram changes
         macd_hist_change = indicator_changes.get('macd_hist_change')
         if macd_hist_change is not None:
             macd_hist_direction = "📈" if macd_hist_change >= 0 else "📉"
-            changes_sections.append(f"    • MACD Histogram: {macd_hist_direction} {fmt(abs(macd_hist_change))}")
+            changes_sections.append(f"    • MACD Histogram: {macd_hist_direction} {self.format_utils.fmt(abs(macd_hist_change))}")
         
         # ADX changes
         adx_change = indicator_changes.get('adx_change')
         if adx_change is not None:
             adx_direction = "📈" if adx_change >= 0 else "📉"
-            changes_sections.append(f"    • ADX: {adx_direction} {fmt(abs(adx_change))} value change")
+            changes_sections.append(f"    • ADX: {adx_direction} {self.format_utils.fmt(abs(adx_change))} value change")
         
         # Stochastic %K changes
         stoch_k_change = indicator_changes.get('stoch_k_change')
         if stoch_k_change is not None:
             stoch_direction = "📈" if stoch_k_change >= 0 else "📉"
-            changes_sections.append(f"    • Stochastic %K: {stoch_direction} {fmt(abs(stoch_k_change))} value change")
+            changes_sections.append(f"    • Stochastic %K: {stoch_direction} {self.format_utils.fmt(abs(stoch_k_change))} value change")
         
         # Bollinger Bands position changes
         bb_position_change = indicator_changes.get('bb_position_change')
         if bb_position_change is not None:
             bb_direction = "📈" if bb_position_change >= 0 else "📉"
-            changes_sections.append(f"    • BB Position: {bb_direction} {fmt(abs(bb_position_change))}")
+            changes_sections.append(f"    • BB Position: {bb_direction} {self.format_utils.fmt(abs(bb_position_change))}")
         
         return changes_sections
     
@@ -227,7 +228,7 @@ class MarketFormatter:
         for period in [20, 50, 100, 200]:
             key = f'sma_{period}'
             if key in long_term_data:
-                sma_items.append(f"SMA{period}: {format_value(long_term_data[key])}")
+                sma_items.append(f"SMA{period}: {self.format_utils.format_value(long_term_data[key])}")
         
         if sma_items:
             return "## Simple Moving Averages:\n" + " | ".join(sma_items)
@@ -239,7 +240,7 @@ class MarketFormatter:
         for period in [20, 50]:
             key = f'volume_sma_{period}'
             if key in long_term_data:
-                volume_sma_items.append(f"Vol SMA{period}: {format_value(long_term_data[key])}")
+                volume_sma_items.append(f"Vol SMA{period}: {self.format_utils.format_value(long_term_data[key])}")
         
         if volume_sma_items:
             return "## Volume Moving Averages:\n" + " | ".join(volume_sma_items)
@@ -255,7 +256,7 @@ class MarketFormatter:
                 sma_value = long_term_data[key]
                 percentage = ((current_price - sma_value) / sma_value) * 100
                 direction = "above" if percentage > 0 else "below"
-                position_items.append(f"SMA{period}: {fmt(abs(percentage))}% {direction}")
+                position_items.append(f"SMA{period}: {self.format_utils.fmt(abs(percentage))}% {direction}")
         
         if position_items:
             return "## Price Position vs SMAs:\n" + " | ".join(position_items)
@@ -269,7 +270,7 @@ class MarketFormatter:
         if 'daily_rsi' in long_term_data:
             rsi_val = long_term_data['daily_rsi']
             rsi_status = "Overbought" if rsi_val > 70 else "Oversold" if rsi_val < 30 else "Neutral"
-            indicator_items.append(f"Daily RSI: {format_value(rsi_val)} ({rsi_status})")
+            indicator_items.append(f"Daily RSI: {self.format_utils.format_value(rsi_val)} ({rsi_status})")
         
         # MACD
         if 'daily_macd_line' in long_term_data and 'daily_macd_signal' in long_term_data:
@@ -282,7 +283,7 @@ class MarketFormatter:
         if 'daily_stoch_k' in long_term_data:
             stoch_val = long_term_data['daily_stoch_k']
             stoch_status = "Overbought" if stoch_val > 80 else "Oversold" if stoch_val < 20 else "Neutral"
-            indicator_items.append(f"Daily Stoch: {format_value(stoch_val)} ({stoch_status})")
+            indicator_items.append(f"Daily Stoch: {self.format_utils.format_value(stoch_val)} ({stoch_status})")
         
         if indicator_items:
             return "## Daily Indicators:\n" + " | ".join(indicator_items)
@@ -303,7 +304,7 @@ class MarketFormatter:
         else:
             strength = "Extremely Strong Trend"
         
-        return f"## Trend Strength (Daily ADX): {format_value(adx_val)} ({strength})"
+        return f"## Trend Strength (Daily ADX): {self.format_utils.format_value(adx_val)} ({strength})"
     
     def _format_ichimoku_section(self, long_term_data: dict, current_price: float) -> str:
         """Format Ichimoku cloud analysis."""
@@ -312,11 +313,11 @@ class MarketFormatter:
         # Tenkan and Kijun
         if 'ichimoku_tenkan' in long_term_data:
             tenkan = long_term_data['ichimoku_tenkan']
-            ichimoku_items.append(f"Tenkan: {format_value(tenkan)}")
+            ichimoku_items.append(f"Tenkan: {self.format_utils.format_value(tenkan)}")
         
         if 'ichimoku_kijun' in long_term_data:
             kijun = long_term_data['ichimoku_kijun']
-            ichimoku_items.append(f"Kijun: {format_value(kijun)}")
+            ichimoku_items.append(f"Kijun: {self.format_utils.format_value(kijun)}")
         
         # Cloud analysis
         if 'ichimoku_span_a' in long_term_data and 'ichimoku_span_b' in long_term_data:

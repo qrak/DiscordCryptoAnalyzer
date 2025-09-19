@@ -11,11 +11,6 @@ from src.logger.logger import Logger
 from src.utils.decorators import retry_api_call
 
 
-class CacheData(Dict[str, Any]):
-    """Type for cached data with timestamp and data"""
-    pass
-
-
 class CoinGeckoAPI:
     GLOBAL_API_URL = "https://api.coingecko.com/api/v3/global"
     COINS_LIST_URL = "https://api.coingecko.com/api/v3/coins/list"

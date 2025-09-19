@@ -19,7 +19,6 @@ class AnalysisContext:
         # OHLCV data
         self._ohlcv_candles = None
         self._current_price = None
-        self._latest_update = None
         
         # Indicator data
         self._technical_data = {}
@@ -74,7 +73,6 @@ class AnalysisContext:
         if value is not None and not isinstance(value, np.ndarray):
             raise TypeError("OHLCV data must be a numpy array")
         self._ohlcv_candles = value
-        self._latest_update = datetime.now()
         
     @property
     def current_price(self) -> Optional[float]:

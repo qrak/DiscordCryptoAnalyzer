@@ -3,21 +3,22 @@ HTML generator utility for creating detailed analysis reports.
 """
 import html
 from pathlib import Path
-from src.analyzer.formatting.format_utils import fmt
-
 from src.html.generators.template_processor import TemplateProcessor
 from src.html.generators.chart_section_generator import ChartSectionGenerator
 from src.html.generators.content_link_processor import ContentLinkProcessor
 from src.html.generators.content_formatter import ContentFormatter
+from src.analyzer.formatting.format_utils import FormatUtils
 
 
 class AnalysisHtmlGenerator:
     """Generates HTML files for detailed analysis using specialized components."""
-
+    
     def __init__(self, temp_dir: str = 'temp_analysis/', logger=None):
         self.logger = logger
         self.temp_dir = temp_dir
-        
+        # Format utilities instance for number/timestamp formatting
+        self.format_utils = FormatUtils()
+
         # Initialize specialized components
         self.template_processor = TemplateProcessor(logger)
         self.chart_generator = ChartSectionGenerator(logger)
@@ -226,13 +227,13 @@ class AnalysisHtmlGenerator:
         if bullish_scenario is not None:
             html_parts.append('<div class="discord-scenario bullish">')
             html_parts.append('<div class="discord-scenario-label">Bullish</div>')
-            html_parts.append(f'<div class="discord-scenario-value">${fmt(bullish_scenario)}</div>')
+            html_parts.append(f'<div class="discord-scenario-value">${self.format_utils.fmt(bullish_scenario)}</div>')
             html_parts.append('</div>')
         
         if bearish_scenario is not None:
             html_parts.append('<div class="discord-scenario bearish">')
             html_parts.append('<div class="discord-scenario-label">Bearish</div>')
-            html_parts.append(f'<div class="discord-scenario-value">${fmt(bearish_scenario)}</div>')
+            html_parts.append(f'<div class="discord-scenario-value">${self.format_utils.fmt(bearish_scenario)}</div>')
             html_parts.append('</div>')
         
         html_parts.append('</div>')
@@ -256,14 +257,14 @@ class AnalysisHtmlGenerator:
             html_parts.append('<div class="discord-level-group support">')
             html_parts.append('<div class="discord-level-title support">Support Levels</div>')
             for level in support_levels:
-                html_parts.append(f'<div class="discord-level-value">${fmt(level)}</div>')
+                html_parts.append(f'<div class="discord-level-value">${self.format_utils.fmt(level)}</div>')
             html_parts.append('</div>')
         
         if resistance_levels:
             html_parts.append('<div class="discord-level-group resistance">')
             html_parts.append('<div class="discord-level-title resistance">Resistance Levels</div>')
             for level in resistance_levels:
-                html_parts.append(f'<div class="discord-level-value">${fmt(level)}</div>')
+                html_parts.append(f'<div class="discord-level-value">${self.format_utils.fmt(level)}</div>')
             html_parts.append('</div>')
         
         html_parts.append('</div>')

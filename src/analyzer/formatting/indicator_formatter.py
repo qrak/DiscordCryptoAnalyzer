@@ -6,7 +6,7 @@ from typing import Optional
 
 from ..data.data_processor import DataProcessor
 from src.logger.logger import Logger
-from .format_utils import format_timestamp
+from .format_utils import FormatUtils
 from .market_formatter import MarketFormatter
 
 
@@ -20,10 +20,11 @@ class IndicatorFormatter:
         """Initialize the indicator formatter with consolidated components."""
         self.logger = logger
         self.data_processor = DataProcessor()
+        self.format_utils = FormatUtils()
         
         # Initialize consolidated formatter
         self.market_formatter = MarketFormatter(logger)
-        # Default thresholds for backward compatibility
+        # Default thresholds for indicator analysis
         self.INDICATOR_THRESHOLDS = {
             'rsi': {'oversold': 30, 'overbought': 70},
             'stoch_k': {'oversold': 20, 'overbought': 80},
@@ -36,7 +37,7 @@ class IndicatorFormatter:
     def format_timestamp(self, timestamp_ms) -> str:
         """Format a timestamp from milliseconds since epoch to a human-readable string."""
         try:
-            formatted = format_timestamp(timestamp_ms)
+            formatted = self.format_utils.format_timestamp(timestamp_ms)
             return f"({formatted}) " if formatted != "N/A" else ""
         except (ValueError, TypeError):
             return ""

@@ -78,15 +78,26 @@ class CommandValidator:
     
     def check_analysis_in_progress(self, symbol: str) -> bool:
         """Check if analysis is already in progress for symbol."""
-        return symbol in self.ongoing_analyses
-    
+        is_in_progress = symbol in self.ongoing_analyses
+        if is_in_progress and self.logger:
+            self.logger.debug(f"Analysis already in progress for {symbol}")
+        return is_in_progress
+
     def add_ongoing_analysis(self, symbol: str) -> None:
         """Mark symbol as having analysis in progress."""
+        if symbol in self.ongoing_analyses and self.logger:
+            self.logger.warning(f"Attempt to add ongoing analysis for {symbol} but it's already marked as ongoing - potential race condition")
         self.ongoing_analyses.add(symbol)
-    
+        if self.logger:
+            self.logger.debug(f"Marked {symbol} as having analysis in progress. Current ongoing: {list(self.ongoing_analyses)}")
+
     def remove_ongoing_analysis(self, symbol: str) -> None:
         """Remove symbol from ongoing analyses."""
+        if symbol not in self.ongoing_analyses and self.logger:
+            self.logger.warning(f"Attempt to remove ongoing analysis for {symbol} but it's not marked as ongoing")
         self.ongoing_analyses.discard(symbol)
+        if self.logger:
+            self.logger.debug(f"Removed {symbol} from ongoing analyses. Current ongoing: {list(self.ongoing_analyses)}")
     
     def check_cooldown(self, key: Union[str, int], cooldown_duration: int, 
                       cooldown_dict: Dict[Union[str, int], datetime]) -> Tuple[bool, Optional[str]]:

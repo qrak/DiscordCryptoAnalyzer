@@ -12,7 +12,7 @@ This module provides a clean, logical organization of analysis components:
 
 Key Components:
 - AnalysisEngine: Main analysis orchestrator (formerly MarketAnalyzer)
-- IndicatorCalculator: Technical indicator calculations
+- TechnicalCalculator: Technical indicator calculations
 - TechnicalAnalysisFormatter: Technical analysis output formatting
 - PromptBuilder: AI prompt construction (formerly prompt.py)
  - PromptBuilder: AI prompt construction
@@ -25,7 +25,7 @@ from .core import AnalysisEngine, AnalysisContext, AnalysisResultProcessor
 from .data import MarketDataCollector, DataFetcher, DataProcessor
 
 # Calculation components
-from .calculations import IndicatorCalculator, MarketMetricsCalculator, TechnicalCalculator, PatternAnalyzer
+from .calculations import MarketMetricsCalculator, TechnicalCalculator, PatternAnalyzer
 
 # Formatting components  
 from .formatting import TechnicalFormatter, MarketFormatter, IndicatorFormatter
@@ -48,7 +48,6 @@ __all__ = [
     'DataProcessor',
     
     # Calculations
-    'IndicatorCalculator',
     'MarketMetricsCalculator', 
     'TechnicalCalculator',
     'PatternAnalyzer',

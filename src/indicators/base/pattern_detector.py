@@ -52,12 +52,6 @@ class CrossoverSettings(PatternConfig):
     lookback_periods: int = 5
 
 
-@dataclass
-class ChartPatternSettings(PatternConfig):
-    """Settings for chart pattern detection"""
-    min_pattern_length: int = 10  # Minimum number of candles required for detection context
-
-
 class MarketData:
     """Container for market data used by pattern detectors"""
     def __init__(self, 

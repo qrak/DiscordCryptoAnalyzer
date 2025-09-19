@@ -103,11 +103,6 @@ class CleanupScheduler:
         except Exception as e:
             self.logger.warning(f"Task raised exception during cancellation: {e}")
     
-    def add_deletion_task(self, task: asyncio.Task):
-        """Add a deletion task to the tracking set."""
-        self.deletion_tasks.add(task)
-        task.add_done_callback(self.deletion_tasks.discard)
-    
     def get_task_count(self) -> int:
         """Get the number of active deletion tasks."""
         return len(self.deletion_tasks)

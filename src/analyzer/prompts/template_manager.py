@@ -181,14 +181,12 @@ Use appropriate {language} terminology for technical analysis concepts."""
            - Reference the provided Market Overview data in your analysis
            - Compare the asset's performance with the broader market (market cap %, dominance trends)"""
         
-        # Customize market comparison instructions based on the asset being analyzed
         if "BTC" not in analyzed_base:
             analysis_steps += "\n           - Compare the asset's performance relative to BTC"
         
         if "ETH" not in analyzed_base:
             analysis_steps += "\n           - Compare the asset's performance relative to ETH if relevant"
         
-        # Continue with the rest of the market context integration steps
         analysis_steps += """
            - Consider market sentiment metrics including Fear & Greed Index
            - Analyze if the asset is aligned with or diverging from general market trends

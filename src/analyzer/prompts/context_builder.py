@@ -8,7 +8,8 @@ from datetime import datetime
 from typing import Any, Dict, Optional
 
 from src.logger.logger import Logger
-from ..formatting.format_utils import fmt
+from ..formatting.format_utils import FormatUtils
+from ..formatting.indicator_formatter import IndicatorFormatter
 
 
 class ContextBuilder:
@@ -23,6 +24,8 @@ class ContextBuilder:
         """
         self.timeframe = timeframe
         self.logger = logger
+        self.format_utils = FormatUtils()
+        self.formatter = IndicatorFormatter(logger)
     
     def build_trading_context(self, context) -> str:
         """Build trading context section with current market information.
@@ -120,20 +123,18 @@ class ContextBuilder:
                     low = min([float(candle[3]) for candle in ohlcv_candles[-candle_count:]])
                     
                     # Format very small numbers using the imported fmt function
-                    high_formatted = fmt(high)
-                    low_formatted = fmt(low)
+                    high_formatted = self.format_utils.fmt(high)
+                    low_formatted = self.format_utils.fmt(low)
                     
                     data += f"{period_name}: {change_pct:.2f}% change | High: {high_formatted} | Low: {low_formatted}\n"
 
         return data if data != "MARKET DATA:\n" else ""
     
-    def build_market_period_metrics_section(self, market_metrics: Optional[Dict[str, Any]], 
-                                           indicator_calculator) -> str:
+    def build_market_period_metrics_section(self, market_metrics: Optional[Dict[str, Any]]) -> str:
         """Build market period metrics section.
         
         Args:
             market_metrics: Market metrics data
-            indicator_calculator: Calculator instance for formatting
             
         Returns:
             str: Formatted market period metrics section
@@ -141,17 +142,15 @@ class ContextBuilder:
         if not market_metrics:
             return ""
         
-        return indicator_calculator.format_market_period_metrics(market_metrics)
+        return self.formatter.format_market_period_metrics(market_metrics)
     
     def build_long_term_analysis_section(self, long_term_data: Optional[Dict[str, Any]], 
-                                        current_price: Optional[float],
-                                        indicator_calculator) -> str:
+                                        current_price: Optional[float]) -> str:
         """Build long-term analysis section.
         
         Args:
             long_term_data: Long-term historical data
             current_price: Current asset price
-            indicator_calculator: Calculator instance for formatting
             
         Returns:
             str: Formatted long-term analysis section
@@ -159,15 +158,13 @@ class ContextBuilder:
         if not long_term_data:
             return ""
         
-        return indicator_calculator.format_long_term_analysis(long_term_data, current_price)
+        return self.formatter.format_long_term_analysis(long_term_data, current_price)
     
-    def build_coin_details_section(self, coin_details: Optional[Dict[str, Any]], 
-                                  indicator_calculator) -> str:
+    def build_coin_details_section(self, coin_details: Optional[Dict[str, Any]]) -> str:
         """Build cryptocurrency details section.
         
         Args:
             coin_details: Coin details data including description, taxonomy, and ratings
-            indicator_calculator: Calculator instance for formatting
             
         Returns:
             str: Formatted coin details section
@@ -175,4 +172,4 @@ class ContextBuilder:
         if not coin_details:
             return ""
         
-        return indicator_calculator.format_coin_details_section(coin_details)
+        return self.formatter.format_coin_details_section(coin_details)

@@ -5,7 +5,6 @@ import sys
 class GracefulShutdownManager:
     def __init__(self, loop: asyncio.AbstractEventLoop):
         self.loop = loop
-        self.shutdown_flag = False
 
     def setup_signal_handlers(self):
         if sys.platform != 'win32':
@@ -21,7 +20,6 @@ class GracefulShutdownManager:
 
     async def shutdown_gracefully(self):
         print("Performing graceful shutdown...")
-        self.shutdown_flag = True
         pending_tasks = [t for t in asyncio.all_tasks() if t is not asyncio.current_task() and not t.done()]
         if pending_tasks:
             print(f"Cancelling {len(pending_tasks)} tasks...")

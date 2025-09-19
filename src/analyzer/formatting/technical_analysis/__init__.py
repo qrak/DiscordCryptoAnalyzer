@@ -1,6 +1,6 @@
 """
 Technical analysis formatting components.
-Simplified to use consolidated formatters (backward compatibility maintained).
+Simplified to use consolidated formatters.
 """
 
 from ..technical_formatter import TechnicalFormatter as TechnicalAnalysisFormatter

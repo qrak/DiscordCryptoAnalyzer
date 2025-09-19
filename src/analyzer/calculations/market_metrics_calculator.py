@@ -2,22 +2,18 @@ from typing import Dict, List
 import numpy as np
 
 from src.logger.logger import Logger
-from .indicator_calculator import IndicatorCalculator
 
 
 class MarketMetricsCalculator:
     """Handles calculation of market metrics and technical pattern detection"""
     
-    def __init__(self, logger: Logger, indicator_calculator: IndicatorCalculator = None):
+    def __init__(self, logger: Logger):
         """Initialize the calculator
         
         Args:
             logger: Logger instance
-            indicator_calculator: Optional indicator calculator instance for reuse
         """
         self.logger = logger
-        # Initialize indicator calculator if not provided
-        self.indicator_calculator = indicator_calculator or IndicatorCalculator(logger=logger)
     
     def update_period_metrics(self, data: List, context) -> None:
         """Calculate and update market metrics for different time periods"""

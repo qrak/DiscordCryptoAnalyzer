@@ -1,7 +1,4 @@
-import asyncio
 from typing import Optional, Dict, Any, List, TypedDict, cast
-
-import aiohttp
 
 from src.platforms.ai_providers.base import BaseApiClient
 from src.utils.decorators import retry_api_call
@@ -9,9 +6,7 @@ from src.utils.decorators import retry_api_call
 
 class ResponseDict(TypedDict, total=False):
     """Type for API responses."""
-    choices: List[Dict[str, Any]]
     error: str
-    details: str
 
 
 class OpenRouterClient(BaseApiClient):

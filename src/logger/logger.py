@@ -70,8 +70,6 @@ class Logger(logging.Logger):
             self.log_dir = log_dir
             
         self.date_format = "%d.%m.%Y %H:%M:%S"
-        
-        self.original_logger_name = logger_name
 
         self._setup_logger()
         self.debug(f"Logger {sanitized_name} initialized with log directory: {self.log_dir}")
@@ -130,7 +128,7 @@ class Logger(logging.Logger):
         file_handler.setLevel(self.level)
         file_handler.setFormatter(self._plain_formatter())
         file_handler.namer = lambda name: name.replace(".log", "") + ".log"
-        file_handler.rotator = lambda source, dest: self._log_rotator(source, is_error=False)
+        file_handler.rotator = lambda source, _dest: self._log_rotator(source, is_error=False)
         self.addHandler(file_handler)
 
     def _add_error_file_handler(self, error_log_dir):
@@ -149,7 +147,7 @@ class Logger(logging.Logger):
         error_file_handler.setLevel(logging.ERROR)
         error_file_handler.setFormatter(self._plain_formatter())
         error_file_handler.namer = lambda name: name.replace(".log", "") + ".log"
-        error_file_handler.rotator = lambda source, dest: self._log_rotator(source, is_error=True)
+        error_file_handler.rotator = lambda source, _dest: self._log_rotator(source, is_error=True)
         self.addHandler(error_file_handler)
 
     def _log_rotator(self, source, is_error=False):

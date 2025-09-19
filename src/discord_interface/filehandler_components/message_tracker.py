@@ -16,7 +16,6 @@ class MessageTracker:
         self.persistence = persistence_handler
         self.logger = logger
         self._tracking_lock = asyncio.Lock()
-        self._message_deletion_tasks: Dict[int, asyncio.Task] = {}
     
     async def track_message(self, message_id: int, channel_id: int, user_id: int, 
                           message_type: str = "general", expire_after: Optional[int] = None) -> bool:
@@ -106,12 +105,3 @@ class MessageTracker:
             "expired_count": expired_count,
             "active_count": total_tracked - expired_count
         }
-    
-    def add_deletion_task(self, message_id: int, task: asyncio.Task):
-        """Track a deletion task for a specific message."""
-        self._message_deletion_tasks[message_id] = task
-        task.add_done_callback(lambda t: self._message_deletion_tasks.pop(message_id, None))
-    
-    def get_active_deletion_tasks(self) -> int:
-        """Get count of active deletion tasks."""
-        return len(self._message_deletion_tasks)

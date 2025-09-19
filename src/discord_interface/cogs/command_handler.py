@@ -66,35 +66,38 @@ class CommandHandler(commands.Cog):
             return await ctx.send(content, **kwargs)
 
     @commands.command(name='analyze')
-    async def analyze_command(self, ctx: commands.Context, symbol_arg: Optional[str] = None, lang_arg: Optional[str] = None) -> None:
+    async def analyze_command(self, ctx: commands.Context, *, args: Optional[str] = None) -> None:
         """Initiates market analysis for a given trading pair."""
         await self.track_user_command(ctx)
 
-        # Perform all validation checks
-        validation_result = await self._validate_analysis_request(ctx)
-        if not validation_result.is_valid:
-            await self.send_tracked_message(ctx, validation_result.error_message)
-            return
+        async with self._command_lock:
+            if self.logger:
+                self.logger.debug(f"Processing analysis command for {ctx.message.content} from user {ctx.author.id}")
 
-        symbol = validation_result.symbol
-        language = validation_result.language
+            validation_result = await self._validate_analysis_request(ctx)
+            if not validation_result.is_valid:
+                await self.send_tracked_message(ctx, validation_result.error_message)
+                return
 
-        # Mark analysis as in progress and start workflow
-        self.validator.add_ongoing_analysis(symbol)
-        
-        # Create and send confirmation embed
-        embed = self.response_builder.build_analysis_embed(symbol, ctx.author, language)
-        confirmation_message = await self.send_tracked_message(ctx, "", embed=embed)
+            symbol = validation_result.symbol
+            language = validation_result.language
 
-        # Track analysis request
-        self.analysis_handler.add_analysis_request(symbol, confirmation_message, ctx.author, ctx.channel, language)
+            self.validator.add_ongoing_analysis(symbol)
 
-        # Create and start analysis task
-        analysis_task = self.bot.loop.create_task(
-            self._perform_analysis_workflow(symbol, ctx, language),
-            name=f"Analysis-{symbol}"
-        )
-        # Task will complete on its own, no need to track it here
+            if self.logger:
+                self.logger.info(f"Analysis initiated: {symbol}, User: {ctx.author.id}, Language: {language or 'English'}")
+
+            embed = self.response_builder.build_analysis_embed(symbol, ctx.author, language)
+            confirmation_message = await self.send_tracked_message(ctx, "", embed=embed)
+
+            self.analysis_handler.add_analysis_request(symbol, confirmation_message, ctx.author, ctx.channel, language)
+
+            # Create and track the analysis task
+            analysis_task = self.bot.loop.create_task(
+                self._perform_analysis_workflow(symbol, ctx, language),
+                name=f"Analysis-{symbol}"
+            )
+            self.analysis_handler._analysis_tasks.add(analysis_task)
 
     async def _validate_analysis_request(self, ctx: commands.Context):
         """Validate analysis request and return ValidationResult."""

@@ -7,7 +7,8 @@ from src.platforms.coingecko import CoinGeckoAPI
 from .analysis_context import AnalysisContext
 from ..publishing.analysis_publisher import AnalysisPublisher
 from .analysis_result_processor import AnalysisResultProcessor
-from ..calculations.indicator_calculator import IndicatorCalculator
+from ..calculations.technical_calculator import TechnicalCalculator
+from ..calculations.pattern_analyzer import PatternAnalyzer
 from ..data.market_data_collector import MarketDataCollector
 from ..calculations.market_metrics_calculator import MarketMetricsCalculator
 from ..prompts.prompt_builder import PromptBuilder
@@ -50,11 +51,12 @@ class AnalysisEngine:
 
         # Initialize specialized components
         self.model_manager = ModelManager(logger)
-        self.indicator_calculator = IndicatorCalculator(logger=logger)
+        self.technical_calculator = TechnicalCalculator(logger=logger)
+        self.pattern_analyzer = PatternAnalyzer(logger=logger)
         self.prompt_builder = PromptBuilder(
             timeframe=self.timeframe, 
             logger=logger,
-            indicator_calculator=self.indicator_calculator
+            technical_calculator=self.technical_calculator
         )
         self.html_generator = AnalysisHtmlGenerator(logger=logger)
         self.chart_generator = ChartGenerator(logger=logger)
@@ -68,8 +70,7 @@ class AnalysisEngine:
         
         # Pass indicator_calculator to metrics_calculator to reduce code duplication
         self.metrics_calculator = MarketMetricsCalculator(
-            logger=logger,
-            indicator_calculator=self.indicator_calculator
+            logger=logger
         )
         
         self.result_processor = AnalysisResultProcessor(
@@ -190,7 +191,7 @@ class AnalysisEngine:
             self.metrics_calculator.update_period_metrics(data, self.context)
             
             # Step 5: Run technical pattern analysis
-            technical_patterns = self.indicator_calculator.detect_patterns(
+            technical_patterns = self.pattern_analyzer.detect_patterns(
                 self.context.ohlcv_candles,
                 self.context.technical_history
             )
@@ -293,8 +294,8 @@ class AnalysisEngine:
             return {"error": str(e), "recommendation": "HOLD"}
 
     async def _calculate_technical_indicators(self) -> None:
-        """Calculate technical indicators using the indicator calculator"""
-        indicators = self.indicator_calculator.get_indicators(self.context.ohlcv_candles)
+        """Calculate technical indicators using the technical calculator"""
+        indicators = self.technical_calculator.get_indicators(self.context.ohlcv_candles)
         
         # Store history in context
         self.context.technical_history = indicators
@@ -350,7 +351,7 @@ class AnalysisEngine:
             
         try:
             # Get long-term indicators and metrics
-            long_term_indicators = self.indicator_calculator.get_long_term_indicators(
+            long_term_indicators = self.technical_calculator.get_long_term_indicators(
                 self.context.long_term_data['data']
             )
             
