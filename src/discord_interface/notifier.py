@@ -230,11 +230,18 @@ class DiscordNotifier:
             return None
 
         try:
-            sent_message = await channel.send(content=message[:2000], file=file, embed=embed)
+            # Use Discord's built-in timed deletion for faster cleanup
+            delete_after = float(expire_after) if expire_after is not None else None
+            sent_message = await channel.send(
+                content=message[:2000],
+                file=file,
+                embed=embed,
+                delete_after=delete_after
+            )
             
             message_type = "file" if file else ("embed" if embed else "message")
             
-            # Track the message for deletion
+            # Track the message for deletion (belt-and-suspenders with delete_after)
             await self.file_handler.track_message(
                 message_id=sent_message.id,
                 channel_id=channel_id,

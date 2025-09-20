@@ -76,12 +76,18 @@ class CommandHandler(commands.Cog):
 
             # Disallow multiple concurrent analyses from the same user
             if self.analysis_handler.is_user_in_progress(ctx.author.id):
-                await self.send_tracked_message(ctx, f"⏳ {ctx.author.mention}, you already have an analysis running. Please wait for it to finish.")
+                # Short-lived notice (2 minutes) so it gets auto-deleted quickly
+                await self.send_tracked_message(
+                    ctx,
+                    f"⏳ {ctx.author.mention}, you already have an analysis running. Please wait for it to finish.",
+                    expire_after=120
+                )
                 return
 
             validation_result = await self._validate_analysis_request(ctx)
             if not validation_result.is_valid:
-                await self.send_tracked_message(ctx, validation_result.error_message)
+                # Validation messages should also be short-lived (5 minutes)
+                await self.send_tracked_message(ctx, validation_result.error_message, expire_after=300)
                 return
 
             symbol = validation_result.symbol
