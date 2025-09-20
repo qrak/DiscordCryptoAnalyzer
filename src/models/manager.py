@@ -114,38 +114,108 @@ class ModelManager:
     
     async def send_prompt_with_chart_analysis(self, prompt: str, chart_image: Union[io.BytesIO, bytes, str], 
                                             system_message: str = None) -> str:
-        """Send a prompt with chart image for pattern analysis (Google AI only)"""
-        if not self.google_client:
-            self.logger.warning("Chart analysis requested but Google AI client not available. Falling back to text-only analysis.")
-            raise ValueError("Chart analysis unavailable - no Google AI client")
+        """Send a prompt with chart image for pattern analysis"""
+        messages = self._prepare_messages(prompt, system_message)
         
+        # Use the fallback system for chart analysis based on provider configuration
+        if self.provider == "all":
+            response_json = await self._get_chart_analysis_fallback_response(messages, chart_image)
+        elif self.provider == "googleai" and self.google_client:
+            response_json = await self._try_google_chart_analysis_only(messages, chart_image)
+        elif self.provider == "openrouter" and self.openrouter_client:
+            response_json = await self._try_openrouter_chart_analysis_only(messages, chart_image)
+        elif self.provider == "local" and self.lm_studio_client:
+            # Local models typically don't support images - fall back to text-only
+            self.logger.warning("Chart analysis requested but local provider doesn't support images. Falling back to text-only analysis.")
+            raise ValueError("Chart analysis unavailable - local models don't support images")
+        else:
+            self.logger.error(f"Chart analysis not supported for provider '{self.provider}' or client not available")
+            raise ValueError(f"Chart analysis unavailable - provider '{self.provider}' not supported")
+        
+        if self._is_valid_response(response_json):
+            return self._process_response(response_json)
+        else:
+            self.logger.warning("Chart analysis failed. Falling back to text-only analysis.")
+            raise ValueError("Chart analysis failed - invalid response")
+
+    async def _get_chart_analysis_fallback_response(self, messages: List[Dict[str, str]], chart_image: Union[io.BytesIO, bytes, str]) -> Dict[str, Any]:
+        """Chart analysis fallback logic when provider is 'all'"""
+        # Start with Google AI Studio for chart analysis
+        if self.google_client:
+            self.logger.info(f"Attempting chart analysis with Google AI Studio model: {config.GOOGLE_STUDIO_MODEL}")
+            try:
+                response_json = await self.google_client.chat_completion_with_chart_analysis(
+                    messages, chart_image, self.google_config
+                )
+                if self._is_valid_response(response_json):
+                    return response_json
+                else:
+                    self.logger.warning(f"Google AI Studio chart analysis failed. Trying OpenRouter...")
+            except Exception as e:
+                self.logger.warning(f"Google AI Studio chart analysis failed: {str(e)}. Trying OpenRouter...")
+
+        # Try OpenRouter as second option for chart analysis
+        if self.openrouter_client:
+            self.logger.info(f"Attempting chart analysis with OpenRouter model: {config.OPENROUTER_BASE_MODEL}")
+            try:
+                response_json = await self.openrouter_client.chat_completion_with_chart_analysis(
+                    config.OPENROUTER_BASE_MODEL, messages, chart_image, self.openrouter_config
+                )
+                if self._is_valid_response(response_json) and not self._rate_limited(response_json):
+                    return response_json
+                else:
+                    self.logger.warning(f"OpenRouter chart analysis failed or rate limited.")
+            except Exception as e:
+                self.logger.warning(f"OpenRouter chart analysis failed: {str(e)}")
+
+        # No chart analysis available - return error
+        return cast(ResponseDict, {"error": "No chart analysis providers available"})
+
+    async def _try_google_chart_analysis_only(self, messages: List[Dict[str, str]], chart_image: Union[io.BytesIO, bytes, str]) -> Dict[str, Any]:
+        """Use Google AI Studio only for chart analysis"""
+        self.logger.info(f"Using Google AI Studio chart analysis with model: {config.GOOGLE_STUDIO_MODEL}")
         try:
-            messages = self._prepare_messages(prompt, system_message)
-            
-            self.logger.info("Sending prompt with chart image to Google AI for pattern analysis")
-            
-            # Use the new chart analysis method
             response_json = await self.google_client.chat_completion_with_chart_analysis(
                 messages, chart_image, self.google_config
             )
-            
-            if self._is_valid_response(response_json):
-                return self._process_response(response_json)
-            else:
-                self.logger.warning("Google AI chart analysis failed. Falling back to text-only analysis.")
-                raise ValueError("Chart analysis failed - invalid response")
-        
-        except ValueError:
-            # Re-raise ValueError (our custom exceptions)
-            raise
+            if not self._is_valid_response(response_json):
+                self.logger.error("Google AI Studio chart analysis failed or returned invalid response")
+                error_detail = response_json.get("error", "Unknown Google API failure") if response_json else "No response from Google API"
+                return cast(ResponseDict, {"error": f"Google AI Studio chart analysis failed: {error_detail}"})
+            return response_json
         except Exception as e:
-            self.logger.error(f"Error during chart analysis: {str(e)}. Falling back to text-only analysis.")
-            raise ValueError(f"Chart analysis exception: {str(e)}")
+            self.logger.error(f"Google AI Studio chart analysis failed: {str(e)}")
+            return cast(ResponseDict, {"error": f"Google AI Studio chart analysis failed: {str(e)}"})
+
+    async def _try_openrouter_chart_analysis_only(self, messages: List[Dict[str, str]], chart_image: Union[io.BytesIO, bytes, str]) -> Dict[str, Any]:
+        """Use OpenRouter only for chart analysis"""
+        self.logger.info(f"Using OpenRouter chart analysis with model: {config.OPENROUTER_BASE_MODEL}")
+        try:
+            response_json = await self.openrouter_client.chat_completion_with_chart_analysis(
+                config.OPENROUTER_BASE_MODEL, messages, chart_image, self.openrouter_config
+            )
+            if not self._is_valid_response(response_json) or self._rate_limited(response_json):
+                self.logger.error("OpenRouter chart analysis failed or returned invalid response")
+                error_detail = response_json.get("error", "Unknown OpenRouter failure") if response_json else "No response from OpenRouter"
+                return cast(ResponseDict, {"error": f"OpenRouter chart analysis failed: {error_detail}"})
+            return response_json
+        except Exception as e:
+            self.logger.error(f"OpenRouter chart analysis failed: {str(e)}")
+            return cast(ResponseDict, {"error": f"OpenRouter chart analysis failed: {str(e)}"})
         
     def supports_image_analysis(self) -> bool:
         """Check if current configuration supports image analysis"""
-        return (self.provider in ["googleai", "all"] and 
-                self.google_client is not None)
+        # Google AI and OpenRouter both support image analysis
+        if self.provider == "all":
+            return (self.google_client is not None or self.openrouter_client is not None)
+        elif self.provider == "googleai":
+            return self.google_client is not None
+        elif self.provider == "openrouter":
+            return self.openrouter_client is not None
+        elif self.provider == "local":
+            # Local models typically don't support image analysis
+            return False
+        return False
         
     def _prepare_messages(self, prompt: str, system_message: Optional[str] = None) -> List[Dict[str, str]]:
         """Prepare message structure and track tokens"""
