@@ -107,21 +107,28 @@ class Config:
     
     def _build_model_configs(self):
         """Build model configuration dictionaries as instance variables."""
-        # Default model configuration
+        default_max_tokens = self.get_config('model_config', 'max_tokens', None)
+        if default_max_tokens is None:
+            raise RuntimeError("`max_tokens` is required in [model_config] of config.ini")
+
         self._default_model_config = {
-            "temperature": self.get_config('model_config', 'temperature', 0.7),
-            "top_p": self.get_config('model_config', 'top_p', 0.9),
-            "freq_penalty": self.get_config('model_config', 'freq_penalty', 0.1),
-            "pres_penalty": self.get_config('model_config', 'pres_penalty', 0.1),
-            "max_tokens": self.get_config('model_config', 'max_tokens', 16000)
+            "temperature": self.get_config('model_config', 'temperature', None),
+            "top_p": self.get_config('model_config', 'top_p', None),
+            "top_k": self.get_config('model_config', 'top_k', None),
+            "freq_penalty": self.get_config('model_config', 'freq_penalty', None),
+            "pres_penalty": self.get_config('model_config', 'pres_penalty', None),
+            "max_tokens": default_max_tokens
         }
-        
-        # Google-specific model configuration
+
+        google_max_tokens = self.get_config('model_config', 'google_max_tokens', None)
+        if google_max_tokens is None:
+            raise RuntimeError("`google_max_tokens` is required in [model_config] of config.ini when using Google models")
+
         self._google_model_config = {
-            "temperature": self.get_config('model_config', 'google_temperature', 0.7),
-            "top_p": self.get_config('model_config', 'google_top_p', 0.9),
-            "top_k": self.get_config('model_config', 'google_top_k', 40),
-            "max_tokens": self.get_config('model_config', 'google_max_tokens', 32768)
+            "temperature": self.get_config('model_config', 'google_temperature', None),
+            "top_p": self.get_config('model_config', 'google_top_p', None),
+            "top_k": self.get_config('model_config', 'google_top_k', None),
+            "max_tokens": google_max_tokens
         }
     
     def get_env(self, key: str, default: Any = None) -> Any:
@@ -302,17 +309,20 @@ class Config:
         Returns:
             A dictionary with configuration parameters
         """
-        # Use Google-specific config for Google models
-        if 'gemini' in model_name.lower():
-            config_dict = self._google_model_config.copy()
+        if self._is_google_model(model_name):
+            base = self._google_model_config.copy()
         else:
-            config_dict = self._default_model_config.copy()
-        
-        # Apply any overrides
+            base = self._default_model_config.copy()
+
         if overrides:
-            config_dict.update(overrides)
-            
-        return config_dict
+            base.update(overrides)
+
+        cleaned = {k: v for k, v in base.items() if v is not None}
+        return cleaned
+
+    def _is_google_model(self, model_name: str) -> bool:
+        """Determine if a model should use Google-specific configuration."""
+        return model_name == self.GOOGLE_STUDIO_MODEL
 
 
 # Create global config instance
