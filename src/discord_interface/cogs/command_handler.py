@@ -74,6 +74,11 @@ class CommandHandler(commands.Cog):
             if self.logger:
                 self.logger.debug(f"Processing analysis command for {ctx.message.content} from user {ctx.author.id}")
 
+            # Disallow multiple concurrent analyses from the same user
+            if self.analysis_handler.is_user_in_progress(ctx.author.id):
+                await self.send_tracked_message(ctx, f"⏳ {ctx.author.mention}, you already have an analysis running. Please wait for it to finish.")
+                return
+
             validation_result = await self._validate_analysis_request(ctx)
             if not validation_result.is_valid:
                 await self.send_tracked_message(ctx, validation_result.error_message)
@@ -83,6 +88,7 @@ class CommandHandler(commands.Cog):
             language = validation_result.language
 
             self.validator.add_ongoing_analysis(symbol)
+            self.analysis_handler.add_user_in_progress(ctx.author.id)
 
             if self.logger:
                 self.logger.info(f"Analysis initiated: {symbol}, User: {ctx.author.id}, Language: {language or 'English'}")
@@ -152,6 +158,11 @@ class CommandHandler(commands.Cog):
             await self.error_handler.handle_analysis_error(symbol, e, self.send_tracked_message, ctx)
         finally:
             self.validator.remove_ongoing_analysis(symbol)
+            # Clear per-user in-progress state
+            try:
+                self.analysis_handler.remove_user_in_progress(ctx.author.id)
+            except Exception:
+                pass
             await self._cleanup_analysis_request(symbol)
 
     async def _cleanup_analysis_request(self, symbol: str) -> None:
