@@ -33,10 +33,10 @@ class ContentFormatter:
                     self.logger.warning(f"Content too large ({len(content)} chars), truncating to 500KB")
                 content = content[:500000] + "\n\n... (content truncated for performance)"
             
-            # Simple markdown conversion - no table fixing bullshit
+            # Convert markdown to HTML with table support
             html_content = markdown.markdown(
                 content,
-                extensions=['fenced_code', 'nl2br']  # Removed 'tables' extension
+                extensions=['fenced_code', 'nl2br', 'tables']
             )
             
             return html_content
