@@ -4,6 +4,7 @@ Supports both HTML output for web display and PNG images for AI pattern analysis
 """
 import io
 import os
+import time
 from datetime import datetime
 from typing import Dict, List, Any, Optional, Union, Callable
 
@@ -64,6 +65,50 @@ class ChartGenerator:
             else:
                 return f"{val:.2f}"
         return "N/A"
+    
+    def _retry_image_export(self, fig: go.Figure, format: str, width: int, height: int, scale: int, max_retries: int = 3) -> bytes:
+        """Retry image export with exponential backoff to handle kaleido/choreographer issues.
+        
+        Args:
+            fig: Plotly figure to export
+            format: Image format (e.g., "png")
+            width: Image width
+            height: Image height
+            scale: Image scale factor
+            max_retries: Maximum number of retry attempts
+            
+        Returns:
+            Image bytes
+            
+        Raises:
+            Exception: If all retry attempts fail
+        """
+        last_exception = None
+        
+        for attempt in range(max_retries):
+            try:
+                if self.logger and attempt > 0:
+                    self.logger.debug(f"Retry attempt {attempt + 1}/{max_retries} for image export")
+                
+                img_bytes = fig.to_image(format=format, width=width, height=height, scale=scale)
+                
+                if self.logger and attempt > 0:
+                    self.logger.info(f"Image export succeeded on retry attempt {attempt + 1}")
+                
+                return img_bytes
+                
+            except Exception as e:
+                last_exception = e
+                if self.logger:
+                    self.logger.warning(f"Image export attempt {attempt + 1}/{max_retries} failed: {str(e)}")
+                
+                if attempt < max_retries - 1:
+                    wait_time = (2 ** attempt) * 0.5
+                    if self.logger:
+                        self.logger.debug(f"Waiting {wait_time}s before retry...")
+                    time.sleep(wait_time)
+        
+        raise last_exception
         
     def _create_base_chart(
         self,
@@ -405,8 +450,8 @@ class ChartGenerator:
         try:
             fig = self._create_simple_candlestick_chart(ohlcv, pair_symbol, timeframe, height, width)
             
-            # Generate the image with reduced scale for better file size while maintaining readability
-            img_bytes = fig.to_image(format="png", width=width, height=height, scale=2)
+            # Generate the image with retry logic to handle kaleido/choreographer issues
+            img_bytes = self._retry_image_export(fig, format="png", width=width, height=height, scale=2)
             
             if save_to_disk:
                 # Save to disk for testing purposes
