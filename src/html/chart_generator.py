@@ -5,6 +5,7 @@ Supports both HTML output for web display and PNG images for AI pattern analysis
 import io
 import os
 import time
+import threading
 from datetime import datetime
 from typing import Dict, List, Any, Optional, Union, Callable
 
@@ -66,7 +67,45 @@ class ChartGenerator:
                 return f"{val:.2f}"
         return "N/A"
     
-    def _retry_image_export(self, fig: go.Figure, format: str, width: int, height: int, scale: int, max_retries: int = 3) -> bytes:
+    def _image_export_with_timeout(self, fig: go.Figure, format: str, width: int, height: int, scale: int, timeout: int = 30) -> bytes:
+        """Execute image export with a timeout to prevent indefinite hangs.
+        
+        Args:
+            fig: Plotly figure to export
+            format: Image format (e.g., "png")
+            width: Image width
+            height: Image height
+            scale: Image scale factor
+            timeout: Timeout in seconds (default: 30)
+            
+        Returns:
+            Image bytes
+            
+        Raises:
+            TimeoutError: If export takes longer than timeout
+            Exception: If export fails for other reasons
+        """
+        result = {'img_bytes': None, 'exception': None}
+        
+        def export_worker():
+            try:
+                result['img_bytes'] = fig.to_image(format=format, width=width, height=height, scale=scale)
+            except Exception as e:
+                result['exception'] = e
+        
+        thread = threading.Thread(target=export_worker, daemon=True)
+        thread.start()
+        thread.join(timeout=timeout)
+        
+        if thread.is_alive():
+            raise TimeoutError(f"Image export timed out after {timeout} seconds (kaleido may be hanging)")
+        
+        if result['exception']:
+            raise result['exception']
+        
+        return result['img_bytes']
+    
+    def _retry_image_export(self, fig: go.Figure, format: str, width: int, height: int, scale: int, max_retries: int = 3, timeout: int = 30) -> bytes:
         """Retry image export with exponential backoff to handle kaleido/choreographer issues.
         
         Args:
@@ -76,6 +115,7 @@ class ChartGenerator:
             height: Image height
             scale: Image scale factor
             max_retries: Maximum number of retry attempts
+            timeout: Timeout in seconds for each attempt (default: 30)
             
         Returns:
             Image bytes
@@ -90,7 +130,7 @@ class ChartGenerator:
                 if self.logger and attempt > 0:
                     self.logger.debug(f"Retry attempt {attempt + 1}/{max_retries} for image export")
                 
-                img_bytes = fig.to_image(format=format, width=width, height=height, scale=scale)
+                img_bytes = self._image_export_with_timeout(fig, format, width, height, scale, timeout)
                 
                 if self.logger and attempt > 0:
                     self.logger.info(f"Image export succeeded on retry attempt {attempt + 1}")

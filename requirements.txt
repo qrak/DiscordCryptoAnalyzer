@@ -17,4 +17,4 @@ pytz==2025.2
 google-genai==1.34.0
 Pillow==11.3.0
 python-dotenv>=1.0.0
-kaleido==0.2.1
+kaleido==1.1.0
