@@ -31,7 +31,12 @@ class MarketFormatter:
         
         sections = []
         
-        for period, metrics in market_metrics.items():
+        for period, period_data in market_metrics.items():
+            if not period_data:
+                continue
+            
+            # Extract metrics from nested structure
+            metrics = period_data.get('metrics', {})
             if not metrics:
                 continue
                 
@@ -40,9 +45,9 @@ class MarketFormatter:
             period_sections.extend(self._format_period_volume_section(metrics))
             
             # Add indicator changes if available
-            if 'indicator_changes' in metrics:
+            if 'indicator_changes' in period_data:
                 period_sections.extend(self._format_indicator_changes_section(
-                    metrics['indicator_changes'], period
+                    period_data['indicator_changes'], period
                 ))
             
             if period_sections:
@@ -141,23 +146,22 @@ class MarketFormatter:
         """Format price-related metrics for a period."""
         price_sections = []
         
-        # Price movements
-        open_price = metrics.get('open')
-        high_price = metrics.get('high')
-        low_price = metrics.get('low')
-        close_price = metrics.get('close')
-        change = metrics.get('change')
-        change_percent = metrics.get('change_percent')
+        # Get basic metrics (from _calculate_basic_metrics structure)
+        highest_price = metrics.get('highest_price')
+        lowest_price = metrics.get('lowest_price')
+        price_change = metrics.get('price_change')
+        price_change_percent = metrics.get('price_change_percent')
+        avg_price = metrics.get('avg_price')
         
-        if open_price and close_price:
-            price_sections.append(f"  💰 Price: ${self.format_utils.fmt(open_price)} → ${self.format_utils.fmt(close_price)}")
+        if avg_price is not None:
+            price_sections.append(f"  💰 Average Price: ${self.format_utils.fmt(avg_price)}")
         
-        if high_price and low_price:
-            price_sections.append(f"  📈 Range: ${self.format_utils.fmt(low_price)} - ${self.format_utils.fmt(high_price)}")
+        if highest_price and lowest_price:
+            price_sections.append(f"  📈 Range: ${self.format_utils.fmt(lowest_price)} - ${self.format_utils.fmt(highest_price)}")
         
-        if change is not None and change_percent is not None:
-            direction = "📈" if change >= 0 else "📉"
-            price_sections.append(f"  {direction} Change: ${self.format_utils.fmt(change)} ({self.format_utils.fmt(change_percent)}%)")
+        if price_change is not None and price_change_percent is not None:
+            direction = "📈" if price_change >= 0 else "📉"
+            price_sections.append(f"  {direction} Change: ${self.format_utils.fmt(price_change)} ({self.format_utils.fmt(price_change_percent)}%)")
         
         return price_sections
     
@@ -165,15 +169,14 @@ class MarketFormatter:
         """Format volume-related metrics for a period."""
         volume_sections = []
         
-        volume = metrics.get('volume')
-        volume_change = metrics.get('volume_change_percent')
+        total_volume = metrics.get('total_volume')
+        avg_volume = metrics.get('avg_volume')
         
-        if volume is not None:
-            volume_sections.append(f"  📊 Volume: {self.format_utils.fmt(volume)}")
+        if total_volume is not None:
+            volume_sections.append(f"  📊 Total Volume: {self.format_utils.fmt(total_volume)}")
         
-        if volume_change is not None:
-            direction = "🔊" if volume_change >= 0 else "🔉"
-            volume_sections.append(f"  {direction} Volume Change: {self.format_utils.fmt(volume_change)}%")
+        if avg_volume is not None:
+            volume_sections.append(f"  📊 Average Volume: {self.format_utils.fmt(avg_volume)}")
         
         return volume_sections
     
@@ -350,10 +353,17 @@ class MarketFormatter:
         price_above_200sma = macro_trend.get('price_above_200sma', False)
         golden_cross = macro_trend.get('golden_cross', False)
         death_cross = macro_trend.get('death_cross', False)
+        long_term_price_change_pct = macro_trend.get('long_term_price_change_pct')
         
         # Build status indicators
         status_parts = []
         status_parts.append(f"Trend: {trend_direction}")
+        
+        # Add price change if available
+        if long_term_price_change_pct is not None:
+            change_sign = "+" if long_term_price_change_pct >= 0 else ""
+            status_parts.append(f"365D Change: {change_sign}{self.format_utils.fmt(long_term_price_change_pct)}%")
+        
         status_parts.append(f"SMA Alignment: {sma_alignment}")
         status_parts.append(f"50vs200 SMA: {sma_50_vs_200}")
         status_parts.append(f"Price>200SMA: {'✓' if price_above_200sma else '✗'}")

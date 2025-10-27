@@ -32,9 +32,12 @@ class MarketMetricsCalculator:
             "30D": 720
         }
         
+        self.logger.debug(f"Total candles available for period metrics: {len(data)}")
+        
         try:
             for period_name, required_candles in periods.items():
                 if len(data) >= required_candles:
+                    self.logger.debug(f"Calculating full {period_name} metrics with {required_candles} candles")
                     period_metrics[period_name] = self._calculate_period_metrics(data[-required_candles:], period_name, context)
                 else:
                     if period_name in ["1D", "2D", "3D"]:
@@ -47,7 +50,20 @@ class MarketMetricsCalculator:
                         self.logger.warning(f"Insufficient data for 30D metrics. Only {len(data)} candles available, need 720")
                         period_metrics["30D"] = self._calculate_period_metrics(data, "30D (Partial)", context)
                     else:
-                        self.logger.warning(f"Cannot calculate {period_name} metrics - not enough data")
+                        self.logger.warning(f"Cannot calculate {period_name} metrics - not enough data (need {required_candles}, have {len(data)})")
+            
+            # Log what was calculated
+            for period_name, metrics_data in period_metrics.items():
+                if metrics_data and 'metrics' in metrics_data:
+                    basic_metrics = metrics_data['metrics']
+                    self.logger.debug(f"{period_name}: price_change={basic_metrics.get('price_change')}, "
+                                     f"price_change_percent={basic_metrics.get('price_change_percent')}%, "
+                                     f"data_points={basic_metrics.get('data_points')}")
+                    if 'indicator_changes' in metrics_data:
+                        ind_changes = metrics_data['indicator_changes']
+                        rsi_change = ind_changes.get('rsi_change', 'N/A')
+                        macd_change = ind_changes.get('macd_line_change', 'N/A')
+                        self.logger.debug(f"{period_name} indicator changes: RSI={rsi_change}, MACD={macd_change}")
             
             context.market_metrics = period_metrics
         
@@ -146,9 +162,12 @@ class MarketMetricsCalculator:
         indicator_changes = {}
         
         if not hasattr(context, 'technical_history'):
+            self.logger.debug("No technical_history available in context")
             return indicator_changes
             
         history = context.technical_history
+        self.logger.debug(f"Calculating indicator changes from index {start_idx} to {end_idx}")
+        self.logger.debug(f"Available indicators in technical_history: {list(history.keys())}")
         
         # Signal interpretations are scalar values, not arrays - skip them
         signal_indicators = {'ichimoku_signal', 'bb_signal'}
@@ -170,11 +189,19 @@ class MarketMetricsCalculator:
                         indicator_changes[f"{ind_name}_end"] = end_value
                         indicator_changes[f"{ind_name}_change"] = change
                         indicator_changes[f"{ind_name}_change_pct"] = change_pct
-                    except (IndexError, ValueError, TypeError):
-                        pass
+                        
+                        # Log key indicators
+                        if ind_name in ['rsi', 'macd_line', 'adx']:
+                            self.logger.debug(f"{ind_name}: start={start_value:.2f}, end={end_value:.2f}, change={change:.2f}")
+                    except (IndexError, ValueError, TypeError) as e:
+                        self.logger.debug(f"Could not calculate change for {ind_name}: {e}")
+                else:
+                    self.logger.debug(f"{ind_name} has only {len(values)} values, need {abs(start_idx)}")
             except TypeError:
                 # values is a scalar numpy value, not an array
+                self.logger.debug(f"{ind_name} is scalar, skipping")
                 pass
         
+        self.logger.debug(f"Calculated {len(indicator_changes)} indicator change metrics")
         return indicator_changes
     

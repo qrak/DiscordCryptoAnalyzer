@@ -39,7 +39,9 @@ class TechnicalCalculator:
             # Ensure cache contains all expected keys before returning
             required_keys = {"ichimoku_conversion", "ichimoku_base", "ichimoku_span_a", "ichimoku_span_b"}
             if required_keys.issubset(self._cache.keys()):
-                return self._cache
+                # Filter out long-term cache keys (they start with "long_term_")
+                filtered_cache = {k: v for k, v in self._cache.items() if not k.startswith("long_term_")}
+                return filtered_cache
             else:
                 if self.logger:
                     self.logger.debug("Cache miss due to missing keys, recalculating.")
@@ -198,8 +200,10 @@ class TechnicalCalculator:
         
         if self.logger:
             self.logger.debug("Calculated new technical indicators")
-            
-        return indicators
+        
+        # Filter out long-term cache keys before returning (same as cached path)
+        filtered_indicators = {k: v for k, v in indicators.items() if not k.startswith("long_term_")}
+        return filtered_indicators
         
     def get_long_term_indicators(self, ohlcv_data: np.ndarray) -> Dict[str, Any]:
         """Calculate long-term indicators for historical data.
@@ -269,6 +273,14 @@ class TechnicalCalculator:
             # Use technical indicators data directly
             price_change_pct = float((ti.close[-1] / ti.close[0] - 1) * 100)
             volume_change_pct = float((ti.volume[-1] / max(ti.volume[0], 1) - 1) * 100)
+            
+            if self.logger:
+                self.logger.debug(f"Long-term price change: {price_change_pct:.2f}% over {available_days} days")
+                self.logger.debug(f"Long-term volume change: {volume_change_pct:.2f}%")
+        else:
+            if self.logger:
+                self.logger.warning(f"Not enough data to calculate change metrics (only {available_days} days)")
+        
         return price_change_pct, volume_change_pct
 
     def _compute_volatility(self, ti: TechnicalIndicators, available_days: int):
@@ -286,13 +298,23 @@ class TechnicalCalculator:
             'golden_cross': False,
             'death_cross': False,
             'price_above_200sma': False,
-            'sma_50_vs_200': 'Neutral'
+            'sma_50_vs_200': 'Neutral',
+            'long_term_price_change_pct': None
         }
         
         if available_days < 200:
+            if self.logger:
+                self.logger.debug(f"Not enough data for macro trend analysis (need 200 days, have {available_days})")
             return analysis
-            
+        
         current_price = float(ti.close[-1])
+        
+        # Calculate long-term price change percentage
+        if available_days >= 2:
+            price_change_pct = float((ti.close[-1] / ti.close[0] - 1) * 100)
+            analysis['long_term_price_change_pct'] = price_change_pct
+            if self.logger:
+                self.logger.debug(f"Macro trend: {available_days}-day price change = {price_change_pct:.2f}%")
         
         # Check price position relative to key SMAs
         if 200 in sma_values:
@@ -330,24 +352,52 @@ class TechnicalCalculator:
             else:
                 analysis['sma_alignment'] = 'Mixed'
         
-        # Determine overall trend direction
-        bullish_signals = sum([
-            analysis['price_above_200sma'],
-            analysis['sma_50_vs_200'] == 'Bullish',
-            analysis['golden_cross'],
-            analysis['sma_alignment'] == 'Bullish (Ascending)'
-        ])
+        # Determine overall trend direction with improved logic
+        # Count bullish signals
+        bullish_signals = []
+        if analysis['price_above_200sma']:
+            bullish_signals.append('price_above_200sma')
+        if analysis['sma_50_vs_200'] == 'Bullish':
+            bullish_signals.append('sma_50_vs_200')
+        if analysis['golden_cross']:
+            bullish_signals.append('golden_cross')
+        if analysis['sma_alignment'] == 'Bullish (Ascending)':
+            bullish_signals.append('sma_alignment')
+        # Add price change as a signal if significant
+        if analysis['long_term_price_change_pct'] is not None:
+            if analysis['long_term_price_change_pct'] > 20:  # More than 20% gain
+                bullish_signals.append('strong_price_appreciation')
+            elif analysis['long_term_price_change_pct'] > 10:  # More than 10% gain
+                bullish_signals.append('moderate_price_appreciation')
         
-        bearish_signals = sum([
-            not analysis['price_above_200sma'],
-            analysis['sma_50_vs_200'] == 'Bearish', 
-            analysis['death_cross'],
-            analysis['sma_alignment'] == 'Bearish (Descending)'
-        ])
+        # Count bearish signals
+        bearish_signals = []
+        if not analysis['price_above_200sma']:
+            bearish_signals.append('price_below_200sma')
+        if analysis['sma_50_vs_200'] == 'Bearish':
+            bearish_signals.append('sma_50_vs_200')
+        if analysis['death_cross']:
+            bearish_signals.append('death_cross')
+        if analysis['sma_alignment'] == 'Bearish (Descending)':
+            bearish_signals.append('sma_alignment')
+        # Add price change as a signal if significantly negative
+        if analysis['long_term_price_change_pct'] is not None:
+            if analysis['long_term_price_change_pct'] < -20:  # More than 20% loss
+                bearish_signals.append('strong_price_decline')
+            elif analysis['long_term_price_change_pct'] < -10:  # More than 10% loss
+                bearish_signals.append('moderate_price_decline')
         
-        if bullish_signals >= 3:
+        bullish_count = len(bullish_signals)
+        bearish_count = len(bearish_signals)
+        
+        if self.logger:
+            self.logger.debug(f"Macro trend bullish signals ({bullish_count}): {bullish_signals}")
+            self.logger.debug(f"Macro trend bearish signals ({bearish_count}): {bearish_signals}")
+        
+        # Determine trend direction (need at least 2 signals for clear direction)
+        if bullish_count >= 2 and bullish_count > bearish_count:
             analysis['trend_direction'] = 'Bullish'
-        elif bearish_signals >= 3:
+        elif bearish_count >= 2 and bearish_count > bullish_count:
             analysis['trend_direction'] = 'Bearish'
         else:
             analysis['trend_direction'] = 'Neutral'

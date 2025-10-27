@@ -76,7 +76,7 @@ class RSIPatternDetector(BasePatternDetector):
         periods = self.find_threshold_periods(recent_rsi, condition)
         
         if periods:
-            pattern = self.create_threshold_pattern(condition, periods, market_data, original_start_index)
+            pattern = self.create_threshold_pattern(condition, periods, market_data, original_start_index, len(recent_rsi))
             self._log_detection(pattern)
             return [pattern]
         
@@ -234,7 +234,7 @@ class RSIPatternDetector(BasePatternDetector):
         return float(np.max(segment) if is_maximum else np.min(segment))
 
     def create_threshold_pattern(self, condition: ThresholdCondition, periods: List[dict], 
-                               market_data: MarketData, original_start_index: int) -> Pattern:
+                               market_data: MarketData, original_start_index: int, rsi_length: int) -> Pattern:
         """Create a pattern from threshold condition detection with enhanced timing info."""
         last_period = periods[-1]
         timestamp = market_data.get_timestamp_at_index(original_start_index + last_period['end'])
@@ -242,7 +242,7 @@ class RSIPatternDetector(BasePatternDetector):
         # Enhanced description with duration and active status
         total_occurrences = len(periods)
         duration = last_period.get('duration', 1)
-        is_active = last_period.get('end') >= len(periods) - 1
+        is_active = last_period.get('end') >= rsi_length - 1
         
         # Calculate periods ago for the most recent occurrence
         current_period_index = len(periods) - 1
