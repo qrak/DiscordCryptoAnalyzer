@@ -21,6 +21,7 @@ class ModelManager:
         # Create API clients based on provider configuration
         self.openrouter_client: Optional[OpenRouterClient] = None
         self.google_client: Optional[GoogleAIClient] = None
+        self.google_paid_client: Optional[GoogleAIClient] = None
         self.lm_studio_client: Optional[LMStudioClient] = None
 
         # Initialize clients based on provider setting
@@ -37,6 +38,15 @@ class ModelManager:
                 model=config.GOOGLE_STUDIO_MODEL,
                 logger=logger
             )
+            
+            # Initialize paid client if paid API key is available
+            if config.GOOGLE_STUDIO_PAID_API_KEY:
+                self.google_paid_client = GoogleAIClient(
+                    api_key=config.GOOGLE_STUDIO_PAID_API_KEY,
+                    model=config.GOOGLE_STUDIO_MODEL,
+                    logger=logger
+                )
+                self.logger.info("Google AI paid client initialized as fallback for overloaded free tier")
 
         if self.provider in ["local", "all"]:
             self.lm_studio_client = LMStudioClient(
@@ -65,6 +75,8 @@ class ModelManager:
             await self.openrouter_client.__aenter__()
         if self.google_client:
             await self.google_client.__aenter__()
+        if self.google_paid_client:
+            await self.google_paid_client.__aenter__()
         if self.lm_studio_client:
             await self.lm_studio_client.__aenter__()
         return self
@@ -80,6 +92,9 @@ class ModelManager:
 
             if self.google_client:
                 await self.google_client.close()
+            
+            if self.google_paid_client:
+                await self.google_paid_client.close()
 
             if self.lm_studio_client:
                 await self.lm_studio_client.close()
@@ -174,8 +189,22 @@ class ModelManager:
         """Invoke a provider for normal or chart analysis requests and return its raw response dict."""
         if provider == "googleai" and self.google_client:
             if chart:
-                return await self.google_client.chat_completion_with_chart_analysis(messages, cast(Any, chart_image), self.google_config)
-            return await self.google_client.chat_completion(messages, self.google_config)
+                response = await self.google_client.chat_completion_with_chart_analysis(messages, cast(Any, chart_image), self.google_config)
+            else:
+                response = await self.google_client.chat_completion(messages, self.google_config)
+            
+            # If free tier is overloaded and paid client is available, retry with paid API
+            if response and response.get("error") == "overloaded" and self.google_paid_client:
+                self.logger.warning("Google AI free tier overloaded, retrying with paid API key")
+                if chart:
+                    response = await self.google_paid_client.chat_completion_with_chart_analysis(messages, cast(Any, chart_image), self.google_config)
+                else:
+                    response = await self.google_paid_client.chat_completion(messages, self.google_config)
+                
+                if self._is_valid_response(response):
+                    self.logger.info("Successfully used paid Google AI API after free tier overload")
+            
+            return response
 
         if provider == "local" and self.lm_studio_client:
             if chart:

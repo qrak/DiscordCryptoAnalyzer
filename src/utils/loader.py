@@ -169,6 +169,10 @@ class Config:
         return self.get_env('GOOGLE_STUDIO_API_KEY')
     
     @property
+    def GOOGLE_STUDIO_PAID_API_KEY(self):
+        return self.get_env('GOOGLE_STUDIO_PAID_API_KEY')
+    
+    @property
     def CRYPTOCOMPARE_API_KEY(self):
         return self.get_env('CRYPTOCOMPARE_API_KEY')
     

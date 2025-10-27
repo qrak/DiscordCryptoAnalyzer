@@ -316,7 +316,11 @@ class GoogleAIClient:
         """
         error_message = str(exception)
         
-        if "quota" in error_message.lower() or "rate limit" in error_message.lower():
+        # Check for overloaded/503 errors first (should trigger paid API fallback)
+        if "503" in error_message or "overloaded" in error_message.lower() or "unavailable" in error_message.lower():
+            self.logger.error(f"Google AI API overloaded (503): {error_message}")
+            return cast(ResponseDict, {"error": "overloaded", "details": error_message})
+        elif "quota" in error_message.lower() or "rate limit" in error_message.lower():
             self.logger.error(f"Rate limit or quota exceeded: {error_message}")
             return cast(ResponseDict, {"error": "rate_limit", "details": error_message})
         elif "authentication" in error_message.lower() or "api key" in error_message.lower():
