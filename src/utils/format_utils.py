@@ -113,6 +113,75 @@ class FormatUtils:
             return dt.strftime("%Y-%m-%d %H:%M")
         except (ValueError, TypeError, OSError):
             return "N/A"
+    
+    def format_current_time(self, format_str: str = "%Y-%m-%d %H:%M:%S") -> str:
+        """Format current time with specified format.
+        
+        Args:
+            format_str: strftime format string
+            
+        Returns:
+            Formatted current time string
+        """
+        return datetime.now().strftime(format_str)
+    
+    def format_timestamp_seconds(self, timestamp_sec: float, format_str: str = "%Y-%m-%d") -> str:
+        """Format timestamp in seconds (not milliseconds) to human-readable string.
+        
+        Args:
+            timestamp_sec: Timestamp in seconds since epoch
+            format_str: strftime format string
+            
+        Returns:
+            Formatted datetime string or 'N/A' if invalid
+        """
+        try:
+            dt = datetime.fromtimestamp(timestamp_sec)
+            return dt.strftime(format_str)
+        except (ValueError, TypeError, OSError):
+            return "N/A"
+    
+    def format_date_from_timestamp(self, timestamp_sec: float) -> str:
+        """Format timestamp to date only (YYYY-MM-DD).
+        
+        Args:
+            timestamp_sec: Timestamp in seconds since epoch
+            
+        Returns:
+            Formatted date string or 'N/A' if invalid
+        """
+        return self.format_timestamp_seconds(timestamp_sec, "%Y-%m-%d")
+    
+    def timestamp_from_iso(self, iso_str: str) -> float:
+        """Convert ISO format string to Unix timestamp in seconds.
+        
+        Args:
+            iso_str: ISO format datetime string (supports 'Z' suffix)
+            
+        Returns:
+            Unix timestamp in seconds, or 0.0 if conversion fails
+        """
+        try:
+            # Handle ISO format with Z suffix
+            if iso_str.endswith('Z'):
+                iso_str = iso_str[:-1] + '+00:00'
+            return datetime.fromisoformat(iso_str).timestamp()
+        except (ValueError, TypeError, AttributeError):
+            return 0.0
+    
+    def parse_timestamp_ms(self, timestamp_ms: float) -> datetime:
+        """Parse timestamp in milliseconds to datetime object.
+        
+        Args:
+            timestamp_ms: Timestamp in milliseconds
+            
+        Returns:
+            datetime object or None if invalid
+        """
+        try:
+            return datetime.fromtimestamp(timestamp_ms / 1000)
+        except (ValueError, TypeError, OSError):
+            return None
 
     def is_valid_value(self, value) -> bool:
         """Check if a value is valid for formatting.

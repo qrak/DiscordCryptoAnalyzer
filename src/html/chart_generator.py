@@ -15,6 +15,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
 from src.logger.logger import Logger
+from src.utils.format_utils import FormatUtils
 
 
 class ChartGenerator:
@@ -28,6 +29,10 @@ class ChartGenerator:
             config: Optional config instance to avoid circular imports
             formatter: Optional formatting function for price formatting (e.g., fmt from format_utils)
         """
+        self.logger = logger
+        self.config = config
+        self.formatter = formatter
+        self.format_utils = FormatUtils()
         self.logger = logger
         self.config = config
         self.formatter = formatter or self._default_formatter
@@ -496,7 +501,7 @@ class ChartGenerator:
             if save_to_disk:
                 # Save to disk for testing purposes
                 if output_path is None:
-                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    timestamp = self.format_utils.format_current_time("%Y%m%d_%H%M%S")
                     chart_type = "simple" if simple_mode else "full"
                     # Use config path if available
                     base_path = self.config.DEBUG_CHART_SAVE_PATH if self.config else "test_images"
@@ -512,8 +517,10 @@ class ChartGenerator:
                 
                 if self.logger:
                     if len(ohlcv) > 0:
-                        first_time = pd.to_datetime(ohlcv[0][0], unit='ms').strftime('%Y-%m-%d %H:%M')
-                        last_time = pd.to_datetime(ohlcv[-1][0], unit='ms').strftime('%Y-%m-%d %H:%M')
+                        first_time_dt = self.format_utils.parse_timestamp_ms(ohlcv[0][0])
+                        last_time_dt = self.format_utils.parse_timestamp_ms(ohlcv[-1][0])
+                        first_time = first_time_dt.strftime('%Y-%m-%d %H:%M') if first_time_dt else 'N/A'
+                        last_time = last_time_dt.strftime('%Y-%m-%d %H:%M') if last_time_dt else 'N/A'
                         current_price = ohlcv[-1][4]  # Close price of last candle
                         self.logger.info(f"📈 Data range: {first_time} to {last_time} | Current price: {current_price}")
                 

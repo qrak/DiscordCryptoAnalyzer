@@ -1,37 +1,27 @@
 from typing import Dict, Any, List, Optional
 import numpy as np
+from datetime import datetime
 
-from src.indicators.base.pattern_recognizer import PatternRecognizer
-from ..data.data_processor import DataProcessor
-from ..formatting.indicator_formatter import IndicatorFormatter
+from src.analyzer.pattern_engine import PatternEngine
+from src.analyzer.pattern_engine.indicator_patterns import IndicatorPatternEngine
 from src.logger.logger import Logger
 
 
 class PatternAnalyzer:
-    """Handles pattern detection and analysis for technical indicators"""
     
     def __init__(self, logger: Optional[Logger] = None):
-        """Initialize the market pattern analyzer"""
         self.logger = logger
-        self.pattern_recognizer = PatternRecognizer(logger=logger)
-        self.data_processor = DataProcessor()
+        self.pattern_engine = PatternEngine(lookback=5, lookahead=5)
+        self.indicator_pattern_engine = IndicatorPatternEngine()
         
-        # Cache storage for pattern detection
         self._pattern_cache = {}
-        
-        # Define indicator thresholds for pattern detection
-        self.INDICATOR_THRESHOLDS = {
-            'rsi': {'oversold': 30, 'overbought': 70},
-            'stoch_k': {'oversold': 20, 'overbought': 80},
-            'stoch_d': {'oversold': 20, 'overbought': 80},
-            'williams_r': {'oversold': -80, 'overbought': -20},
-            'adx': {'weak': 25, 'strong': 50, 'very_strong': 75},
-            'mfi': {'oversold': 20, 'overbought': 80},
-            'bb_width': {'tight': 2, 'wide': 10}
-        }
     
-    def detect_patterns(self, ohlcv_data: np.ndarray, technical_history: Dict[str, np.ndarray]) -> Dict[str, Any]:
-        """Detect technical patterns using the pattern recognizer"""
+    def detect_patterns(
+        self,
+        ohlcv_data: np.ndarray,
+        technical_history: Dict[str, np.ndarray],
+        long_term_data: Optional[Dict] = None
+    ) -> Dict[str, Any]:
         data_hash = self._hash_data(ohlcv_data)
         cache_key = f"patterns_{data_hash}"
         
@@ -39,40 +29,72 @@ class PatternAnalyzer:
             if self.logger:
                 self.logger.debug("Using cached pattern detection results")
             return self._pattern_cache[cache_key]
-            
-        patterns = self.pattern_recognizer.detect_patterns(
-            ohlcv=ohlcv_data,
-            technical_history=technical_history
-        )
         
-        # Store in cache
+        if self.logger:
+            self.logger.debug(f"Running pattern detection on {len(ohlcv_data)} candles")
+        
+        # Extract timestamps from OHLCV data (column 0)
+        timestamps = None
+        if ohlcv_data is not None and len(ohlcv_data) > 0:
+            try:
+                # Convert Unix timestamps to datetime objects
+                timestamps = [datetime.fromtimestamp(ts / 1000) for ts in ohlcv_data[:, 0]]
+            except Exception as e:
+                if self.logger:
+                    self.logger.warning(f"Could not extract timestamps from OHLCV data: {e}")
+        
+        # Detect chart patterns
+        chart_patterns = self.pattern_engine.detect_patterns(ohlcv_data, timestamps)
+        
+        # Extract SMA values for MA crossover detection
+        sma_values = None
+        if long_term_data is not None and 'sma_values' in long_term_data:
+            sma_values = long_term_data['sma_values']
+        
+        # Detect indicator patterns
+        indicator_patterns = {}
+        try:
+            indicator_patterns = self.indicator_pattern_engine.detect_patterns(
+                technical_history, ohlcv_data, sma_values, timestamps
+            )
+            if self.logger:
+                ind_count = sum(len(p) for p in indicator_patterns.values())
+                self.logger.debug(f"Detected {ind_count} indicator patterns")
+        except Exception as e:
+            if self.logger:
+                self.logger.warning(f"Error detecting indicator patterns: {e}")
+        
+        # Combine both types of patterns
+        patterns = {
+            **chart_patterns,  # candlestick, trend, reversal patterns
+            **indicator_patterns  # RSI, MACD, divergence, volatility, stochastic, MA, volume patterns
+        }
+        
         self._pattern_cache[cache_key] = patterns
+        
+        if self.logger:
+            total_patterns = sum(len(p) for p in patterns.values())
+            chart_count = sum(len(p) for p in chart_patterns.values())
+            ind_count = sum(len(p) for p in indicator_patterns.values())
+            self.logger.debug(f"Detected {total_patterns} patterns: {chart_count} chart + {ind_count} indicator")
+        
         return patterns
         
-    def get_all_patterns(self, ohlcv_data: np.ndarray, technical_history: Dict[str, np.ndarray]) -> List[Dict]:
-        """Centralized pattern detection using PatternRecognizer
-        
-        Args:
-            ohlcv_data: OHLCV data array
-            technical_history: Dictionary of technical indicator histories
-            
-        Returns:
-            List of all detected patterns as dictionaries
-        """
+    def get_all_patterns(
+        self,
+        ohlcv_data: np.ndarray,
+        technical_history: Dict[str, np.ndarray],
+        long_term_data: Optional[Dict] = None
+    ) -> List[Dict]:
         try:
-            # Use the existing PatternRecognizer instead of duplicating logic
-            patterns_dict = self.pattern_recognizer.detect_patterns(
-                ohlcv=ohlcv_data, 
-                technical_history=technical_history
-            )
+            patterns_dict = self.detect_patterns(ohlcv_data, technical_history, long_term_data)
             
-            # Flatten all pattern categories into a single list
             all_patterns = []
             for _, patterns_list in patterns_dict.items():
                 all_patterns.extend(patterns_list)
             
             if self.logger:
-                self.logger.debug(f"Detected {len(all_patterns)} patterns using PatternRecognizer")
+                self.logger.debug(f"Detected {len(all_patterns)} patterns")
                 
             return all_patterns
                 

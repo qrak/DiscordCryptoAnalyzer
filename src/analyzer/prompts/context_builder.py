@@ -50,9 +50,9 @@ class ContextBuilder:
         trading_context = f"""
         TRADING CONTEXT:
         - Symbol: {context.symbol if hasattr(context, 'symbol') else 'BTC/USDT'}
-        - Current Day: {current_time.strftime("%A")}
+        - Current Day: {self.format_utils.format_current_time("%A")}
         - Current Price: {context.current_price}
-        - Analysis Time: {current_time.strftime('%Y-%m-%d %H:%M:%S')}{candle_status}
+        - Analysis Time: {self.format_utils.format_current_time('%Y-%m-%d %H:%M:%S')}{candle_status}
         - Primary Timeframe: {self.timeframe}
         - Analysis Includes: 1H, 1D, 7D, 30D, and 365D timeframes"""
         
@@ -80,7 +80,13 @@ class ContextBuilder:
         if historical_data:
             sentiment_section += "\n\n    Historical Fear & Greed (Last 7 days):"
             for day in historical_data:
-                date_str = day['timestamp'].strftime('%Y-%m-%d') if isinstance(day['timestamp'], datetime) else day['timestamp']
+                # Use centralized timestamp formatting
+                if isinstance(day['timestamp'], datetime):
+                    date_str = day['timestamp'].strftime('%Y-%m-%d')
+                elif isinstance(day['timestamp'], (int, float)):
+                    date_str = self.format_utils.format_date_from_timestamp(day['timestamp'])
+                else:
+                    date_str = str(day['timestamp'])
                 sentiment_section += f"\n    - {date_str}: {day['value']} ({day['value_classification']})"
         
         return sentiment_section

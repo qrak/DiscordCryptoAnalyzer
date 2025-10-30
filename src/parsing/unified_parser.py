@@ -8,6 +8,7 @@ from datetime import datetime
 from typing import Dict, Any, Set, Optional, Union, List
 
 from src.logger.logger import Logger
+from src.utils.format_utils import FormatUtils
 
 
 class UnifiedParser:
@@ -18,6 +19,7 @@ class UnifiedParser:
     
     def __init__(self, logger: Logger):
         self.logger = logger
+        self.format_utils = FormatUtils()
         
         # Numeric fields that should be converted from strings with their defaults
         self._numeric_fields = {
@@ -125,18 +127,11 @@ class UnifiedParser:
         return 0.0
     
     def _parse_timestamp_string(self, timestamp_str: str) -> float:
-        """Parse timestamp string to float timestamp."""
-        try:
-            # Handle ISO format with Z suffix
-            if timestamp_str.endswith('Z'):
-                timestamp_str = timestamp_str[:-1] + '+00:00'
-            return datetime.fromisoformat(timestamp_str).timestamp()
-        except ValueError:
-            self.logger.warning(f"Could not parse timestamp string: {timestamp_str}")
-            return 0.0
-        except Exception as e:
-            self.logger.error(f"Error parsing timestamp string '{timestamp_str}': {e}")
-            return 0.0
+        """Parse timestamp string to float timestamp.
+        
+        Uses centralized FormatUtils for consistency.
+        """
+        return self.format_utils.timestamp_from_iso(timestamp_str)
     
     # ============================================================================
     # CATEGORY PARSING (consolidates category-related parsing)

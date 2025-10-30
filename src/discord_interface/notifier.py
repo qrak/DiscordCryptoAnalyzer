@@ -265,7 +265,7 @@ class DiscordNotifier:
         if thumbnail_url:
             embed.set_thumbnail(url=thumbnail_url or self.BOT_LOGO_URL)
         embed.set_footer(
-            text=f"Last Updated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"[:2048]
+            text=f"Last Updated: {self.format_utils.format_current_time('%Y-%m-%d %H:%M:%S')}"[:2048]
         )
 
         
@@ -434,7 +434,7 @@ class DiscordNotifier:
         self.logger.debug(f"HTML content length: {len(html_content)} characters")
         
         # Create filename with symbol
-        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+        timestamp = self.format_utils.format_current_time("%Y%m%d%H%M%S")
         filename = f"{symbol.replace('/', '')}_analysis_{timestamp}.html"
         self.logger.debug(f"Generated filename: {filename}")
         

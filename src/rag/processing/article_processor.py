@@ -6,6 +6,7 @@ from typing import Dict, Any, Set
 import logging
 
 from src.parsing.unified_parser import UnifiedParser
+from src.utils.format_utils import FormatUtils
 
 
 class ArticleProcessor:
@@ -14,6 +15,7 @@ class ArticleProcessor:
     def __init__(self, logger: logging.Logger = None):
         self.logger = logger or logging.getLogger(__name__)
         self.parser = UnifiedParser(self.logger)
+        self.format_utils = FormatUtils()
     
     def detect_coins_in_article(self, article: Dict[str, Any], known_crypto_tickers: Set[str]) -> Set[str]:
         """Detect cryptocurrency mentions in article content."""
@@ -48,13 +50,7 @@ class ArticleProcessor:
         if timestamp <= 0:
             return "Unknown Date"
         
-        try:
-            from datetime import datetime
-            dt_object = datetime.fromtimestamp(timestamp)
-            return dt_object.strftime('%Y-%m-%d')
-        except (ValueError, TypeError, OSError) as e:
-            self.logger.warning(f"Could not format date for article: {article.get('id', 'N/A')}, error: {e}")
-            return "Unknown Date"
+        return self.format_utils.format_date_from_timestamp(timestamp)
     
     def extract_base_coin(self, symbol: str) -> str:
         """Extract base coin from trading pair symbol."""

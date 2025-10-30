@@ -193,7 +193,8 @@ class AnalysisEngine:
             # Step 5: Run technical pattern analysis
             technical_patterns = self.pattern_analyzer.detect_patterns(
                 self.context.ohlcv_candles,
-                self.context.technical_history
+                self.context.technical_history,
+                self.context.long_term_data if hasattr(self.context, 'long_term_data') else None
             )
             
             # If we found meaningful patterns, add them to context
