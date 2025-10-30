@@ -6,7 +6,7 @@ from typing import Optional
 
 from ..data.data_processor import DataProcessor
 from src.logger.logger import Logger
-from .format_utils import FormatUtils
+from src.utils.format_utils import FormatUtils
 from .market_formatter import MarketFormatter
 
 

@@ -13,7 +13,7 @@ from src.discord_interface.cogs.command_handler import CommandHandler
 from src.discord_interface.cogs.reaction_handler import ReactionHandler
 from .filehandler import DiscordFileHandler
 from src.utils.decorators import retry_async
-from src.analyzer.formatting.format_utils import FormatUtils
+from src.utils.format_utils import FormatUtils
 
 
 class DiscordNotifier:

@@ -2,7 +2,7 @@ from typing import List, Tuple, NamedTuple, Callable
 import numpy as np
 
 from src.indicators.base.pattern_detector import BasePatternDetector, MarketData, Pattern, RSISettings
-from src.analyzer.formatting.format_utils import FormatUtils
+from src.utils.format_utils import FormatUtils
 
 
 class ThresholdCondition(NamedTuple):

@@ -1,15 +1,54 @@
 """
-Consolidated formatting utilities for the analyzer.
+Consolidated formatting utilities.
 Contains all shared formatting functions and utilities.
+
+This module has NO dependencies on analyzer module to avoid circular imports.
 """
 import numpy as np
 from datetime import datetime
 from typing import Optional
-from ..data.data_processor import DataProcessor
+
+
+class DataProcessor:
+    """Handles processing, validation, and extraction of indicator values.
+    
+    Copied from analyzer.data.data_processor to avoid circular import.
+    This is a lightweight utility with no external dependencies.
+    """
+    
+    def __init__(self):
+        """Initialize the indicator data processor"""
+        pass
+        
+    def get_indicator_value(self, td: dict, key: str):
+        """Get indicator value with proper type checking and error handling
+        
+        Args:
+            td: Technical data dictionary
+            key: Indicator key to retrieve
+            
+        Returns:
+            float or str: Indicator value or 'N/A' if invalid
+        """
+        try:
+            value = td[key]
+            if isinstance(value, (int, float)):
+                return float(value)
+            if isinstance(value, (list, tuple)) and len(value) == 1:
+                return float(value[0])
+            if isinstance(value, (list, tuple)) and len(value) > 1:
+                return float(value[-1])
+            return 'N/A'
+        except (KeyError, TypeError, ValueError, IndexError):
+            return 'N/A'
 
 
 class FormatUtils:
-    """Utility class for formatting technical analysis data and values."""
+    """Utility class for formatting technical analysis data and values.
+    
+    This class is designed to be used across the application without creating
+    circular import dependencies. It has no imports from the analyzer module.
+    """
     
     def __init__(self):
         """Initialize the formatting utilities with a data processor instance."""
@@ -197,4 +236,3 @@ class FormatUtils:
             return int(timeframe[:-1]) * 24 * 60
         else:
             return 60  # Default to 1 hour
-

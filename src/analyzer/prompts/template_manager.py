@@ -51,7 +51,7 @@ Identify key price levels based solely on technical analysis concepts (Support, 
 CRITICAL: You are analyzing a CHART IMAGE containing {cfg_limit} candlesticks specifically optimized for visual pattern recognition.
 
 CHART ANALYSIS REQUIREMENTS:
-1. PATTERN DETECTION - Actively search for and identify:
+1. PATTERN DETECTION - Search for classic patterns BUT be critical about pattern quality:
    - Head and Shoulders (bullish or bearish inversions)
    - Double Top / Double Bottom formations
    - Wedge patterns (rising or falling)
@@ -59,21 +59,40 @@ CHART ANALYSIS REQUIREMENTS:
    - Flag and Pennant consolidations
    - Support and Resistance breakouts/breakdowns
 
-2. PATTERN REPORTING - For EACH pattern you identify:
+2. PATTERN QUALITY ASSESSMENT - CRITICAL: Do NOT force pattern identification:
+   - Only report patterns that are CLEAR and WELL-FORMED
+   - If the chart shows random/noisy price action, you MUST state this explicitly
+   - Reject patterns that lack clear structure or symmetry
+   - Consider if pattern has sufficient price range (at least 3-5% movement)
+   - Verify pattern spans adequate timeframe (minimum 20-30 candles for H&S, double tops)
+   - If in doubt about pattern quality, DO NOT report it
+
+3. PATTERN REPORTING - For EACH pattern you identify:
    - State the pattern name clearly
    - Describe its exact location on the chart (candle range, price levels)
    - Indicate whether it's bullish or bearish
-   - Rate your confidence level (high/medium/low)
+   - Rate your confidence level (high/medium/low) - be conservative
    - Describe key structural components (neckline, shoulders, peaks, troughs)
+   - Explain why you consider this a valid pattern (structure quality, symmetry, price range)
 
-3. VISUAL INTEGRATION - Use BOTH visual chart observations AND numerical technical data:
+4. VISUAL-NUMERICAL CONFIRMATION - MANDATORY for all patterns:
+   - Each visual pattern MUST be validated against numerical indicators
+   - Check if ADX confirms trend strength (ADX > 25 for directional patterns)
+   - Verify volume confirmation for breakouts/breakdowns
+   - Validate with momentum indicators (RSI, MACD) for pattern direction
+   - If indicators contradict visual pattern, prioritize numerical data
+   - Document any divergences between visual and numerical signals
+
+5. VISUAL INTEGRATION - Use BOTH visual chart observations AND numerical technical data:
    - Prioritize what you can SEE in the chart image
    - Validate support/resistance levels visually
    - Identify candlestick formations (doji, hammer, engulfing, etc.)
    - Note trend lines and channels visible in the image
    - Confirm breakouts/breakdowns with visual evidence
 
-The chart has been optimized with high contrast colors, dense grid lines, and thin candlestick wicks to make patterns clearly visible."""
+The chart has been optimized with high contrast colors, dense grid lines, and thin candlestick wicks to make patterns clearly visible.
+
+HONESTY REQUIREMENT: If you do not see clear, textbook-quality patterns, you MUST explicitly state "No clear classic patterns detected" rather than forcing pattern identification in noisy or ambiguous data."""
 
         header_base += """
 THIS IS EDUCATIONAL CONTENT ONLY. All analysis is for informational and educational purposes - NOT financial advice.

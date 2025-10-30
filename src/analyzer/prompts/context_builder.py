@@ -8,7 +8,7 @@ from datetime import datetime
 from typing import Any, Dict, Optional
 
 from src.logger.logger import Logger
-from ..formatting.format_utils import FormatUtils
+from src.utils.format_utils import FormatUtils
 from ..formatting.indicator_formatter import IndicatorFormatter
 
 

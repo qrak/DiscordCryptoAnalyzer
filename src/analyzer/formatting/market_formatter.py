@@ -5,7 +5,7 @@ Handles all market analysis formatting in a single comprehensive class.
 from typing import Dict, List, Optional, Any
 from src.logger.logger import Logger
 from src.utils.token_counter import TokenCounter
-from .format_utils import FormatUtils
+from src.utils.format_utils import FormatUtils
 
 
 class MarketFormatter:

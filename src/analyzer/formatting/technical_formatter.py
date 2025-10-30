@@ -4,7 +4,7 @@ Handles all technical analysis formatting in a single comprehensive class.
 """
 from typing import Optional
 from src.logger.logger import Logger
-from .format_utils import FormatUtils
+from src.utils.format_utils import FormatUtils
 
 
 class TechnicalFormatter:
