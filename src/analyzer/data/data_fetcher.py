@@ -6,6 +6,7 @@ from numpy.typing import NDArray
 
 from src.logger.logger import Logger
 from src.utils.decorators import retry_async
+from src.utils.timeframe_validator import TimeframeValidator
 
 
 class DataFetcher:
@@ -23,6 +24,20 @@ class DataFetcher:
                                      start_time: Optional[int] = None
                                      ) -> Optional[Tuple[NDArray, float]]:
         self.logger.debug(f"Fetching {pair} OHLCV data on {timeframe} timeframe with limit {limit}")
+        
+        # Validate timeframe is supported by exchange
+        if hasattr(self.exchange, 'timeframes') and self.exchange.timeframes:
+            if timeframe not in self.exchange.timeframes:
+                self.logger.error(
+                    f"Timeframe {timeframe} not supported by {self.exchange.id}. "
+                    f"Supported: {', '.join(self.exchange.timeframes.keys())}"
+                )
+                return None
+        elif not TimeframeValidator.is_ccxt_compatible(timeframe):
+            self.logger.warning(
+                f"Timeframe {timeframe} may not be supported by {self.exchange.id}. "
+                f"Attempting fetch anyway..."
+            )
         
         if limit > 1000:
             self.logger.warning(f"Requested limit {limit} exceeds exchange standard limits, may be truncated")

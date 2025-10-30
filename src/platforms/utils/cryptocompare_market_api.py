@@ -3,6 +3,7 @@ from typing import Dict, List, Any
 import aiohttp
 
 from src.utils.loader import config
+from src.utils.timeframe_validator import TimeframeValidator
 from src.logger.logger import Logger
 from src.utils.decorators import retry_api_call
 
@@ -119,3 +120,47 @@ class CryptoCompareMarketAPI:
     def get_ohlcv_url_template(self) -> str:
         """Get the OHLCV API URL template"""
         return self.OHLCV_API_URL_TEMPLATE
+    
+    def build_ohlcv_url(self, base: str, quote: str, timeframe: str, limit: int) -> str:
+        """
+        Build CryptoCompare OHLCV API URL with proper endpoint format.
+        
+        CryptoCompare uses different endpoints for different timeframes:
+        - histohour for hourly data (1h, 2h, 4h, etc.)
+        - histoday for daily data (1d)
+        
+        For multi-hour timeframes (2h, 4h, etc.), we use the 'aggregate' parameter.
+        
+        Args:
+            base: Base currency (e.g., "BTC")
+            quote: Quote currency (e.g., "USDT")
+            timeframe: Our timeframe format (e.g., "1h", "4h", "1d")
+            limit: Number of candles to fetch
+            
+        Returns:
+            Complete API URL
+            
+        Raises:
+            ValueError: If timeframe is not supported by CryptoCompare API
+        """
+        try:
+            endpoint_type, multiplier = TimeframeValidator.to_cryptocompare_format(timeframe)
+        except ValueError as e:
+            self.logger.error(f"Failed to convert timeframe {timeframe} for CryptoCompare API: {e}")
+            raise
+        
+        # Build aggregate parameter if multiplier > 1
+        aggregate_param = f"&aggregate={multiplier}" if multiplier > 1 else ""
+        
+        url = (
+            f"https://min-api.cryptocompare.com/data/v2/histo{endpoint_type}"
+            f"?fsym={base}&tsym={quote}&limit={limit}"
+            f"{aggregate_param}&api_key={config.CRYPTOCOMPARE_API_KEY}"
+        )
+        
+        self.logger.debug(
+            f"Built CryptoCompare OHLCV URL: endpoint={endpoint_type}, "
+            f"multiplier={multiplier}, timeframe={timeframe}, limit={limit}"
+        )
+        
+        return url

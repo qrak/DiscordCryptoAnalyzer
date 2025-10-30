@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from discord.ext import commands
 
 from src.utils.loader import config
+from src.utils.timeframe_validator import TimeframeValidator
 
 
 @dataclass
@@ -16,6 +17,7 @@ class ValidationResult:
     """Result of command validation."""
     is_valid: bool
     symbol: Optional[str] = None
+    timeframe: Optional[str] = None
     language: Optional[str] = None
     error_message: Optional[str] = None
 
@@ -52,29 +54,93 @@ class CommandValidator:
         """Validate that command is used in correct channel."""
         return channel_id == config.MAIN_CHANNEL_ID
     
-    def validate_command_args(self, args: list) -> Tuple[bool, Optional[str], Optional[str]]:
+    def _is_valid_timeframe(self, arg: str) -> bool:
         """
-        Validate command arguments for analyze command.
+        Check if argument looks like a valid timeframe.
+        
+        Args:
+            arg: Potential timeframe string
+            
+        Returns:
+            bool: True if argument is a valid timeframe
+        """
+        if not arg:
+            return False
+        
+        arg_lower = arg.lower()
+        # Only accept timeframes explicitly in our supported list
+        return arg_lower in TimeframeValidator.TIMEFRAME_MINUTES
+    
+    def validate_command_args(self, args: list) -> Tuple[bool, Optional[str], Optional[str], Tuple[Optional[str], Optional[str], Optional[str]]]:
+        """
+        Validate command arguments for analyze command with flexible timeframe and language support.
+        
+        Supported patterns:
+        - !analyze BTC/USDT               → symbol, default timeframe, English
+        - !analyze BTC/USDT 4h            → symbol, 4h timeframe, English
+        - !analyze BTC/USDT Polish        → symbol, default timeframe, Polish
+        - !analyze BTC/USDT 4h Polish     → symbol, 4h timeframe, Polish
         
         Returns:
-            Tuple of (is_valid, error_message, suggested_usage)
+            Tuple of (is_valid, error_message, usage_message, (symbol, timeframe, language))
         """
         if not args:
-            return False, "Missing arguments", "Usage: `!analyze <SYMBOL> [Language]`. Example: `!analyze BTC/USDT Polish`"
+            return False, "Missing arguments", self._get_usage_message(), (None, None, None)
         
         symbol = args[0].upper()
         if not self.validate_symbol_format(symbol):
-            return False, "Invalid symbol format. Use format like `BTC/USDT`.", None
+            return False, "Invalid symbol format. Use format like `BTC/USDT`.", None, (None, None, None)
         
+        timeframe = None  # Will use config default if None
         language = None
-        if len(args) > 1:
-            is_valid_lang, validated_lang = self.validate_language(args[1])
+        
+        # Parse remaining arguments (can be timeframe, language, or both)
+        if len(args) == 2:
+            # Could be timeframe or language
+            arg = args[1]
+            
+            # Try as timeframe first
+            if self._is_valid_timeframe(arg):
+                timeframe = arg.lower()
+            else:
+                # Try as language
+                is_valid_lang, validated_lang = self.validate_language(arg)
+                if is_valid_lang:
+                    language = validated_lang
+                else:
+                    # Not a valid timeframe or language
+                    return False, f"Invalid argument '{arg}'. Must be a timeframe (1h, 2h, 4h, 6h, 8h, 12h, 1d) or language.", None, (None, None, None)
+        
+        elif len(args) >= 3:
+            # Two optional args: assume timeframe then language
+            timeframe_arg = args[1]
+            language_arg = args[2]
+            
+            # Validate timeframe
+            if not self._is_valid_timeframe(timeframe_arg):
+                return False, f"Invalid timeframe '{timeframe_arg}'. Supported: 1h, 2h, 4h, 6h, 8h, 12h, 1d", None, (None, None, None)
+            timeframe = timeframe_arg.lower()
+            
+            # Validate language
+            is_valid_lang, validated_lang = self.validate_language(language_arg)
             if not is_valid_lang:
                 supported_langs = ", ".join(config.SUPPORTED_LANGUAGES.keys())
-                return False, f"Unsupported language '{args[1]}'. Available: {supported_langs}", None
+                return False, f"Unsupported language '{language_arg}'. Available: {supported_langs}", None, (None, None, None)
             language = validated_lang
         
-        return True, None, None
+        return True, None, None, (symbol, timeframe, language)
+    
+    def _get_usage_message(self) -> str:
+        """Get command usage message."""
+        return (
+            "Usage: `!analyze <SYMBOL> [TIMEFRAME] [LANGUAGE]`\n"
+            "Examples:\n"
+            "  `!analyze BTC/USDT` - Analyze with default settings\n"
+            "  `!analyze BTC/USDT 4h` - Analyze on 4-hour timeframe\n"
+            "  `!analyze BTC/USDT Polish` - Analyze in Polish\n"
+            "  `!analyze BTC/USDT 1d English` - Daily timeframe in English\n"
+            "Supported timeframes: 1h, 2h, 4h, 6h, 8h, 12h, 1d"
+        )
     
     def check_analysis_in_progress(self, symbol: str) -> bool:
         """Check if analysis is already in progress for symbol."""
@@ -142,15 +208,20 @@ class CommandValidator:
         
         Returns ValidationResult with all validation outcomes.
         """
-        # Validate arguments
-        is_valid, error_msg, usage = self.validate_command_args(args)
+        # Validate arguments (now returns 4-tuple)
+        is_valid, error_msg, usage, (symbol, timeframe, language) = self.validate_command_args(args)
         if not is_valid:
             return ValidationResult(is_valid=False, error_message=f"{error_msg}\n{usage}" if usage else error_msg)
 
-        symbol = args[0].upper()
-        language = None
-        if len(args) > 1:
-            _, language = self.validate_language(args[1])
+        # If timeframe provided, validate it's fully supported
+        if timeframe:
+            try:
+                timeframe = TimeframeValidator.validate_and_normalize(timeframe)
+            except ValueError as e:
+                return ValidationResult(
+                    is_valid=False,
+                    error_message=f"⚠️ {str(e)}"
+                )
 
         # Check if analysis is already in progress
         if self.check_analysis_in_progress(symbol):
@@ -168,7 +239,7 @@ class CommandValidator:
             if is_on_cooldown:
                 return ValidationResult(is_valid=False, error_message=f"⌛ {ctx.author.mention}, you can request another analysis in {time_remaining}.")
 
-        return ValidationResult(is_valid=True, symbol=symbol, language=language)
+        return ValidationResult(is_valid=True, symbol=symbol, timeframe=timeframe, language=language)
     
     def is_admin(self, ctx: commands.Context) -> bool:
         """Check if user has admin permissions."""

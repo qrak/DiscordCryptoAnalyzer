@@ -9,6 +9,7 @@ from typing import Any, Dict, Optional
 
 from src.logger.logger import Logger
 from src.utils.format_utils import FormatUtils
+from src.utils.timeframe_validator import TimeframeValidator
 from ..formatting.indicator_formatter import IndicatorFormatter
 
 
@@ -39,13 +40,24 @@ class ContextBuilder:
         # Get the current time to understand candle formation
         current_time = datetime.now()
         
-        # Create candle status message for hourly timeframes
+        # Create candle status message dynamically based on timeframe
         candle_status = ""
-        if self.timeframe == "1h" or self.timeframe == "1H":
-            minutes_into_hour = current_time.minute
-            candle_progress = (minutes_into_hour / 60) * 100
-            candle_status = f"\n- Current Candle: {minutes_into_hour} minutes into formation ({candle_progress:.1f}% complete)"
+        timeframe_minutes = TimeframeValidator.to_minutes(self.timeframe)
+        
+        # Calculate current position within the candle (only for intraday timeframes)
+        if timeframe_minutes < 1440:  # Less than 1 day
+            total_minutes = current_time.hour * 60 + current_time.minute
+            minutes_into_candle = total_minutes % timeframe_minutes
+            
+            candle_progress = (minutes_into_candle / timeframe_minutes) * 100
+            candle_status = (
+                f"\n- Current Candle: {minutes_into_candle}/{timeframe_minutes} minutes "
+                f"({candle_progress:.1f}% complete)"
+            )
             candle_status += f"\n- Analysis Note: Technical indicators calculated using only completed candles"
+        
+        # Get analysis timeframes description
+        analysis_timeframes = f"{self.timeframe.upper()}, 1D, 7D, 30D, and 365D timeframes"
         
         trading_context = f"""
         TRADING CONTEXT:
@@ -54,7 +66,7 @@ class ContextBuilder:
         - Current Price: {context.current_price}
         - Analysis Time: {self.format_utils.format_current_time('%Y-%m-%d %H:%M:%S')}{candle_status}
         - Primary Timeframe: {self.timeframe}
-        - Analysis Includes: 1H, 1D, 7D, 30D, and 365D timeframes"""
+        - Analysis Includes: {analysis_timeframes}"""
         
         return trading_context
     
@@ -91,6 +103,27 @@ class ContextBuilder:
         
         return sentiment_section
     
+    def _calculate_period_candles(self) -> Dict[str, int]:
+        """Calculate candle counts for standard periods based on current timeframe.
+        
+        Returns:
+            Dict mapping period names to candle counts needed
+        """
+        base_minutes = TimeframeValidator.to_minutes(self.timeframe)
+        
+        period_targets = {
+            "4h": 4 * 60,      # 240 minutes
+            "12h": 12 * 60,    # 720 minutes
+            "24h": 24 * 60,    # 1440 minutes
+            "3d": 72 * 60,     # 4320 minutes
+            "7d": 168 * 60     # 10080 minutes
+        }
+        
+        return {
+            name: target_mins // base_minutes 
+            for name, target_mins in period_targets.items()
+        }
+    
     def build_market_data_section(self, ohlcv_candles: np.ndarray) -> str:
         """Build market data section with multi-timeframe price summary.
         
@@ -112,15 +145,9 @@ class ContextBuilder:
         # Keep multi-timeframe price summary if desired
         if available_candles >= 100:
             last_close = float(ohlcv_candles[-1, 4])
-            periods = {
-                "4h": 4,
-                "12h": 12,
-                "24h": 24,
-                "3d": 72,
-                "7d": 168
-            }
+            periods = self._calculate_period_candles()
 
-            data += "\nMulti-Timeframe Price Summary (Based on 1h candles):\n"
+            data += f"\nMulti-Timeframe Price Summary (Based on {self.timeframe} candles):\n"
             for period_name, candle_count in periods.items():
                 if candle_count < available_candles:
                     period_start = float(ohlcv_candles[-candle_count, 4])

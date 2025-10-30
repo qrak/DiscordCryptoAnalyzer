@@ -63,11 +63,22 @@ class AnalysisHandler:
             return None, None
         return exchange, exchange_id
     
-    async def execute_analysis(self, symbol: str, exchange: Any, language: Optional[str]) -> Tuple[bool, Any]:
-        """Execute the market analysis."""
+    async def execute_analysis(self, symbol: str, exchange: Any, language: Optional[str], timeframe: Optional[str] = None) -> Tuple[bool, Any]:
+        """
+        Execute the market analysis with optional timeframe override.
+        
+        Args:
+            symbol: Trading pair symbol (e.g., "BTC/USDT")
+            exchange: Exchange instance
+            language: Optional language for analysis output
+            timeframe: Optional timeframe override (uses config default if None)
+            
+        Returns:
+            Tuple of (success, result)
+        """
         # Serialize access to the shared analyzer to avoid state bleed between concurrent analyses
         async with self._analysis_lock:
-            self.market_analyzer.initialize_for_symbol(symbol, exchange, language)
+            self.market_analyzer.initialize_for_symbol(symbol, exchange, language, timeframe)
             result = await self.market_analyzer.analyze_market()
             self.market_analyzer.last_analysis_result = result
             success = await self.market_analyzer.publish_analysis()

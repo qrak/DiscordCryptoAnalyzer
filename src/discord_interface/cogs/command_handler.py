@@ -91,13 +91,15 @@ class CommandHandler(commands.Cog):
                 return
 
             symbol = validation_result.symbol
+            timeframe = validation_result.timeframe  # NEW: Extract timeframe
             language = validation_result.language
 
             self.validator.add_ongoing_analysis(symbol)
             self.analysis_handler.add_user_in_progress(ctx.author.id)
 
             if self.logger:
-                self.logger.info(f"Analysis initiated: {symbol}, User: {ctx.author.id}, Language: {language or 'English'}")
+                timeframe_info = f", Timeframe: {timeframe}" if timeframe else ""
+                self.logger.info(f"Analysis initiated: {symbol}, User: {ctx.author.id}, Language: {language or 'English'}{timeframe_info}")
 
             embed = self.response_builder.build_analysis_embed(symbol, ctx.author, language)
             confirmation_message = await self.send_tracked_message(ctx, "", embed=embed)
@@ -106,7 +108,7 @@ class CommandHandler(commands.Cog):
 
             # Create and track the analysis task
             analysis_task = self.bot.loop.create_task(
-                self._perform_analysis_workflow(symbol, ctx, language),
+                self._perform_analysis_workflow(symbol, ctx, language, timeframe),  # NEW: Pass timeframe
                 name=f"Analysis-{symbol}"
             )
             self.analysis_handler._analysis_tasks.add(analysis_task)
@@ -125,10 +127,11 @@ class CommandHandler(commands.Cog):
         args = ctx.message.content.split()[1:]
         return self.validator.validate_full_analysis_request(ctx, args, config.ANALYSIS_COOLDOWN_COIN, config.ANALYSIS_COOLDOWN_USER)
 
-    async def _perform_analysis_workflow(self, symbol: str, ctx: commands.Context, language: Optional[str]) -> None:
+    async def _perform_analysis_workflow(self, symbol: str, ctx: commands.Context, language: Optional[str], timeframe: Optional[str] = None) -> None:
         """Perform the complete analysis workflow using the specialized components."""
+        timeframe_info = f", Timeframe: {timeframe}" if timeframe else ""
         if self.logger:
-            self.logger.info(f"Starting analysis: {symbol}, Lang: {language or 'English'}, User: {ctx.author}")
+            self.logger.info(f"Starting analysis: {symbol}, Lang: {language or 'English'}{timeframe_info}, User: {ctx.author}")
         
         try:
             # Validate prerequisites
@@ -146,8 +149,8 @@ class CommandHandler(commands.Cog):
             if self.logger:
                 self.logger.info(f"Using {exchange_id} for {symbol} analysis")
             
-            # Perform analysis
-            success, result = await self.analysis_handler.execute_analysis(symbol, exchange, language)
+            # Perform analysis with optional timeframe override
+            success, result = await self.analysis_handler.execute_analysis(symbol, exchange, language, timeframe)
             
             # Update cooldowns if not admin
             if not self.validator.is_admin(ctx):

@@ -29,7 +29,8 @@ Discord Crypto Analyzer provides real-time cryptocurrency analysis directly to y
 - **AI-Powered Insights**: Utilizes advanced AI models to interpret complex market data
 - **Visual Chart Analysis**: Automatically generates candlestick charts that AI models analyze for enhanced pattern recognition and market insights
 - **Technical Indicators**: Comprehensive analysis using RSI, MACD, Bollinger Bands, Supertrend, and many more.
-- **Multi-Timeframe Analysis**: Examines data on the timeframe specified in `config.ini` (default is `1h`).
+- **Multi-Timeframe Analysis**: Examines data across multiple timeframes (1h, 2h, 4h, 6h, 8h, 12h, 1d).
+- **Flexible Timeframe Selection**: Analyze markets on your preferred timeframe via Discord commands or config
 - **Support & Resistance Levels**: Identifies key price levels.
 - **Price Targets**: Provides short-term and medium-term price targets
 - **Sentiment Analysis**: Incorporates Fear & Greed index for market sentiment
@@ -126,6 +127,44 @@ Contains sensitive information that should not be committed to version control:
 
 Contains non-sensitive configuration that can be safely committed.
 
+### Timeframe Configuration
+
+The bot supports flexible timeframe analysis from 1 hour to 1 day:
+
+**Supported Timeframes:** `1h`, `2h`, `4h`, `6h`, `8h`, `12h`, `1d`
+
+#### Setting Default Timeframe
+
+In `config/config.ini`:
+```ini
+[general]
+timeframe = 1h  # Change to 4h, 1d, etc.
+```
+
+This sets the default timeframe used when users don't specify one in their command.
+
+#### Per-Analysis Timeframe Override
+
+Users can specify timeframe directly in Discord commands:
+
+```
+!analyze BTC/USDT          → Uses config default (1h)
+!analyze BTC/USDT 4h       → Analyzes on 4-hour timeframe
+!analyze BTC/USDT 1d       → Analyzes on daily timeframe
+!analyze BTC/USDT 4h Polish → 4-hour timeframe in Polish
+```
+
+**How It Works:**
+- **Dynamic Calculations**: All technical indicators, period calculations, and candle progress tracking automatically adapt to the selected timeframe
+- **Smart Data Fetching**: System automatically adjusts candle limits to maintain ~30 days of historical data across all timeframes
+- **Real-time Flexibility**: Users don't need to wait for bot restart to try different timeframes
+
+**Choosing Your Timeframe:**
+- **1h-2h**: Short-term trading, high granularity, more frequent signals
+- **4h-6h**: Swing trading, balanced view, medium-term trends
+- **8h-12h**: Longer swing positions, reduced noise
+- **1d**: Position trading, macro trends, most stable signals
+
 ### How AI Provider Selection Works
 
 Use the `provider` setting in the `[ai_providers]` section of `config/config.ini` to select the AI provider. This section explains the available options and exact runtime behavior.
@@ -159,24 +198,39 @@ Use the `provider` setting in the `[ai_providers]` section of `config/config.ini
 
 ### Commands
 
-- `!analyze <symbol>`: Analyze a trading pair (e.g., `!analyze BTC/USDT`)
-- `!analyze <symbol> <language>`: Analyze in a specific language (e.g., `!analyze BTC/USDT Polish`)
+- `!analyze <symbol> [timeframe] [language]`: Analyze a trading pair with optional timeframe and language
+  - Basic: `!analyze BTC/USDT` (uses config default timeframe, English)
+  - With timeframe: `!analyze BTC/USDT 4h` (4-hour timeframe, English)
+  - With language: `!analyze BTC/USDT Polish` (config default timeframe, Polish)
+  - Full: `!analyze BTC/USDT 1d Polish` (daily timeframe, Polish)
 - `!cleanup`: Force cleanup of expired messages (owner only)
 - `!unmute <user>`: Unmute a user that was muted for spamming
 
+**Supported Timeframes:** 1h, 2h, 4h, 6h, 8h, 12h, 1d
+
 Note: There are no `!shutdown` or `!restart` Discord commands. To stop the running bot use the console keyboard shortcut `q` (Windows console) or send an OS signal (SIGINT/SIGTERM) to the process.
 
-### Example
+### Example Commands
 
 ```
+# Basic analysis (default timeframe from config)
 !analyze BTC/USDT
+
+# Different timeframes
+!analyze BTC/USDT 4h
+!analyze BTC/USDT 1d  
+!analyze ETH/USDT 12h
+
+# With language
 !analyze BTC/USDT Polish
-!analyze BTC/USDT Spanish
-!analyze BTC/USDT French
+!analyze BTC/USDT 4h Spanish
+!analyze BTC/USDT 1d French
+
+# More combinations
 !analyze BTC/USDT German
-!analyze BTC/USDT Chinese
-!analyze BTC/USDT Japanese
-!analyze BTC/USDT Russian
+!analyze ETH/USDT 4h Chinese
+!analyze SOL/USDT 1d Japanese
+!analyze BNB/USDT 12h Russian
 ```
 
 Supported languages: English, Polish, Spanish, French, German, Chinese, Japanese, Russian

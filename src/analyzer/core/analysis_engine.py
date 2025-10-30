@@ -2,6 +2,7 @@ from typing import Dict, Any
 import io
 
 from src.utils.loader import config
+from src.utils.timeframe_validator import TimeframeValidator
 from src.platforms.alternative_me import AlternativeMeAPI
 from src.platforms.coingecko import CoinGeckoAPI
 from .analysis_context import AnalysisContext
@@ -45,6 +46,14 @@ class AnalysisEngine:
         try:
             self.timeframe = config.TIMEFRAME
             self.limit = config.CANDLE_LIMIT
+            
+            # Validate timeframe
+            if not TimeframeValidator.validate(self.timeframe):
+                self.logger.warning(
+                    f"Timeframe '{self.timeframe}' is not fully supported. "
+                    f"Supported timeframes: {', '.join(TimeframeValidator.SUPPORTED_TIMEFRAMES)}. "
+                    f"Proceeding but expect potential calculation errors."
+                )
         except Exception as e:
             self.logger.exception(f"Error loading configuration values: {e}.")
             raise
@@ -99,17 +108,35 @@ class AnalysisEngine:
         self.discord_notifier = discord_notifier
         self.publisher.set_discord_notifier(discord_notifier)
 
-    def initialize_for_symbol(self, symbol: str, exchange, language=None) -> None:
-        """Initialize the analyzer for a specific symbol and exchange"""
+    def initialize_for_symbol(self, symbol: str, exchange, language=None, timeframe=None) -> None:
+        """
+        Initialize the analyzer for a specific symbol and exchange.
+        
+        Args:
+            symbol: Trading pair symbol (e.g., "BTC/USDT")
+            exchange: Exchange instance
+            language: Optional language for analysis output
+            timeframe: Optional timeframe override (uses config default if None)
+        """
         self.symbol = symbol
         self.exchange = exchange
         self.base_symbol = symbol.split('/')[0] if '/' in symbol else symbol
         self.language = language
         
-        # Initialize analysis context
+        # Use provided timeframe or fall back to config
+        effective_timeframe = timeframe if timeframe else self.timeframe
+        
+        # Validate effective timeframe
+        try:
+            effective_timeframe = TimeframeValidator.validate_and_normalize(effective_timeframe)
+        except ValueError as e:
+            self.logger.warning(f"Timeframe validation failed: {e}. Using config default: {self.timeframe}")
+            effective_timeframe = self.timeframe
+        
+        # Initialize analysis context with effective timeframe
         self.context = AnalysisContext(symbol)
         self.context.exchange = exchange.name if hasattr(exchange, 'name') else str(exchange)
-        self.context.timeframe = self.timeframe
+        self.context.timeframe = effective_timeframe
         
         # Create data fetcher and initialize data collector
         from ..data.data_fetcher import DataFetcher
@@ -119,9 +146,16 @@ class AnalysisEngine:
             data_fetcher=data_fetcher, 
             symbol=symbol, 
             exchange=exchange,
-            timeframe=self.timeframe,
+            timeframe=effective_timeframe,
             limit=self.limit
         )
+        
+        # Update prompt builder and context builder with effective timeframe
+        if hasattr(self, 'prompt_builder'):
+            self.prompt_builder.timeframe = effective_timeframe
+        
+        if hasattr(self.prompt_builder, 'context_builder'):
+            self.prompt_builder.context_builder.timeframe = effective_timeframe
         
         # Reset analysis state
         self.article_urls = {}

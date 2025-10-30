@@ -128,7 +128,15 @@ class DiscordNotifier:
             
             help_embed.add_field(
                 name="Analysis Command",
-                value="Type `!analyze base/quote language`\nExample: `!analyze BTC/USDC English`",
+                value=(
+                    "Type `!analyze <SYMBOL> [TIMEFRAME] [LANGUAGE]`\n"
+                    "Examples:\n"
+                    "`!analyze BTC/USDC` - Default timeframe, English\n"
+                    "`!analyze BTC/USDC 4h` - 4-hour timeframe\n"
+                    "`!analyze BTC/USDC Polish` - Polish language\n"
+                    "`!analyze BTC/USDC 1d English` - Daily, English\n"
+                    "Supported timeframes: 1h, 2h, 4h, 6h, 8h, 12h, 1d"
+                ),
                 inline=False
             )
             

@@ -97,7 +97,7 @@ class PromptBuilder:
         Returns:
             str: Formatted system prompt
         """
-        return self.template_manager.build_system_prompt(symbol, self.language, has_chart_image)
+        return self.template_manager.build_system_prompt(symbol, self.timeframe, self.language, has_chart_image)
 
     def add_custom_instruction(self, instruction: str) -> None:
         """Add custom instruction to the prompt.

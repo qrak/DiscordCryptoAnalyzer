@@ -5,6 +5,7 @@ import aiohttp
 
 from .data_fetcher import DataFetcher
 from src.logger.logger import Logger
+from src.utils.timeframe_validator import TimeframeValidator
 from src.platforms.alternative_me import AlternativeMeAPI
 from src.rag import RagEngine
 
@@ -25,7 +26,7 @@ class MarketDataCollector:
         self.symbol = None
         self.exchange = None
         self.timeframe = "1h"
-        self.limit = 720  # Default to 30 days of hourly data
+        self.limit = None  # Will be calculated dynamically
         
         # Storage for collected data
         self.article_urls = {}
@@ -35,13 +36,33 @@ class MarketDataCollector:
                   symbol: str, 
                   exchange, 
                   timeframe: str = "1h", 
-                  limit: int = 720) -> None:
-        """Initialize the collector with required parameters"""
+                  limit: int = None) -> None:
+        """
+        Initialize the collector with required parameters.
+        
+        Args:
+            data_fetcher: DataFetcher instance for fetching market data
+            symbol: Trading symbol (e.g., "BTC/USDT")
+            exchange: Exchange instance
+            timeframe: Timeframe for candles (e.g., "1h", "4h", "1d")
+            limit: Optional candle limit (auto-calculated if None)
+        """
         self.data_fetcher = data_fetcher
         self.symbol = symbol
         self.exchange = exchange
         self.timeframe = timeframe
-        self.limit = limit
+        
+        # Calculate limit dynamically if not provided
+        if limit is None:
+            target_days = 30
+            self.limit = TimeframeValidator.get_candle_limit_for_days(timeframe, target_days)
+            self.logger.debug(
+                f"Calculated candle limit: {self.limit} for {timeframe} timeframe "
+                f"(~{target_days} days of data)"
+            )
+        else:
+            self.limit = limit
+        
         self.article_urls = {}
     
     async def collect_data(self, context) -> Dict[str, Any]:

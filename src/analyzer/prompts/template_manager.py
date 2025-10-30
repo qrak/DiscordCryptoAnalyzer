@@ -19,11 +19,12 @@ class TemplateManager:
         """
         self.logger = logger
     
-    def build_system_prompt(self, symbol: str, language: Optional[str] = None, has_chart_image: bool = False) -> str:
+    def build_system_prompt(self, symbol: str, timeframe: str = "1h", language: Optional[str] = None, has_chart_image: bool = False) -> str:
         """Build the system prompt for the AI model.
         
         Args:
             symbol: Trading symbol (e.g., "BTC/USDT")
+            timeframe: Timeframe for analysis (e.g., "1h", "4h", "1d")
             language: Optional language for response (defaults to English)
             has_chart_image: Whether a chart image is being provided for visual analysis
             
@@ -35,8 +36,8 @@ class TemplateManager:
 
         language = language or config.DEFAULT_LANGUAGE
 
-        # Refined header with more specific instructions
-        header_base = f"""You are providing educational crypto market analysis of {symbol} on 1h timeframe along with multi-timeframe technical metrics and recent market data.
+        # Refined header with dynamic timeframe
+        header_base = f"""You are providing educational crypto market analysis of {symbol} on {timeframe} timeframe along with multi-timeframe technical metrics and recent market data.
 Focus on objective technical indicator readings and historical pattern recognition (e.g., identify potential chart patterns like triangles, head and shoulders, flags based on OHLCV data) for educational purposes only.
 Present clear, data-driven observations with specific numeric values from the provided metrics. Prioritize recent price action and technical indicators over older news unless the news is highly significant.
 Identify key price levels based solely on technical analysis concepts (Support, Resistance, Pivot Points, Fibonacci levels if applicable)."""
