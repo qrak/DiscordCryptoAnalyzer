@@ -1,10 +1,10 @@
 # Discord Crypto Analyzer
 
 <p align="left">
-  <img src="https://img.shields.io/badge/python-3.13-blue.svg" />
+  <img src="https://img.shields.io/badge/python-3.11+-blue.svg" />
   <img src="https://img.shields.io/badge/discord.py-2.6.3-blue.svg" />
   <img src="https://img.shields.io/badge/numpy-2.2.3-blue.svg" />
-  <img src="https://img.shields.io/badge/pandas-2.3.2-blue.svg" />
+  <img src="https.shields.io/badge/pandas-2.3.2-blue.svg" />
   <img src="https://img.shields.io/badge/plotly-6.3.0-blue.svg" />
   <img src="https://img.shields.io/badge/ccxt-4.5.3-blue.svg" />
 </p>
@@ -28,9 +28,9 @@ Discord Crypto Analyzer provides real-time cryptocurrency analysis directly to y
 - **Real-time Market Analysis**: Analyze any cryptocurrency trading pair with a simple command
 - **AI-Powered Insights**: Utilizes advanced AI models to interpret complex market data
 - **Visual Chart Analysis**: Automatically generates candlestick charts that AI models analyze for enhanced pattern recognition and market insights
-- **Technical Indicators**: Comprehensive analysis using RSI, MACD, Bollinger Bands, and many more indicators
-- **Multi-Timeframe Analysis**: Examines data across multiple timeframes (1D, 2D, 3D, 7D, 30D)
-- **Support & Resistance Levels**: Identifies key price levels
+- **Technical Indicators**: Comprehensive analysis using RSI, MACD, Bollinger Bands, Supertrend, and many more.
+- **Multi-Timeframe Analysis**: Examines data on the timeframe specified in `config.ini` (default is `1h`).
+- **Support & Resistance Levels**: Identifies key price levels.
 - **Price Targets**: Provides short-term and medium-term price targets
 - **Sentiment Analysis**: Incorporates Fear & Greed index for market sentiment
 - **Detailed Reports**: Generates in-depth HTML reports for comprehensive analysis
