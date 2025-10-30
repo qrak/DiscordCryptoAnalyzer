@@ -9,7 +9,7 @@
   <img src="https://img.shields.io/badge/ccxt-4.5.3-blue.svg" />
 </p>
 
-A powerful Discord Crypto Analyzer for real-time cryptocurrency market analysis using AI models.
+A powerful Discord bot for real-time cryptocurrency market analysis using advanced AI models.
 
 ## Try It Live
 
@@ -21,12 +21,13 @@ Channel: #ai-analysis
 
 ## Overview
 
-Discord Crypto Analyzer is a powerful bot that provides real-time cryptocurrency analysis directly to your Discord server. It uses advanced AI models to generate detailed reports, forecasts, and detect key market patterns. It's perfect for traders and enthusiasts looking for instant, data-driven insights into the market.
+Discord Crypto Analyzer provides real-time cryptocurrency analysis directly to your Discord server. Using advanced AI models, it generates detailed reports, forecasts, and detects key market patterns—perfect for traders and enthusiasts seeking instant, data-driven insights.
 
 ## Features
 
 - **Real-time Market Analysis**: Analyze any cryptocurrency trading pair with a simple command
 - **AI-Powered Insights**: Utilizes advanced AI models to interpret complex market data
+- **Visual Chart Analysis**: Automatically generates candlestick charts that AI models analyze for enhanced pattern recognition and market insights
 - **Technical Indicators**: Comprehensive analysis using RSI, MACD, Bollinger Bands, and many more indicators
 - **Multi-Timeframe Analysis**: Examines data across multiple timeframes (1D, 2D, 3D, 7D, 30D)
 - **Support & Resistance Levels**: Identifies key price levels
@@ -37,6 +38,10 @@ Discord Crypto Analyzer is a powerful bot that provides real-time cryptocurrency
 - **Context-Aware Analysis**: Uses RAG (Retrieval-Augmented Generation) for enhanced market context
 - **Multi-Language Support**: Analyze markets in multiple languages
 - **Auto-Categorization**: Automatically identifies and categorizes crypto assets
+- **Multi-Exchange Support**: Fetches data from multiple exchanges including Binance, KuCoin, Gate.io, MEXC, and Hyperliquid
+- **Divergence Detection**: Identifies bullish and bearish divergences across multiple indicators
+- **Streaming Analysis**: Real-time streaming responses when using local AI models for faster feedback
+- **Automatic Cleanup**: Messages and files automatically expire and are cleaned up after a configurable period
 - **Fault-Tolerant Design**: Multiple AI model fallbacks for continuous operation
 - **Smart Caching**: Optimized data retrieval with minimal API calls
 - **Educational Resources**: Automated linking to indicator explanations and definitions
@@ -121,7 +126,7 @@ Contains sensitive information that should not be committed to version control:
 
 Contains non-sensitive configuration that can be safely committed.
 
-How AI Provider Selection Works
+### How AI Provider Selection Works
 
 Use the `provider` setting in the `[ai_providers]` section of `config/config.ini` to select the AI provider. This section explains the available options and exact runtime behavior.
 
@@ -162,8 +167,6 @@ Use the `provider` setting in the `[ai_providers]` section of `config/config.ini
 Note: There are no `!shutdown` or `!restart` Discord commands. To stop the running bot use the console keyboard shortcut `q` (Windows console) or send an OS signal (SIGINT/SIGTERM) to the process.
 
 ### Example
-
-
 
 ```
 !analyze BTC/USDT
@@ -231,13 +234,15 @@ The bot implements a comprehensive technical analysis system that combines tradi
 
 ### Pattern Recognition
 
-The system automatically detects chart patterns including:
-- Head and Shoulders (bullish/bearish)
-- Double Top/Bottom
-- Wedges (rising/falling)
-- Triangles (ascending/descending/symmetrical)
-- Support/Resistance breakouts
-- Trend lines and channels
+The system automatically detects technical patterns including:
+- **RSI Patterns**: Oversold/overbought conditions, W-bottoms, M-tops
+- **MACD Patterns**: Bullish/bearish crossovers, zero-line crosses
+- **Divergence Detection**: RSI, MACD, and Stochastic divergences (bullish/bearish)
+- **Crossover Patterns**: DI+/DI- crossovers, Supertrend direction changes
+- **Volatility Patterns**: Expansion/contraction, spikes, trend changes
+- **Support/Resistance Levels**: Advanced level calculation with volume confirmation
+
+Additionally, the AI visually analyzes chart images to identify classic price patterns such as head and shoulders, triangles, wedges, channels, and candlestick formations.
 
 ### Performance Optimization
 
@@ -292,12 +297,11 @@ The bot leverages advanced AI models to interpret market data and generate insig
 
 ### AI Model Orchestration
 
-- **Tiered Provider Strategy**:
-  1. Local models (LM Studio) for speed and privacy when available
-  2. OpenRouter for access to state-of-the-art models
-  3. Google AI Studio as fallback for reliability
+- **Tiered Provider Strategy**: Supports local models (LM Studio), cloud-based providers (Google AI Studio, OpenRouter)
+- **Configurable Fallback**: When set to "all" mode, tries Google AI Studio → LM Studio (local) → OpenRouter
+- **Streaming Support**: Real-time streaming responses available with LM Studio for faster interactive analysis
 - **Adaptive Selection**: Dynamically switches between models based on availability and response quality
-- **Session Persistence**: Maintains context across analysis requests when beneficial
+- **Response Parsing**: Transforms raw AI output to structured data
 - **Token Optimization**: Intelligently manages prompt length to balance detail and token usage
 
 ## RAG System (Retrieval-Augmented Generation)

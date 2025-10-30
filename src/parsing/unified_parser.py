@@ -39,13 +39,14 @@ class UnifiedParser:
         """
         try:
             cleaned_text = self._clean_tool_response_tags(raw_text)
+            parsing_errors = []
             
             # Step 1: Try parsing entire response as JSON (pure JSON responses)
             try:
                 result = json.loads(cleaned_text)
                 return self._normalize_numeric_fields(result)
-            except json.JSONDecodeError:
-                pass
+            except json.JSONDecodeError as e:
+                parsing_errors.append(f"Direct JSON parse failed at position {e.pos}: {e.msg}")
 
             # Step 2: Extract from ```json``` blocks (Google AI format)
             if "```json" in cleaned_text:
@@ -53,8 +54,15 @@ class UnifiedParser:
                 json_end = cleaned_text.find("```", json_start)
                 if json_end > json_start:
                     json_content = cleaned_text[json_start:json_end].strip()
-                    result = json.loads(json_content)
-                    return self._normalize_numeric_fields(result)
+                    try:
+                        result = json.loads(json_content)
+                        return self._normalize_numeric_fields(result)
+                    except json.JSONDecodeError as e:
+                        parsing_errors.append(f"JSON block parse failed at position {e.pos}: {e.msg}")
+                else:
+                    parsing_errors.append("Found ```json marker but couldn't locate closing ```")
+            else:
+                parsing_errors.append("No ```json``` code blocks found")
 
             # Step 3: Extract JSON from start (OpenRouter format)
             if cleaned_text.strip().startswith('{'):
@@ -66,11 +74,24 @@ class UnifiedParser:
                         brace_count -= 1
                         if brace_count == 0:
                             json_content = cleaned_text[:i+1]
-                            result = json.loads(json_content)
-                            return self._normalize_numeric_fields(result)
+                            try:
+                                result = json.loads(json_content)
+                                return self._normalize_numeric_fields(result)
+                            except json.JSONDecodeError as e:
+                                parsing_errors.append(f"Brace-balanced JSON parse failed at position {e.pos}: {e.msg}")
+                            break
+                else:
+                    parsing_errors.append("Found opening brace but braces never balanced")
+            else:
+                parsing_errors.append(f"Response doesn't start with '{{' (starts with: {cleaned_text[:50]}...)")
 
-            # If all parsing methods fail, create fallback response
-            self.logger.warning("Unable to parse AI response as JSON, creating fallback response")
+            # If all parsing methods fail, create fallback response with detailed diagnostics
+            response_preview = cleaned_text[:500] if len(cleaned_text) > 500 else cleaned_text
+            self.logger.warning(
+                f"Unable to parse AI response as JSON, creating fallback response. "
+                f"Parsing attempts failed: {' | '.join(parsing_errors)}. "
+                f"Response preview: {response_preview}"
+            )
             return self._create_fallback_response(cleaned_text)
             
         except Exception as e:

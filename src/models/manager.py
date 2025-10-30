@@ -188,6 +188,7 @@ class ModelManager:
                                chart_image: Optional[Union[io.BytesIO, bytes, str]] = None) -> Dict[str, Any]:
         """Invoke a provider for normal or chart analysis requests and return its raw response dict."""
         if provider == "googleai" and self.google_client:
+            self.logger.info("Attempting chart analysis with Google AI free tier API")
             if chart:
                 response = await self.google_client.chat_completion_with_chart_analysis(messages, cast(Any, chart_image), self.google_config)
             else:
@@ -203,6 +204,8 @@ class ModelManager:
                 
                 if self._is_valid_response(response):
                     self.logger.info("Successfully used paid Google AI API after free tier overload")
+            elif self._is_valid_response(response):
+                self.logger.info("Successfully used free Google AI API")
             
             return response
 

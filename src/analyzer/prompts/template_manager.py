@@ -43,8 +43,37 @@ Identify key price levels based solely on technical analysis concepts (Support, 
 
         # Add chart analysis instructions if image is provided
         if has_chart_image:
-            header_base += """
-IMPORTANT: You have been provided with a price chart IMAGE showing recent candlestick data. Use BOTH the numerical technical data AND the visual patterns you can observe in the chart image for your analysis. Pay special attention to visual chart patterns, candlestick formations, support/resistance levels that are clearly visible in the image, and price structure patterns you can see."""
+            from src.utils.loader import config
+            cfg_limit = int(config.AI_CHART_CANDLE_LIMIT)
+            
+            header_base += f"""
+
+CRITICAL: You are analyzing a CHART IMAGE containing {cfg_limit} candlesticks specifically optimized for visual pattern recognition.
+
+CHART ANALYSIS REQUIREMENTS:
+1. PATTERN DETECTION - Actively search for and identify:
+   - Head and Shoulders (bullish or bearish inversions)
+   - Double Top / Double Bottom formations
+   - Wedge patterns (rising or falling)
+   - Triangle patterns (ascending, descending, symmetrical)
+   - Flag and Pennant consolidations
+   - Support and Resistance breakouts/breakdowns
+
+2. PATTERN REPORTING - For EACH pattern you identify:
+   - State the pattern name clearly
+   - Describe its exact location on the chart (candle range, price levels)
+   - Indicate whether it's bullish or bearish
+   - Rate your confidence level (high/medium/low)
+   - Describe key structural components (neckline, shoulders, peaks, troughs)
+
+3. VISUAL INTEGRATION - Use BOTH visual chart observations AND numerical technical data:
+   - Prioritize what you can SEE in the chart image
+   - Validate support/resistance levels visually
+   - Identify candlestick formations (doji, hammer, engulfing, etc.)
+   - Note trend lines and channels visible in the image
+   - Confirm breakouts/breakdowns with visual evidence
+
+The chart has been optimized with high contrast colors, dense grid lines, and thin candlestick wicks to make patterns clearly visible."""
 
         header_base += """
 THIS IS EDUCATIONAL CONTENT ONLY. All analysis is for informational and educational purposes - NOT financial advice.
@@ -116,7 +145,15 @@ Use appropriate {language} terminology for technical analysis concepts."""
         # Add chart analysis sections only if chart images are available
         if has_chart_analysis:
             response_template += '''
-        - Chart Pattern Analysis & Visual Integration (describe visual patterns observed in the price chart image and how they align with technical indicators)'''
+        - Chart Pattern Analysis & Visual Integration:
+          * **Identified Patterns**: List each pattern found with:
+            - Pattern name and type (e.g., "Bearish Head and Shoulders Top")
+            - Location (price range and approximate candle indices)
+            - Bias (bullish/bearish) and confidence level (high/medium/low)
+            - Key structural levels (neckline, shoulders, peaks, breakout points)
+            - Current status (forming, completed, breached)
+          * **Visual Observations**: Describe what you see in the chart image
+          * **Pattern-Indicator Alignment**: How visual patterns confirm or contradict technical indicators'''
         
         response_template += '''
         - Potential Catalysts (Summarize factors like news, events, strong technical signals that could drive future price movement)
@@ -215,18 +252,37 @@ Use appropriate {language} terminology for technical analysis concepts."""
 
             analysis_steps += f"""
         
-            {step_number}. Chart Pattern Analysis & Visual Integration:
-           - Analyze the provided price chart IMAGE showing the last {cfg_limit} candles
-           - Look at the VISUAL candlestick patterns in the image (doji, hammer, engulfing, shooting star, etc.)
-           - Identify support and resistance levels that are VISUALLY apparent on the chart
-           - Detect trend lines, channels, and price patterns that you can SEE in the image (triangles, flags, head & shoulders)
-           - Note key breakout or breakdown levels and price structure patterns visible in the chart image
-           - Combine the numerical technical indicators with the VISUAL chart patterns you observed in the image
-           - Cross-reference chart patterns you can SEE with momentum and trend indicators from the data
-           - Validate support/resistance levels using both price history data AND visual confirmation from the chart
-           - Integrate candlestick analysis from the IMAGE with volume and momentum readings from the data
-           - Look for convergences and divergences between technical data and the visual patterns in the chart image
-           - Focus on what you can observe visually in the image, not just the numerical data"""
+        {step_number}. Chart Pattern Analysis & Visual Integration:
+           VISUAL PATTERN DETECTION (Priority):
+           - Systematically scan the chart image for classic patterns:
+             * Head and Shoulders (identify left shoulder, head, right shoulder, neckline)
+             * Double Tops/Bottoms (compare peak/trough heights and spacing)
+             * Wedges (rising/falling with converging trend lines)
+             * Triangles (ascending/descending/symmetrical consolidations)
+             * Flags and Pennants (continuation patterns after strong moves)
+           
+           PATTERN STRUCTURE ANALYSIS:
+           - For each pattern found, document:
+             * Exact price levels of key components
+             * Candle positions (approximate start/end indices)
+             * Completion status (forming vs. confirmed)
+             * Breakout/breakdown levels and whether breached
+           
+           CANDLESTICK FORMATIONS:
+           - Identify significant single/multi-candle patterns visible in the image
+           - Note reversal signals (doji, hammer, shooting star, engulfing)
+           - Observe momentum shifts through candle size and color changes
+           
+           SUPPORT & RESISTANCE:
+           - Mark horizontal levels where price repeatedly bounced/rejected
+           - Identify trend lines connecting swing highs or swing lows
+           - Note any channels (parallel support and resistance)
+           
+           VISUAL-NUMERICAL INTEGRATION:
+           - Cross-reference visual patterns with momentum indicators (RSI, MACD)
+           - Validate breakouts using volume and volatility data
+           - Confirm support/resistance with Fibonacci or pivot levels from data
+           - Check if visual pattern implications match indicator signals"""
             step_number += 1
         
         analysis_steps += f"""
