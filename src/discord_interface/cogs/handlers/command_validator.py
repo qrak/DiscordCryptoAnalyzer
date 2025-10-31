@@ -68,6 +68,9 @@ class CommandValidator:
             return False
         
         arg_lower = arg.lower()
+        # Block 1w - reserved for institutional macro trend analysis only (200W SMA)
+        if arg_lower == '1w':
+            return False
         # Only accept timeframes explicitly in our supported list
         return arg_lower in TimeframeValidator.TIMEFRAME_MINUTES
     

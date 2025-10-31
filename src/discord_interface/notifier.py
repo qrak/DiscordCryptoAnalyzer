@@ -281,9 +281,10 @@ class DiscordNotifier:
                             thumbnail_url: Optional[str] = None, language: Optional[str] = None) -> discord.Embed:
         """Create a Discord embed for market analysis results"""
         analysis = analysis_result.get("analysis", {})
+        timeframe = analysis_result.get("timeframe")
         
         # Create base embed
-        embed = self._create_base_embed(analysis, symbol, language)
+        embed = self._create_base_embed(analysis, symbol, language, timeframe)
         
         # Add core analysis fields
         self._add_core_analysis_fields(embed, analysis)
@@ -302,7 +303,7 @@ class DiscordNotifier:
         self._finalize_embed(embed, thumbnail_url)
         return embed
     
-    def _create_base_embed(self, analysis: Dict[str, Any], symbol: str, language: Optional[str]) -> discord.Embed:
+    def _create_base_embed(self, analysis: Dict[str, Any], symbol: str, language: Optional[str], timeframe: Optional[str] = None) -> discord.Embed:
         """Create the base embed with title, description, and color"""
         summary = analysis.get("summary", "No summary available")
         trend = analysis.get("observed_trend", "NEUTRAL")
@@ -310,11 +311,12 @@ class DiscordNotifier:
         # Determine embed color based on trend
         color = self._get_trend_color(trend)
         
-        # Add language indicator to title if provided
+        # Add language and timeframe indicators to title
         language_suffix = f" ({language})" if language else ""
+        timeframe_suffix = f" on {timeframe} timeframe" if timeframe else ""
         
         return discord.Embed(
-            title=f"🚀 {symbol} Market Analysis{language_suffix}",
+            title=f"🚀 {symbol} Market Analysis{timeframe_suffix}{language_suffix}",
             description=summary,
             color=color
         )

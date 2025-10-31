@@ -130,6 +130,58 @@ class DataFetcher:
             }
 
     @retry_async()
+    async def fetch_weekly_historical_data(self, pair: str, target_weeks: int = 300) -> Dict[str, Any]:
+        """
+        Fetch weekly data for macro analysis. Wraps fetch_candlestick_data with weekly metadata.
+        
+        Args:
+            pair: The trading pair to fetch data for
+            target_weeks: Number of weeks of historical data to retrieve (default: 300)
+            
+        Returns:
+            Dict containing:
+                'data': NDArray of OHLCV data if available, or None
+                'latest_close': Latest closing price
+                'available_weeks': Number of weeks of data actually available
+                'meets_200w_threshold': Boolean indicating if we have 200+ weeks for full 200W SMA analysis
+                'error': Error message if fetch failed, None otherwise
+        """
+        self.logger.debug(f"Fetching weekly data for {pair}: {target_weeks} weeks")
+        
+        try:
+            # REUSE existing method - already supports '1w'
+            result = await self.fetch_candlestick_data(pair=pair, timeframe="1w", limit=target_weeks)
+            
+            if result is None:
+                return {
+                    'data': None,
+                    'latest_close': None,
+                    'available_weeks': 0,
+                    'meets_200w_threshold': False,
+                    'error': "No data returned"
+                }
+                
+            ohlcv_data, latest_close = result
+            available_weeks = len(ohlcv_data)
+            
+            return {
+                'data': ohlcv_data,
+                'latest_close': latest_close,
+                'available_weeks': available_weeks,
+                'meets_200w_threshold': available_weeks >= 200,
+                'error': None
+            }
+        except Exception as e:
+            self.logger.error(f"Error fetching weekly data: {e}")
+            return {
+                'data': None,
+                'latest_close': None,
+                'available_weeks': 0,
+                'meets_200w_threshold': False,
+                'error': str(e)
+            }
+
+    @retry_async()
     async def fetch_multiple_tickers(self, symbols: List[str] = None) -> Dict[str, Any]:
         """
         Fetch price data for multiple trading pairs at once using CCXT with caching

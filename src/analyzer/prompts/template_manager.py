@@ -152,10 +152,12 @@ Use appropriate {language} terminology for technical analysis concepts."""
         
         **IMPORTANT: Begin your analysis with a clear disclaimer that this is educational content only and not financial advice.**
         
+        **IMPORTANT: Include a note that technical indicators are calculated using only completed candles, and the current candle (if incomplete) is not included in calculations.**
+        
         Organize the Markdown analysis into these sections:
         
         - Disclaimer (emphasize this is for educational purposes only, not financial advice)
-        - Technical Analysis Overview (objective description of what the indicators show, quantified)
+        - Technical Analysis Overview (objective description of what the indicators show, quantified) - INCLUDE NOTE: "All technical indicators in this analysis are calculated using only completed {timeframe} candles. The current incomplete candle is not included in indicator calculations."
         - Multi-Timeframe Assessment (describe short, medium, long-term patterns with quantified changes)
         - Technical Indicators Summary (describe indicators in organized paragraphs grouped by category)
         - Key Technical Levels (describe support and resistance levels in text format with specific prices and distances)
@@ -186,13 +188,14 @@ Use appropriate {language} terminology for technical analysis concepts."""
         
         return response_template
     
-    def build_analysis_steps(self, symbol: str, has_advanced_support_resistance: bool = False, has_chart_analysis: bool = False) -> str:
+    def build_analysis_steps(self, symbol: str, has_advanced_support_resistance: bool = False, has_chart_analysis: bool = False, available_periods: dict = None) -> str:
         """Build analysis steps instructions for the AI model.
         
         Args:
             symbol: Trading symbol being analyzed
             has_advanced_support_resistance: Whether advanced S/R indicators are detected
             has_chart_analysis: Whether chart image analysis is available (Google AI only)
+            available_periods: Dict of period names to candle counts (e.g., {"12h": 2, "24h": 4, "3d": 12, "7d": 28})
             
         Returns:
             str: Formatted analysis steps
@@ -200,16 +203,22 @@ Use appropriate {language} terminology for technical analysis concepts."""
         # Get the base asset for market comparisons
         analyzed_base = symbol.split('/')[0] if '/' in symbol else symbol
         
-        analysis_steps = """
+        # Build dynamic timeframe description based on available periods
+        if available_periods:
+            period_names = list(available_periods.keys())
+            timeframe_desc = f"Analyze the provided Multi-Timeframe Price Summary periods: {', '.join(period_names)}"
+        else:
+            timeframe_desc = "Analyze the provided Multi-Timeframe Price Summary periods (dynamically calculated based on your analysis timeframe)"
+        
+        analysis_steps = f"""
         ANALYSIS STEPS:
         Follow these steps to generate the analysis. In the final JSON response, briefly justify the 'observed_trend' and 'technical_bias' fields by referencing specific indicators or patterns from the provided data (e.g., "Bearish due to MACD crossover and price below Supertrend").
 
         1. Multi-Timeframe Assessment:
-           - Analyze short-term price action (1-4h) for immediate trend
-           - Review medium-term trends (1-7d) for broader context
-           - Consider long-term trends (30d+) for market cycle positioning
-           - Analyze 365d historical data and SMA positions for macro trend
-           - Compare price action across different timeframes for confirmation/divergence
+           - {timeframe_desc}
+           - Compare shorter periods vs multi-day periods vs long-term (30d+, 365d) price action
+           - Review weekly macro trend indicators if provided (200-week SMA, institutional positioning)
+           - Identify alignment or divergence across different timeframes
         
         2. Technical Indicator Analysis:
            - Evaluate core momentum indicators (RSI, MACD, Stochastic)

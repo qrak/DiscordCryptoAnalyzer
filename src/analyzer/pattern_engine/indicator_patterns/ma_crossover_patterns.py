@@ -43,7 +43,8 @@ def detect_golden_cross_numba(sma_50: np.ndarray, sma_200: np.ndarray) -> tuple:
         now_above = sma_50[idx + 1] > sma_200[idx + 1]
         
         if was_below and now_above:
-            return True, i, float(sma_50[-1]), float(sma_200[-1])
+            # Use values at crossover point, not current values
+            return True, i, float(sma_50[idx + 1]), float(sma_200[idx + 1])
     
     return False, 0, 0.0, 0.0
 
@@ -82,7 +83,8 @@ def detect_death_cross_numba(sma_50: np.ndarray, sma_200: np.ndarray) -> tuple:
         now_below = sma_50[idx + 1] < sma_200[idx + 1]
         
         if was_above and now_below:
-            return True, i, float(sma_50[-1]), float(sma_200[-1])
+            # Use values at crossover point, not current values
+            return True, i, float(sma_50[idx + 1]), float(sma_200[idx + 1])
     
     return False, 0, 0.0, 0.0
 
@@ -121,14 +123,16 @@ def detect_short_term_crossover_numba(sma_20: np.ndarray, sma_50: np.ndarray) ->
         now_above = sma_20[idx + 1] > sma_50[idx + 1]
         
         if was_below and now_above:
-            return True, True, i, float(sma_20[-1]), float(sma_50[-1])
+            # Use values at crossover point, not current values
+            return True, True, i, float(sma_20[idx + 1]), float(sma_50[idx + 1])
         
         # Bearish crossover: 20 crosses below 50
         was_above = sma_20[idx] >= sma_50[idx]
         now_below = sma_20[idx + 1] < sma_50[idx + 1]
         
         if was_above and now_below:
-            return True, False, i, float(sma_20[-1]), float(sma_50[-1])
+            # Use values at crossover point, not current values
+            return True, False, i, float(sma_20[idx + 1]), float(sma_50[idx + 1])
     
     return False, False, 0, 0.0, 0.0
 

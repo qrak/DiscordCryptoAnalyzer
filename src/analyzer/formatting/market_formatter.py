@@ -375,6 +375,48 @@ class MarketFormatter:
             
         return f"## Macro Trend Analysis (365D):\n{' | '.join(status_parts)}"
     
+    def _format_weekly_macro_section(self, weekly_macro: dict) -> str:
+        """Format weekly macro trend (200W SMA methodology)."""
+        if not weekly_macro:
+            return ""
+        
+        trend = weekly_macro.get('trend_direction', 'Neutral')
+        confidence = weekly_macro.get('confidence_score', 0)
+        cycle_phase = weekly_macro.get('cycle_phase')
+        distance = weekly_macro.get('distance_from_200w_sma_pct')
+        
+        lines = ["📊 WEEKLY MACRO TREND (200W SMA Analysis):"]
+        lines.append(f"  • Overall Trend: **{trend}** (Confidence: {confidence}%)")
+        
+        if cycle_phase:
+            lines.append(f"  • Market Cycle Phase: {cycle_phase}")
+        if distance is not None:
+            lines.append(f"  • Distance from 200W SMA: {distance:+.1f}%")
+        if weekly_macro.get('price_above_200w_sma') is not None:
+            status = "✅ Above" if weekly_macro['price_above_200w_sma'] else "⚠️ Below"
+            lines.append(f"  • Price vs 200W SMA: {status}")
+        
+        # Golden/Death Cross with dates
+        if weekly_macro.get('golden_cross'):
+            weeks = weekly_macro.get('golden_cross_weeks_ago', 0)
+            date = weekly_macro.get('golden_cross_date', 'N/A')
+            lines.append(f"  • 🌟 Golden Cross: {weeks} weeks ago ({date})")
+        if weekly_macro.get('death_cross'):
+            weeks = weekly_macro.get('death_cross_weeks_ago', 0)
+            date = weekly_macro.get('death_cross_date', 'N/A')
+            lines.append(f"  • ⚠️ Death Cross: {weeks} weeks ago ({date})")
+        
+        # Multi-year trend
+        if weekly_macro.get('multi_year_trend'):
+            mt = weekly_macro['multi_year_trend']
+            years = mt.get('years_analyzed', 0)
+            pct = mt.get('price_change_pct', 0)
+            start = mt.get('start_date', 'N/A')
+            end = mt.get('end_date', 'N/A')
+            lines.append(f"  • {years:.1f}-Year Trend: {pct:+.1f}% ({start} to {end})")
+        
+        return "\n".join(lines)
+    
     def format_coin_details_section(self, coin_details: Dict[str, Any], max_description_tokens: int = 256) -> str:
         """Format coin details into a structured section for prompt building
         

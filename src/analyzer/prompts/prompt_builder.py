@@ -67,8 +67,30 @@ class PromptBuilder:
             self.context_builder.build_market_data_section(context.ohlcv_candles),
             self.technical_analysis_formatter.format_technical_analysis(context, self.timeframe),
             self.context_builder.build_market_period_metrics_section(context.market_metrics),
-            self.context_builder.build_long_term_analysis_section(context.long_term_data, context.current_price),
         ])
+        
+        # Build long-term analysis section (daily + weekly)
+        long_term_sections = []
+        
+        # Daily macro analysis
+        if context.long_term_data:
+            daily_section = self.context_builder.build_long_term_analysis_section(
+                context.long_term_data, 
+                context.current_price
+            )
+            if daily_section:
+                long_term_sections.append(daily_section)
+        
+        # Weekly macro analysis (200W SMA)
+        if context.weekly_macro_indicators and 'weekly_macro_trend' in context.weekly_macro_indicators:
+            weekly_section = self.market_formatter._format_weekly_macro_section(
+                context.weekly_macro_indicators['weekly_macro_trend']
+            )
+            if weekly_section:
+                long_term_sections.append(weekly_section)
+        
+        if long_term_sections:
+            sections.append("\n\n".join(long_term_sections))
 
         # Add custom instructions if available
         if self.custom_instructions:
@@ -77,8 +99,11 @@ class PromptBuilder:
         # Check if we have advanced support/resistance detected
         advanced_support_resistance_detected = self._has_advanced_support_resistance()
 
+        # Get available periods from context builder for dynamic prompt generation
+        available_periods = self.context_builder._calculate_period_candles()
+
         # Add analysis steps right before response template
-        sections.append(self.template_manager.build_analysis_steps(context.symbol, advanced_support_resistance_detected, has_chart_analysis))
+        sections.append(self.template_manager.build_analysis_steps(context.symbol, advanced_support_resistance_detected, has_chart_analysis, available_periods))
 
         # Response template should always be last
         sections.append(self.template_manager.build_response_template(has_chart_analysis))

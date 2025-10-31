@@ -135,6 +135,9 @@ class MarketDataCollector:
                 
             # Fetch long-term historical data for additional context
             await self.fetch_long_term_historical_data(context)
+            
+            # Fetch weekly macro data for 200W SMA analysis
+            await self.fetch_weekly_macro_data(context, target_weeks=300)
 
             # Fetch and process market sentiment data
             await self.fetch_and_process_sentiment_data(context)
@@ -198,6 +201,41 @@ class MarketDataCollector:
             self.logger.exception(f"Long-term data fetch failed: {str(e)}")
             context.long_term_data = None
             return False
+
+    async def fetch_weekly_macro_data(self, context, target_weeks: int = 300) -> bool:
+        """Fetch weekly data for macro trend analysis (200W SMA methodology)"""
+        try:
+            if not self.symbol or not self.exchange or not self.data_fetcher:
+                self.logger.error("Cannot fetch weekly data: symbol, exchange, or data_fetcher not initialized")
+                return False
+            
+            self.logger.info(f"Fetching weekly macro data for {self.symbol}")
+            
+            result = await self.data_fetcher.fetch_weekly_historical_data(self.symbol, target_weeks)
+            
+            if result['data'] is None:
+                self.logger.warning(f"Weekly data unavailable: {result.get('error', 'Unknown')}")
+                context.weekly_ohlcv = None
+                context.available_weeks = 0
+                context.meets_200w_threshold = False
+                return False
+            
+            context.weekly_ohlcv = result['data']
+            context.available_weeks = result['available_weeks']
+            context.meets_200w_threshold = result['meets_200w_threshold']
+            
+            self.logger.info(
+                f"Weekly data: {result['available_weeks']} weeks, "
+                f"200W SMA: {'Available' if result['meets_200w_threshold'] else 'Insufficient'}"
+            )
+            return True
+        except Exception as e:
+            self.logger.error(f"Error fetching weekly macro data: {e}")
+            context.weekly_ohlcv = None
+            context.available_weeks = 0
+            context.meets_200w_threshold = False
+            return False
+
         
     async def fetch_and_process_sentiment_data(self, context) -> bool:
         """Fetch and process sentiment data (fear & greed index)"""

@@ -62,7 +62,9 @@ class AnalysisPublisher:
                 discord_analysis_data = {
                     "analysis": analysis_result.get("analysis", {}),
                     "symbol": symbol,
-                    "language": language
+                    "language": language,
+                    "exchange": context.exchange if hasattr(context, 'exchange') else None,
+                    "timeframe": timeframe
                 }
                 
                 html_content = self.html_generator.generate_html_content(

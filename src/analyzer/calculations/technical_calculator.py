@@ -251,6 +251,180 @@ class TechnicalCalculator:
         self._cache[cache_key] = result
         return result
 
+    def get_weekly_macro_indicators(self, weekly_ohlcv_data: np.ndarray) -> Dict[str, Any]:
+        """Calculate macro indicators using weekly data (200W SMA methodology)."""
+        data_hash = self._hash_data(weekly_ohlcv_data)
+        cache_key = f"weekly_macro_{data_hash}"
+
+        if cache_key in self._cache:
+            if self.logger:
+                self.logger.debug("Using cached weekly macro indicators")
+            return self._cache[cache_key]
+
+        ti_weekly = TechnicalIndicators()
+        ti_weekly.get_data(weekly_ohlcv_data)
+        available_weeks = len(weekly_ohlcv_data)
+
+        # REUSE existing helper methods (already timeframe-agnostic)
+        weekly_sma_values, weekly_volume_sma_values = self._compute_sma_sets(ti_weekly, available_weeks)
+        weekly_price_change, weekly_volume_change = self._compute_change_metrics(ti_weekly, available_weeks)
+        weekly_volatility = self._compute_volatility(ti_weekly, available_weeks)
+
+        # NEW: Weekly-specific macro analysis
+        weekly_macro_analysis = self._compute_weekly_macro_trend_analysis(
+            ti_weekly, available_weeks, weekly_sma_values, weekly_ohlcv_data
+        )
+
+        result = {
+            'weekly_sma_values': weekly_sma_values,
+            'weekly_volume_sma_values': weekly_volume_sma_values,
+            'weekly_price_change': weekly_price_change,
+            'weekly_volume_change': weekly_volume_change,
+            'weekly_volatility': weekly_volatility,
+            'available_weeks': available_weeks,
+            'weekly_macro_trend': weekly_macro_analysis
+        }
+
+        result = {k: float(v) if isinstance(v, (np.floating, float)) and not np.isnan(v) else v
+                  for k, v in result.items() if k not in ('weekly_sma_values', 'weekly_volume_sma_values')}
+
+        self._cache[cache_key] = result
+        return result
+
+    def _compute_weekly_macro_trend_analysis(
+        self, ti: TechnicalIndicators, available_weeks: int, 
+        weekly_sma_values: Dict[int, float], ohlcv_data: np.ndarray
+    ) -> Dict[str, Any]:
+        """Weekly macro trend using 200W SMA methodology with timestamps."""
+        from src.utils.format_utils import FormatUtils
+        
+        analysis = {
+            'trend_direction': 'Neutral',
+            'weekly_sma_alignment': 'Mixed',
+            'golden_cross': False,
+            'death_cross': False,
+            'price_above_200w_sma': False,
+            'sma_50w_vs_200w': 'Neutral',
+            'distance_from_200w_sma_pct': None,
+            'cycle_phase': None,
+            'confidence_score': 0,
+            'multi_year_trend': None
+        }
+        
+        # Skip if insufficient data
+        if available_weeks < 50:
+            if self.logger:
+                self.logger.debug(f"Insufficient weekly data: {available_weeks} weeks")
+            return analysis
+        
+        current_price = float(ti.close[-1])
+        formatter = FormatUtils()
+        
+        # Multi-year trend with timestamps
+        if available_weeks >= 2:
+            years = available_weeks / 52.0
+            price_change = float((ti.close[-1] / ti.close[0] - 1) * 100)
+            start_ts = ohlcv_data[0, 0] / 1000
+            end_ts = ohlcv_data[-1, 0] / 1000
+            
+            analysis['multi_year_trend'] = {
+                'weeks_analyzed': available_weeks,
+                'years_analyzed': round(years, 1),
+                'price_change_pct': price_change,
+                'start_date': formatter.format_date_from_timestamp(start_ts),
+                'end_date': formatter.format_date_from_timestamp(end_ts)
+            }
+        
+        # 200W SMA analysis (the gold standard)
+        if 200 in weekly_sma_values:
+            sma_200w = weekly_sma_values[200]
+            analysis['price_above_200w_sma'] = current_price > sma_200w
+            distance = ((current_price - sma_200w) / sma_200w) * 100
+            analysis['distance_from_200w_sma_pct'] = float(distance)
+            
+            # Cycle phase based on 200W distance
+            if distance < -10:
+                analysis['cycle_phase'] = 'Deep Bear Market'
+            elif distance < 0:
+                analysis['cycle_phase'] = 'Bear Market Bottom Zone'
+            elif distance < 50:
+                analysis['cycle_phase'] = 'Early Bull Market'
+            elif distance < 100:
+                analysis['cycle_phase'] = 'Mid Bull Market'
+            elif distance < 200:
+                analysis['cycle_phase'] = 'Late Bull Market'
+            else:
+                analysis['cycle_phase'] = 'Extreme Bull Market'
+        
+        # Golden/Death Cross with timestamps (REUSE existing pattern detection)
+        if 50 in weekly_sma_values and 200 in weekly_sma_values:
+            sma_50w_array = ti.overlap.sma(ti.close, 50)
+            sma_200w_array = ti.overlap.sma(ti.close, 200)
+            
+            from src.analyzer.pattern_engine.indicator_patterns.ma_crossover_patterns import (
+                detect_golden_cross_numba, detect_death_cross_numba
+            )
+            
+            golden_found, golden_weeks_ago, _, _ = detect_golden_cross_numba(sma_50w_array, sma_200w_array)
+            if golden_found:
+                analysis['golden_cross'] = True
+                analysis['golden_cross_weeks_ago'] = golden_weeks_ago
+                cross_ts = ohlcv_data[-(golden_weeks_ago + 1), 0] / 1000
+                analysis['golden_cross_date'] = formatter.format_date_from_timestamp(cross_ts)
+                if self.logger:
+                    self.logger.info(f"🌟 Weekly Golden Cross: {golden_weeks_ago}w ago ({analysis['golden_cross_date']})")
+            
+            death_found, death_weeks_ago, _, _ = detect_death_cross_numba(sma_50w_array, sma_200w_array)
+            if death_found:
+                analysis['death_cross'] = True
+                analysis['death_cross_weeks_ago'] = death_weeks_ago
+                cross_ts = ohlcv_data[-(death_weeks_ago + 1), 0] / 1000
+                analysis['death_cross_date'] = formatter.format_date_from_timestamp(cross_ts)
+                if self.logger:
+                    self.logger.warning(f"⚠️ Weekly Death Cross: {death_weeks_ago}w ago ({analysis['death_cross_date']})")
+            
+            # SMA relationship
+            if weekly_sma_values[50] > weekly_sma_values[200]:
+                analysis['sma_50w_vs_200w'] = 'Bullish'
+            elif weekly_sma_values[50] < weekly_sma_values[200]:
+                analysis['sma_50w_vs_200w'] = 'Bearish'
+        
+        # SMA alignment check
+        if all(p in weekly_sma_values for p in [20, 50, 100, 200]):
+            smas = [weekly_sma_values[p] for p in [20, 50, 100, 200]]
+            if all(smas[i] >= smas[i+1] for i in range(len(smas)-1)):
+                analysis['weekly_sma_alignment'] = 'Bullish (Ascending)'
+            elif all(smas[i] <= smas[i+1] for i in range(len(smas)-1)):
+                analysis['weekly_sma_alignment'] = 'Bearish (Descending)'
+        
+        # Trend direction with confidence
+        bullish = sum([
+            analysis['price_above_200w_sma'], 
+            analysis['sma_50w_vs_200w'] == 'Bullish',
+            analysis['golden_cross'], 
+            analysis['weekly_sma_alignment'] == 'Bullish (Ascending)',
+            analysis.get('distance_from_200w_sma_pct', 0) > 20
+        ])
+        bearish = sum([
+            not analysis['price_above_200w_sma'], 
+            analysis['sma_50w_vs_200w'] == 'Bearish',
+            analysis['death_cross'], 
+            analysis['weekly_sma_alignment'] == 'Bearish (Descending)',
+            analysis.get('distance_from_200w_sma_pct', 0) < -20
+        ])
+        
+        total = bullish + bearish
+        if bullish >= 3 and bullish > bearish:
+            analysis['trend_direction'] = 'Bullish'
+            analysis['confidence_score'] = int((bullish / max(total, 1)) * 100)
+        elif bearish >= 3 and bearish > bullish:
+            analysis['trend_direction'] = 'Bearish'
+            analysis['confidence_score'] = int((bearish / max(total, 1)) * 100)
+        else:
+            analysis['confidence_score'] = 50
+        
+        return analysis
+
     # ---------------- Helper Methods (extracted for clarity) ----------------
     def _compute_sma_sets(self, ti: TechnicalIndicators, available_days: int):
         sma_periods = [20, 50, 100, 200]

@@ -29,6 +29,7 @@ class AnalysisContext:
         self._market_metrics = {}
         self._sentiment = None
         self._long_term_data = None
+        self._weekly_macro_indicators = None
         self._market_overview = {}  # Initialize as an empty dictionary
         
         # News and articles
@@ -161,6 +162,18 @@ class AnalysisContext:
         if value is not None and not isinstance(value, dict):
             raise TypeError("Long-term data must be a dictionary")
         self._long_term_data = value
+    
+    @property
+    def weekly_macro_indicators(self) -> Optional[Dict[str, Any]]:
+        """Get weekly macro indicators (200W SMA analysis)"""
+        return self._weekly_macro_indicators
+
+    @weekly_macro_indicators.setter
+    def weekly_macro_indicators(self, value: Dict[str, Any]):
+        """Set weekly macro indicators"""
+        if value is not None and not isinstance(value, dict):
+            raise TypeError("Weekly macro indicators must be a dictionary")
+        self._weekly_macro_indicators = value
         
     @property
     def market_overview(self) -> Optional[Dict[str, Any]]:

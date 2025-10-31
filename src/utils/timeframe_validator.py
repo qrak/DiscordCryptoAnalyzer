@@ -13,8 +13,8 @@ from typing import Dict, Optional, Tuple
 class TimeframeValidator:
     """Validates and manages timeframe configurations"""
     
-    # Supported timeframes: 1h (minimum) to 1d (maximum)
-    SUPPORTED_TIMEFRAMES = ['1h', '2h', '4h', '6h', '8h', '12h', '1d']
+    # Supported timeframes: 1h (minimum) to 1w (maximum, for macro analysis only)
+    SUPPORTED_TIMEFRAMES = ['1h', '2h', '4h', '6h', '8h', '12h', '1d', '1w']
     
     # Timeframe to minutes mapping
     TIMEFRAME_MINUTES = {
@@ -24,7 +24,8 @@ class TimeframeValidator:
         '6h': 360,
         '8h': 480,
         '12h': 720,
-        '1d': 1440
+        '1d': 1440,
+        '1w': 10080
     }
     
     # CryptoCompare API format mapping
@@ -39,7 +40,7 @@ class TimeframeValidator:
     }
     
     # CCXT-compatible timeframes (common across major exchanges)
-    CCXT_STANDARD_TIMEFRAMES = ['1h', '2h', '4h', '6h', '8h', '12h', '1d']
+    CCXT_STANDARD_TIMEFRAMES = ['1h', '2h', '4h', '6h', '8h', '12h', '1d', '1w']
     
     @classmethod
     def validate(cls, timeframe: str) -> bool:
@@ -215,7 +216,7 @@ class TimeframeValidator:
         Format timeframe for human-readable display.
         
         Args:
-            timeframe: Timeframe string (e.g., "1h", "4h", "1d")
+            timeframe: Timeframe string (e.g., "1h", "4h", "1d", "1w")
             
         Returns:
             str: Formatted display name
@@ -225,9 +226,13 @@ class TimeframeValidator:
             "4-Hour"
             >>> format_timeframe_display("1d")
             "Daily"
+            >>> format_timeframe_display("1w")
+            "Weekly"
         """
         if timeframe == "1d":
             return "Daily"
+        elif timeframe == "1w":
+            return "Weekly"
         elif "h" in timeframe:
             hours = timeframe.replace("h", "")
             return f"{hours}-Hour"

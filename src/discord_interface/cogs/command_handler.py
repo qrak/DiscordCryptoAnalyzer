@@ -101,7 +101,7 @@ class CommandHandler(commands.Cog):
                 timeframe_info = f", Timeframe: {timeframe}" if timeframe else ""
                 self.logger.info(f"Analysis initiated: {symbol}, User: {ctx.author.id}, Language: {language or 'English'}{timeframe_info}")
 
-            embed = self.response_builder.build_analysis_embed(symbol, ctx.author, language)
+            embed = self.response_builder.build_analysis_embed(symbol, ctx.author, language, timeframe)
             confirmation_message = await self.send_tracked_message(ctx, "", embed=embed)
 
             self.analysis_handler.add_analysis_request(symbol, confirmation_message, ctx.author, ctx.channel, language)

@@ -114,8 +114,9 @@ def detect_stoch_bullish_crossover_numba(stoch_k: np.ndarray, stoch_d: np.ndarra
         now_above = stoch_k[idx + 1] > stoch_d[idx + 1]
         
         if was_below and now_above:
-            k_val = float(stoch_k[-1])
-            d_val = float(stoch_d[-1])
+            # Use values at crossover point, not current values
+            k_val = float(stoch_k[idx + 1])
+            d_val = float(stoch_d[idx + 1])
             in_oversold = k_val < oversold_threshold or d_val < oversold_threshold
             
             return True, i, k_val, d_val, in_oversold
@@ -158,8 +159,9 @@ def detect_stoch_bearish_crossover_numba(stoch_k: np.ndarray, stoch_d: np.ndarra
         now_below = stoch_k[idx + 1] < stoch_d[idx + 1]
         
         if was_above and now_below:
-            k_val = float(stoch_k[-1])
-            d_val = float(stoch_d[-1])
+            # Use values at crossover point, not current values
+            k_val = float(stoch_k[idx + 1])
+            d_val = float(stoch_d[idx + 1])
             in_overbought = k_val > overbought_threshold or d_val > overbought_threshold
             
             return True, i, k_val, d_val, in_overbought

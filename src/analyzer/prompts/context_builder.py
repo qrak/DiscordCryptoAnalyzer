@@ -57,7 +57,7 @@ class ContextBuilder:
             candle_status += f"\n- Analysis Note: Technical indicators calculated using only completed candles"
         
         # Get analysis timeframes description
-        analysis_timeframes = f"{self.timeframe.upper()}, 1D, 7D, 30D, and 365D timeframes"
+        analysis_timeframes = f"{self.timeframe.upper()}, 1D, 7D, 30D, 365D, and WEEKLY timeframes"
         
         trading_context = f"""
         TRADING CONTEXT:
@@ -107,7 +107,7 @@ class ContextBuilder:
         """Calculate candle counts for standard periods based on current timeframe.
         
         Returns:
-            Dict mapping period names to candle counts needed
+            Dict mapping period names to candle counts needed (filters out periods smaller than timeframe)
         """
         base_minutes = TimeframeValidator.to_minutes(self.timeframe)
         
@@ -119,10 +119,15 @@ class ContextBuilder:
             "7d": 168 * 60     # 10080 minutes
         }
         
-        return {
-            name: target_mins // base_minutes 
-            for name, target_mins in period_targets.items()
-        }
+        # Calculate candles needed and filter out periods smaller than base timeframe
+        result = {}
+        for name, target_mins in period_targets.items():
+            candles_needed = target_mins // base_minutes
+            # Only include periods that need at least 1 candle (i.e., period >= timeframe)
+            if candles_needed >= 1:
+                result[name] = candles_needed
+        
+        return result
     
     def build_market_data_section(self, ohlcv_candles: np.ndarray) -> str:
         """Build market data section with multi-timeframe price summary.
@@ -178,15 +183,17 @@ class ContextBuilder:
         return self.formatter.format_market_period_metrics(market_metrics)
     
     def build_long_term_analysis_section(self, long_term_data: Optional[Dict[str, Any]], 
-                                        current_price: Optional[float]) -> str:
-        """Build long-term analysis section.
+                                        current_price: Optional[float],
+                                        weekly_macro_indicators: Optional[Dict[str, Any]] = None) -> str:
+        """Build long-term analysis section (daily only - weekly handled by PromptBuilder).
         
         Args:
-            long_term_data: Long-term historical data
+            long_term_data: Long-term historical data (daily)
             current_price: Current asset price
+            weekly_macro_indicators: Weekly macro trend data (passed through, not used here)
             
         Returns:
-            str: Formatted long-term analysis section
+            str: Formatted long-term analysis section (daily only)
         """
         if not long_term_data:
             return ""

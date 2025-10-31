@@ -4,7 +4,7 @@
   <img src="https://img.shields.io/badge/python-3.11+-blue.svg" />
   <img src="https://img.shields.io/badge/discord.py-2.6.3-blue.svg" />
   <img src="https://img.shields.io/badge/numpy-2.2.3-blue.svg" />
-  <img src="https.shields.io/badge/pandas-2.3.2-blue.svg" />
+  <img src="https://img.shields.io/badge/pandas-2.3.2-blue.svg" />
   <img src="https://img.shields.io/badge/plotly-6.3.0-blue.svg" />
   <img src="https://img.shields.io/badge/ccxt-4.5.3-blue.svg" />
 </p>
@@ -48,6 +48,7 @@ Discord Crypto Analyzer provides real-time cryptocurrency analysis directly to y
 - **Educational Resources**: Automated linking to indicator explanations and definitions
 - **Pattern Recognition**: Detects common chart patterns like head and shoulders, wedges, etc.
 - **Market Metrics**: Calculates key metrics across various timeframes
+- **Weekly Macro Trends**: Analyzes 200-week SMA for institutional-grade macro trend analysis with cycle phase identification
 
 ## Installation
 

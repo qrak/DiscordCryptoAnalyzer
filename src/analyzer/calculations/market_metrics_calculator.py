@@ -23,16 +23,33 @@ class MarketMetricsCalculator:
         for item in data:
             hour = item['timestamp'].hour
             hourly_distribution[hour] = hourly_distribution.get(hour, 0) + 1
-            
-        periods = {
-            "1D": 24,
-            "2D": 48,
-            "3D": 72,
-            "7D": 168,
-            "30D": 720
-        }
         
-        self.logger.debug(f"Total candles available for period metrics: {len(data)}")
+        # Get timeframe from context to calculate correct candle counts
+        from src.utils.timeframe_validator import TimeframeValidator
+        timeframe = context.timeframe if hasattr(context, 'timeframe') and context.timeframe else '1h'
+        
+        # Calculate period candle requirements based on actual timeframe
+        try:
+            periods = {
+                "1D": TimeframeValidator.calculate_period_candles(timeframe, "24h"),
+                "2D": TimeframeValidator.calculate_period_candles(timeframe, "48h"),
+                "3D": TimeframeValidator.calculate_period_candles(timeframe, "72h"),
+                "7D": TimeframeValidator.calculate_period_candles(timeframe, "7d"),
+                "30D": TimeframeValidator.calculate_period_candles(timeframe, "30d")
+            }
+        except Exception as e:
+            self.logger.error(f"Failed to calculate dynamic periods for timeframe {timeframe}: {e}")
+            # Fallback to 1h assumptions
+            periods = {
+                "1D": 24,
+                "2D": 48,
+                "3D": 72,
+                "7D": 168,
+                "30D": 720
+            }
+        
+        self.logger.debug(f"Total candles available for period metrics: {len(data)}, Timeframe: {timeframe}")
+        self.logger.debug(f"Period candle requirements: {periods}")
         
         try:
             for period_name, required_candles in periods.items():
@@ -43,11 +60,11 @@ class MarketMetricsCalculator:
                     if period_name in ["1D", "2D", "3D"]:
                         self.logger.warning(f"Insufficient data for {period_name} analysis. Need {required_candles}, have {len(data)} candles")
                         period_metrics[period_name] = self._calculate_period_metrics(data, f"{period_name} (Partial)", context)
-                    elif period_name == "7D" and len(data) >= 24:
-                        self.logger.warning(f"Insufficient data for 7D metrics. Only {len(data)} candles available, need 168")
+                    elif period_name == "7D" and len(data) >= periods["1D"]:  # Use dynamic 1D requirement
+                        self.logger.warning(f"Insufficient data for 7D metrics. Only {len(data)} candles available, need {required_candles}")
                         period_metrics["7D"] = self._calculate_period_metrics(data, "7D (Partial)", context)
-                    elif period_name == "30D" and len(data) >= 168:
-                        self.logger.warning(f"Insufficient data for 30D metrics. Only {len(data)} candles available, need 720")
+                    elif period_name == "30D" and len(data) >= periods["7D"]:  # Use dynamic 7D requirement
+                        self.logger.warning(f"Insufficient data for 30D metrics. Only {len(data)} candles available, need {required_candles}")
                         period_metrics["30D"] = self._calculate_period_metrics(data, "30D (Partial)", context)
                     else:
                         self.logger.warning(f"Cannot calculate {period_name} metrics - not enough data (need {required_candles}, have {len(data)})")

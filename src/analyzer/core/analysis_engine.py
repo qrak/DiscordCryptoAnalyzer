@@ -256,7 +256,7 @@ class AnalysisEngine:
                         ohlcv=self.context.ohlcv_candles,
                         technical_history=self.context.technical_history,
                         pair_symbol=self.symbol,
-                        timeframe=self.timeframe,
+                        timeframe=self.context.timeframe,
                         save_to_disk=config.DEBUG_SAVE_CHARTS
                     )
                     
@@ -314,6 +314,8 @@ class AnalysisEngine:
                 
             # Add article URLs to result
             analysis_result["article_urls"] = self.article_urls
+            # Add timeframe to result for Discord embed and HTML
+            analysis_result["timeframe"] = self.context.timeframe
             
 
             # Store the result for later publication
@@ -397,6 +399,24 @@ class AnalysisEngine:
                              f"volatility={self.context.long_term_data.get('volatility')}")
         except Exception as e:
             self.logger.error(f"Error processing long-term data: {str(e)}")
+        
+        # Calculate weekly macro (if available)
+        if hasattr(self.context, 'weekly_ohlcv') and self.context.weekly_ohlcv is not None:
+            try:
+                self.logger.info("Calculating weekly macro indicators...")
+                weekly_macro = self.technical_calculator.get_weekly_macro_indicators(self.context.weekly_ohlcv)
+                self.context.weekly_macro_indicators = weekly_macro
+                
+                if 'weekly_macro_trend' in weekly_macro:
+                    trend = weekly_macro['weekly_macro_trend']
+                    self.logger.info(f"Weekly Macro: {trend.get('trend_direction')} ({trend.get('confidence_score')}%)")
+                    if trend.get('cycle_phase'):
+                        self.logger.info(f"Cycle Phase: {trend['cycle_phase']}")
+            except Exception as e:
+                self.logger.error(f"Error calculating weekly macro indicators: {str(e)}")
+                self.context.weekly_macro_indicators = None
+        else:
+            self.context.weekly_macro_indicators = None
 
     async def publish_analysis(self) -> bool:
         """Publish analysis results using the publisher component"""
@@ -406,7 +426,7 @@ class AnalysisEngine:
             
         return await self.publisher.publish_analysis(
             symbol=self.symbol,
-            timeframe=self.timeframe,
+            timeframe=self.context.timeframe,
             analysis_result=self.last_analysis_result,
             context=self.context
         )
