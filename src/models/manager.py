@@ -552,10 +552,37 @@ class ModelManager:
                 response.get("error") == "rate_limit")
 
     def _is_valid_response(self, response: Optional[Dict[str, Any]]) -> bool:
-        """Check if response contains valid choices"""
-        return (response and 
-                "choices" in response and 
-                response["choices"])
+        """Check if response contains valid choices with content"""
+        if not (response and "choices" in response and response["choices"]):
+            return False
+        
+        # Check first choice for errors or empty content
+        first_choice = response["choices"][0]
+        
+        # Check if choice itself contains an error
+        if "error" in first_choice:
+            error_detail = first_choice['error']
+            error_code = error_detail.get('code', 'unknown') if isinstance(error_detail, dict) else error_detail
+            error_msg = error_detail.get('message', 'unknown') if isinstance(error_detail, dict) else str(error_detail)
+            provider = error_detail.get('metadata', {}).get('provider_name', 'unknown') if isinstance(error_detail, dict) else 'unknown'
+            
+            self.logger.error(
+                f"Error in API response choice from {provider}: [{error_code}] {error_msg}"
+            )
+            
+            # Log full error details in debug mode
+            self.logger.debug(f"Full error details: {error_detail}")
+            return False
+        
+        # Check if message content exists and is not empty
+        message = first_choice.get("message", {})
+        content = message.get("content", "")
+        
+        if not content:
+            self.logger.debug(f"Empty content in API response choice. Message: {message}")
+            return False
+        
+        return True
 
     async def _try_google_api(self, messages: List[Dict[str, str]]) -> Optional[ResponseDict]:
         """Use Google Studio API as fallback"""
@@ -579,13 +606,11 @@ class ModelManager:
                 return self._format_error_response(response_json["error"])
 
             if not self._is_valid_response(response_json):
-                self.logger.error(f"Missing 'choices' key in API response: {response_json}")
+                self.logger.error(f"Missing 'choices' key or invalid choices in API response: {response_json}")
                 return self._format_error_response("Invalid API response format")
 
+            # Extract content - validation already done by _is_valid_response
             content = response_json["choices"][0]["message"]["content"]
-            if not content:
-                self.logger.error(f"Missing content in API response: {response_json}")
-                return self._format_error_response("Missing content in API response")
 
             formatted_content = content
 
@@ -601,6 +626,7 @@ class ModelManager:
 
         except Exception as e:
             self.logger.error(f"Error processing response: {e}")
+            self.logger.debug(f"Response that caused error: {response_json}")
             return self._format_error_response(f"Error processing response: {str(e)}")
 
 

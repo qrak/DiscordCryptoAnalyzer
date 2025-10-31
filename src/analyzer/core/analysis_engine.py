@@ -341,6 +341,10 @@ class AnalysisEngine:
             analysis_result["article_urls"] = self.article_urls
             # Add timeframe to result for Discord embed and HTML
             analysis_result["timeframe"] = self.context.timeframe
+            # Add provider and model info to result
+            actual_provider, actual_model = self.model_manager.describe_provider_and_model(provider, model, chart=has_chart_analysis)
+            analysis_result["provider"] = actual_provider
+            analysis_result["model"] = actual_model
             
 
             # Store the result for later publication

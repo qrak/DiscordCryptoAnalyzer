@@ -439,13 +439,19 @@ class DiscordNotifier:
             expire_after=expire_after
         )
 
-    async def upload_analysis_content(self, html_content: str, symbol: str, channel_id: int):
+    async def upload_analysis_content(self, html_content: str, symbol: str, channel_id: int, 
+                                     provider: Optional[str] = None, model: Optional[str] = None):
         self.logger.debug(f"Preparing to upload analysis for {symbol} to channel {channel_id}")
         self.logger.debug(f"HTML content length: {len(html_content)} characters")
         
-        # Create filename with symbol
-        timestamp = self.format_utils.format_current_time("%Y%m%d%H%M%S")
-        filename = f"{symbol.replace('/', '')}_analysis_{timestamp}.html"
+        # Create filename with symbol, timestamp (without seconds), provider and model
+        timestamp = self.format_utils.format_current_time("%Y%m%d%H%M")  # Removed seconds
+        
+        # Sanitize provider and model for filename
+        provider_part = provider.replace('/', '-') if provider else 'unknown'
+        model_part = model.split('/')[-1] if model else 'unknown'  # Take last part after slash for brevity
+        
+        filename = f"{symbol.replace('/', '')}_analysis_{timestamp}_{provider_part}_{model_part}.html"
         self.logger.debug(f"Generated filename: {filename}")
         
         try:

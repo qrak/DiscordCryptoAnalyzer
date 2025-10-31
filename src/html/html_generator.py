@@ -116,6 +116,8 @@ class AnalysisHtmlGenerator:
         language = discord_analysis.get("language", "")
         exchange = discord_analysis.get("exchange", "")
         timeframe = discord_analysis.get("timeframe", "")
+        provider = discord_analysis.get("provider", "")
+        model = discord_analysis.get("model", "")
         
         # Build the HTML structure with collapsible functionality
         html_parts = ['<div class="discord-summary">']
@@ -124,8 +126,9 @@ class AnalysisHtmlGenerator:
         language_suffix = f" ({language})" if language else ""
         exchange_info = f" via {exchange}" if exchange else ""
         timeframe_info = f" on {timeframe}" if timeframe else ""
+        ai_info = f" • AI: {provider}/{model}" if provider and model else ""
         html_parts.append('<div class="discord-summary-header">')
-        html_parts.append(f'<h3>Discord Analysis Summary - {html.escape(symbol)}{html.escape(timeframe_info)}{html.escape(exchange_info)}{html.escape(language_suffix)}</h3>')
+        html_parts.append(f'<h3>Discord Analysis Summary - {html.escape(symbol)}{html.escape(timeframe_info)}{html.escape(exchange_info)}{html.escape(language_suffix)}{html.escape(ai_info)}</h3>')
         html_parts.append('<span class="collapse-icon">▼</span>')
         html_parts.append('</div>')
         

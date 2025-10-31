@@ -66,7 +66,9 @@ class AnalysisPublisher:
                     "symbol": symbol,
                     "language": language,
                     "exchange": context.exchange if hasattr(context, 'exchange') else None,
-                    "timeframe": timeframe
+                    "timeframe": timeframe,
+                    "provider": analysis_result.get("provider"),
+                    "model": analysis_result.get("model")
                 }
                 
                 html_content = self.html_generator.generate_html_content(
@@ -81,7 +83,9 @@ class AnalysisPublisher:
                     self.analysis_file_url = await self.discord_notifier.upload_analysis_content(
                         html_content,
                         symbol,
-                        config.TEMPORARY_CHANNEL_ID_DISCORD
+                        config.TEMPORARY_CHANNEL_ID_DISCORD,
+                        provider=analysis_result.get("provider"),
+                        model=analysis_result.get("model")
                     )
                     self.logger.debug(f"HTML analysis uploaded successfully: {self.analysis_file_url}")
                 else:

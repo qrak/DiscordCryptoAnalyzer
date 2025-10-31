@@ -85,13 +85,18 @@ class TechnicalCalculator:
         indicators["bb_middle"] = bb_middle
         indicators["bb_lower"] = bb_lower
         
-        # Calculate BB %B (position within bands)
-        current_price = ohlcv_data[-1, 3]  # Close price
-        if bb_upper[-1] != bb_lower[-1]:  # Avoid division by zero
-            bb_percent_b = (current_price - bb_lower[-1]) / (bb_upper[-1] - bb_lower[-1])
-            indicators["bb_percent_b"] = bb_percent_b
-        else:
-            indicators["bb_percent_b"] = np.nan
+        # Calculate BB %B (position within bands) for entire history
+        # %B = (Price - Lower Band) / (Upper Band - Lower Band)
+        close_prices = ohlcv_data[:, 3]  # All close prices
+        band_width = bb_upper - bb_lower
+        
+        # Avoid division by zero - set to NaN where bands are equal
+        bb_percent_b = np.where(
+            band_width != 0,
+            (close_prices - bb_lower) / band_width,
+            np.nan
+        )
+        indicators["bb_percent_b"] = bb_percent_b
         
         # Calculate Keltner Channels separately
         kc_upper, kc_middle, kc_lower = self.ti.volatility.keltner_channels(length=20, multiplier=2)

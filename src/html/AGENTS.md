@@ -420,7 +420,13 @@ html_content = generator.generate_html_content(
     ohlcv_data=market_data,
     discord_analysis=analysis_result
 )
-url = await discord_notifier.upload_analysis_content(html_content, "BTC/USDT", channel_id)
+url = await discord_notifier.upload_analysis_content(
+    html_content, 
+    "BTC/USDT", 
+    channel_id,
+    provider="googleai",
+    model="gemini-flash-latest"
+)
 ```
 
 ### Create AI-Optimized Chart

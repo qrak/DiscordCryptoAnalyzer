@@ -154,8 +154,15 @@ class _RetryContext:
 
 
 def _should_retry_api_error(error_value: Any) -> bool:
-    if isinstance(error_value, dict) and error_value.get('code') == 500:
-        return True
+    """Check if an API error should trigger a retry."""
+    # Top-level error codes
+    if isinstance(error_value, dict):
+        error_code = error_value.get('code')
+        if error_code in (500, 502, 503, 504):  # Server errors
+            return True
+        # Check for retryable flag from OpenRouter
+        if error_value.get('metadata', {}).get('raw', {}).get('retryable'):
+            return True
     return error_value == 'timeout'
 
 
@@ -213,9 +220,31 @@ class _ApiRetryContext:
     
     def _is_retryable_response(self, response: Dict[str, Any]) -> bool:
         """Check if the response indicates a retryable error."""
-        return (isinstance(response, dict) and 
-                response.get('error') and 
-                _should_retry_api_error(response['error']))
+        if not isinstance(response, dict):
+            return False
+        
+        # Check top-level error
+        if response.get('error') and _should_retry_api_error(response['error']):
+            self.logger.warning(f"Retryable top-level error for model {self.model}: {response['error']}")
+            return True
+        
+        # Check for errors embedded in choices array (OpenRouter format)
+        choices = response.get('choices', [])
+        if choices and isinstance(choices, list):
+            first_choice = choices[0]
+            if isinstance(first_choice, dict) and 'error' in first_choice:
+                choice_error = first_choice['error']
+                if _should_retry_api_error(choice_error):
+                    error_code = choice_error.get('code', 'unknown')
+                    error_msg = choice_error.get('message', 'unknown')
+                    provider = choice_error.get('metadata', {}).get('provider_name', 'unknown')
+                    self.logger.warning(
+                        f"Retryable error from {provider} in response choices for model {self.model}: "
+                        f"[{error_code}] {error_msg}"
+                    )
+                    return True
+        
+        return False
     
     def _should_retry(self, attempt: int) -> bool:
         """Determine if we should continue retrying."""
