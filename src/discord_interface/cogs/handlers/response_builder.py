@@ -24,7 +24,7 @@ class ResponseBuilder:
             description=f"Requested by {user.mention}{timeframe_text}{provider_text}{model_text}\nResults will be posted when ready.",
             color=discord.Colour.blue()
         )
-        embed.set_footer(text="This may take up to a minute.")
+        embed.set_footer(text="This may take from one to five minutes, depending on the model's complexity.")
         return embed
     
     def build_cooldown_message(self, cooldown_type: str, key: str, time_remaining: str, user_mention: str = None) -> str:

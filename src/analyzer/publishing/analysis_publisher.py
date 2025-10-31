@@ -1,3 +1,5 @@
+import json
+import re
 from typing import Dict, Any, Optional
 
 from src.utils.loader import config
@@ -130,15 +132,37 @@ class AnalysisPublisher:
         )
     
     def _extract_markdown_simple(self, raw_response: str) -> str:
-        """Simple markdown extraction - find first ## header and take everything after it"""
+        """Return markdown portion after removing any leading structured JSON dump."""
         if not raw_response:
             return ""
-        
-        lines = raw_response.split('\n')
+
+        cleaned_response = self._strip_structured_sections(raw_response)
+
+        lines = cleaned_response.split('\n')
         for i, line in enumerate(lines):
             if line.strip().startswith('##'):
-                return '\n'.join(lines[i:]).strip()
-        return ""
+                markdown_body = '\n'.join(lines[i:]).strip()
+                return self._strip_structured_sections(markdown_body)
+        return self._strip_structured_sections(cleaned_response).strip()
+
+    def _strip_structured_sections(self, text: str) -> str:
+        """Remove JSON blocks emitted by the model so the HTML stays readable."""
+        if not text:
+            return ""
+
+        # Drop fenced code blocks containing JSON or analysis payloads
+        fenced_pattern = re.compile(r"```(?:json|analysis|structured)?\s*[\s\S]*?```", re.IGNORECASE)
+        text = re.sub(fenced_pattern, "\n", text)
+
+        stripped = text.lstrip()
+        if stripped.startswith('{'):
+            try:
+                obj, end_idx = json.JSONDecoder().raw_decode(stripped)
+                if isinstance(obj, dict) and "analysis" in obj:
+                    stripped = stripped[end_idx:]
+            except json.JSONDecodeError:
+                pass
+        return stripped.lstrip()
         
     def _prepare_chart_data(self, context, symbol: str, timeframe: str) -> Optional[Dict[str, Any]]:
         """Prepare OHLCV and indicator data for chart generation"""

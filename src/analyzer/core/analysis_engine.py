@@ -253,7 +253,7 @@ class AnalysisEngine:
             
                         # Step 7: Check if chart analysis is supported and build system prompt accordingly
             self.prompt_builder.language = self.language
-            has_chart_analysis = self.model_manager.supports_image_analysis()
+            has_chart_analysis = self.model_manager.supports_image_analysis(provider)
             system_prompt = self.prompt_builder.build_system_prompt(self.symbol, has_chart_analysis)
             
             # Step 8: Generate chart image for AI analysis (Google AI only)
@@ -294,8 +294,14 @@ class AnalysisEngine:
                     self.logger.info(f"Using admin-specified provider: {provider}, model: {model}")
                 
                 # First try chart analysis if available
-                if chart_image is not None and self.model_manager.supports_image_analysis():
-                    self.logger.info("Attempting chart image analysis with Google AI")
+                if chart_image is not None and self.model_manager.supports_image_analysis(provider):
+                    prov_name, model_name = self.model_manager.describe_provider_and_model(provider, model, chart=True)
+                    prov_label = prov_name.upper() if prov_name else "UNKNOWN"
+                    self.logger.info(
+                        "Attempting chart image analysis via %s (model: %s)",
+                        prov_label,
+                        model_name
+                    )
                     try:
                         analysis_result = await self.result_processor.process_analysis(
                             system_prompt, 

@@ -1,6 +1,6 @@
 import json
 import io
-from typing import Optional, Dict, Any, List, Union, cast
+from typing import Optional, Dict, Any, List, Union, cast, Tuple
 
 from src.utils.loader import config
 from src.logger.logger import Logger
@@ -381,19 +381,56 @@ class ModelManager:
             return cast(ResponseDict, {"error": f"OpenRouter chart analysis failed: {error_detail}"})
         return response_json
         
-    def supports_image_analysis(self) -> bool:
-        """Check if current configuration supports image analysis"""
-        # Google AI and OpenRouter both support image analysis
-        if self.provider == "all":
+    def supports_image_analysis(self, provider_override: Optional[str] = None) -> bool:
+        """Check if the selected provider supports image analysis."""
+        provider_name = (provider_override or self.provider or "").lower()
+        if provider_name == "all":
             return (self.google_client is not None or self.openrouter_client is not None)
-        elif self.provider == "googleai":
+        if provider_name == "googleai":
             return self.google_client is not None
-        elif self.provider == "openrouter":
+        if provider_name == "openrouter":
             return self.openrouter_client is not None
-        elif self.provider == "local":
-            # Local models typically don't support image analysis
+        if provider_name == "local":
             return False
         return False
+
+    def describe_provider_and_model(
+        self,
+        provider_override: Optional[str],
+        model_override: Optional[str],
+        *,
+        chart: bool = False,
+    ) -> Tuple[str, str]:
+        """Return provider + model description for logging and telemetry."""
+        provider_name = (provider_override or self.provider or "unknown").lower()
+
+        if model_override:
+            return provider_name, model_override
+
+        if provider_name == "googleai":
+            return provider_name, config.GOOGLE_STUDIO_MODEL
+        if provider_name == "openrouter":
+            return provider_name, config.OPENROUTER_BASE_MODEL
+        if provider_name == "local":
+            return provider_name, config.LM_STUDIO_MODEL
+        if provider_name == "all":
+            chain: List[str] = []
+            # Always list configured defaults, even if client is temporarily unavailable.
+            if config.GOOGLE_STUDIO_MODEL:
+                chain.append(config.GOOGLE_STUDIO_MODEL)
+            if chart:
+                if config.OPENROUTER_BASE_MODEL:
+                    chain.append(config.OPENROUTER_BASE_MODEL)
+            else:
+                if config.LM_STUDIO_MODEL:
+                    chain.append(config.LM_STUDIO_MODEL)
+                if config.OPENROUTER_BASE_MODEL:
+                    chain.append(config.OPENROUTER_BASE_MODEL)
+
+            model_chain = " -> ".join(chain) if chain else "fallback chain unavailable"
+            return provider_name, model_chain
+
+        return provider_name, "unspecified"
         
     def _prepare_messages(self, prompt: str, system_message: Optional[str] = None) -> List[Dict[str, str]]:
         """Prepare message structure and track tokens"""

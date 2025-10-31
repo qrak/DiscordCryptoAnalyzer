@@ -16,6 +16,7 @@ class TechnicalCalculator:
         # Cache storage
         self._cache = {}
         self._ohlcv_hash = None
+        self._excluded_cache_prefixes = ("long_term_", "weekly_macro_")
         
         # Define indicator thresholds as instance variable so it's available to all methods
         self.INDICATOR_THRESHOLDS = {
@@ -39,8 +40,7 @@ class TechnicalCalculator:
             # Ensure cache contains all expected keys before returning
             required_keys = {"ichimoku_conversion", "ichimoku_base", "ichimoku_span_a", "ichimoku_span_b"}
             if required_keys.issubset(self._cache.keys()):
-                # Filter out long-term cache keys (they start with "long_term_")
-                filtered_cache = {k: v for k, v in self._cache.items() if not k.startswith("long_term_")}
+                filtered_cache = self._filter_indicator_cache(self._cache)
                 return filtered_cache
             else:
                 if self.logger:
@@ -202,7 +202,7 @@ class TechnicalCalculator:
             self.logger.debug("Calculated new technical indicators")
         
         # Filter out long-term cache keys before returning (same as cached path)
-        filtered_indicators = {k: v for k, v in indicators.items() if not k.startswith("long_term_")}
+        filtered_indicators = self._filter_indicator_cache(indicators)
         return filtered_indicators
         
     def get_long_term_indicators(self, ohlcv_data: np.ndarray) -> Dict[str, Any]:
@@ -290,6 +290,14 @@ class TechnicalCalculator:
 
         self._cache[cache_key] = result
         return result
+
+    def _filter_indicator_cache(self, cache: Dict[str, Any]) -> Dict[str, Any]:
+        """Remove cached entries that are not part of standard indicator output."""
+        return {
+            key: value
+            for key, value in cache.items()
+            if not any(key.startswith(prefix) for prefix in self._excluded_cache_prefixes)
+        }
 
     def _compute_weekly_macro_trend_analysis(
         self, ti: TechnicalIndicators, available_weeks: int, 
