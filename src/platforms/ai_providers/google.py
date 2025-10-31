@@ -78,13 +78,14 @@ class GoogleAIClient:
         return "\n\n".join(text_parts)
     
     @retry_api_call(max_retries=3, initial_delay=1, backoff_factor=2, max_delay=30)
-    async def chat_completion(self, messages: List[Dict[str, Any]], model_config: Dict[str, Any]) -> Optional[ResponseDict]:
+    async def chat_completion(self, messages: List[Dict[str, Any]], model_config: Dict[str, Any], model: Optional[str] = None) -> Optional[ResponseDict]:
         """
         Send a chat completion request to the Google AI API using the official SDK.
         
         Args:
             messages: List of OpenAI-style messages
             model_config: Configuration parameters for the model
+            model: Optional model override (e.g., admin-specified model)
             
         Returns:
             Response in OpenRouter-compatible format or None if failed
@@ -103,11 +104,13 @@ class GoogleAIClient:
                 max_output_tokens=model_config.get("max_tokens", 32768),
             )
             
-            self.logger.debug(f"Sending request to Google AI with model: {self.model}")
+            # Use override model if provided, otherwise use default
+            effective_model = model if model else self.model
+            self.logger.debug(f"Sending request to Google AI with model: {effective_model}")
             
             # Generate content using the async client
             response = await client.aio.models.generate_content(
-                model=self.model,
+                model=effective_model,
                 contents=prompt,
                 config=generation_config
             )
@@ -134,7 +137,8 @@ class GoogleAIClient:
     async def chat_completion_with_chart_analysis(self, 
                                                  messages: List[Dict[str, Any]], 
                                                  chart_image: Union[io.BytesIO, bytes, str],
-                                                 model_config: Dict[str, Any]) -> Optional[ResponseDict]:
+                                                 model_config: Dict[str, Any],
+                                                 model: Optional[str] = None) -> Optional[ResponseDict]:
         """
         Send a chat completion request with a chart image for pattern analysis.
         
@@ -142,6 +146,7 @@ class GoogleAIClient:
             messages: List of OpenAI-style messages
             chart_image: Chart image as BytesIO, bytes, or file path string
             model_config: Configuration parameters for the model
+            model: Optional model override (e.g., admin-specified model)
             
         Returns:
             Response in OpenRouter-compatible format or None if failed
@@ -183,11 +188,13 @@ class GoogleAIClient:
                 max_output_tokens=model_config.get("max_tokens", 32768),
             )
             
-            self.logger.debug(f"Sending chart analysis request to Google AI with chart image ({len(img_data)} bytes)")
+            # Use override model if provided, otherwise use default
+            effective_model = model if model else self.model
+            self.logger.debug(f"Sending chart analysis request to Google AI with model: {effective_model} (chart image: {len(img_data)} bytes)")
             
             # Generate content
             response = await client.aio.models.generate_content(
-                model=self.model,
+                model=effective_model,
                 contents=contents,
                 config=generation_config
             )

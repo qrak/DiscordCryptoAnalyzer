@@ -1,4 +1,4 @@
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 import io
 
 from src.utils.loader import config
@@ -178,8 +178,17 @@ class AnalysisEngine:
         except Exception as e:
             self.logger.error(f"Error during MarketAnalyzer cleanup: {e}")
 
-    async def analyze_market(self) -> Dict[str, Any]:
-        """Orchestrate the complete market analysis workflow"""
+    async def analyze_market(self, provider: Optional[str] = None, model: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Orchestrate the complete market analysis workflow.
+        
+        Args:
+            provider: Optional AI provider override (admin only)
+            model: Optional AI model override (admin only)
+            
+        Returns:
+            Dictionary containing analysis results
+        """
         try:
             # Step 1: Collect all required data
             data_result = await self.data_collector.collect_data(self.context)
@@ -280,6 +289,10 @@ class AnalysisEngine:
                     technical_data=getattr(self.context, 'technical_data', None)
                 )
             else:
+                # Log provider/model override if provided
+                if provider and model:
+                    self.logger.info(f"Using admin-specified provider: {provider}, model: {model}")
+                
                 # First try chart analysis if available
                 if chart_image is not None and self.model_manager.supports_image_analysis():
                     self.logger.info("Attempting chart image analysis with Google AI")
@@ -288,7 +301,9 @@ class AnalysisEngine:
                             system_prompt, 
                             prompt,
                             self.language,
-                            chart_image=chart_image
+                            chart_image=chart_image,
+                            provider=provider,
+                            model=model
                         )
                     except ValueError:
                         # Chart analysis failed, rebuild prompts without chart analysis and try again
@@ -301,7 +316,9 @@ class AnalysisEngine:
                             system_prompt, 
                             prompt,
                             self.language,
-                            chart_image=None
+                            chart_image=None,
+                            provider=provider,
+                            model=model
                         )
                 else:
                     # No chart analysis available, use text-only
@@ -309,7 +326,9 @@ class AnalysisEngine:
                         system_prompt, 
                         prompt,
                         self.language,
-                        chart_image=None
+                        chart_image=None,
+                        provider=provider,
+                        model=model
                     )
                 
             # Add article URLs to result

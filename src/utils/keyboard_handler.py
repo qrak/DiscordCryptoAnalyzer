@@ -80,10 +80,19 @@ class KeyboardHandler:
             return select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], [])
 
     def _read_key(self) -> Optional[str]:
-        """Read a single character from keyboard input."""
+        """Read a single character from keyboard input.
+        
+        Returns the key as lowercase, or 'R' for SHIFT+R combination.
+        """
         try:
             if sys.platform == "win32":
-                return msvcrt.getch().decode('utf-8', errors='ignore').lower()
+                char = msvcrt.getch()
+                # Check for special characters
+                decoded = char.decode('utf-8', errors='ignore')
+                # SHIFT+R produces uppercase 'R' 
+                if decoded == 'R':
+                    return 'R'  # Keep uppercase for SHIFT+R detection
+                return decoded.lower()
             else:
                 # Linux/Unix implementation
                 fd = sys.stdin.fileno()
@@ -91,6 +100,9 @@ class KeyboardHandler:
                 try:
                     tty.setraw(sys.stdin.fileno())
                     char = sys.stdin.read(1)
+                    # Keep uppercase for SHIFT detection
+                    if char and char.isupper():
+                        return char
                     return char.lower() if char else None
                 finally:
                     termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)

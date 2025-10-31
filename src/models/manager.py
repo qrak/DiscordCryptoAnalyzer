@@ -18,26 +18,29 @@ class ModelManager:
         self.logger = logger
         self.provider = config.PROVIDER.lower()
 
-        # Create API clients based on provider configuration
+        # Create API clients - always initialize all available clients to support runtime provider overrides
         self.openrouter_client: Optional[OpenRouterClient] = None
         self.google_client: Optional[GoogleAIClient] = None
         self.google_paid_client: Optional[GoogleAIClient] = None
         self.lm_studio_client: Optional[LMStudioClient] = None
 
-        # Initialize clients based on provider setting
-        if self.provider in ["openrouter", "all"]:
+        # Initialize OpenRouter client if API key is available
+        if config.OPENROUTER_API_KEY:
             self.openrouter_client = OpenRouterClient(
                 api_key=config.OPENROUTER_API_KEY,
                 base_url=config.OPENROUTER_BASE_URL,
                 logger=logger
             )
+            self.logger.info("OpenRouter client initialized")
 
-        if self.provider in ["googleai", "all"]:
+        # Initialize Google AI client if API key is available
+        if config.GOOGLE_STUDIO_API_KEY:
             self.google_client = GoogleAIClient(
                 api_key=config.GOOGLE_STUDIO_API_KEY,
                 model=config.GOOGLE_STUDIO_MODEL,
                 logger=logger
             )
+            self.logger.info("Google AI client initialized")
             
             # Initialize paid client if paid API key is available
             if config.GOOGLE_STUDIO_PAID_API_KEY:
@@ -48,7 +51,8 @@ class ModelManager:
                 )
                 self.logger.info("Google AI paid client initialized as fallback for overloaded free tier")
 
-        if self.provider in ["local", "all"]:
+        # Initialize LM Studio client (no API key required)
+        if config.LM_STUDIO_BASE_URL:
             self.lm_studio_client = LMStudioClient(
                 base_url=config.LM_STUDIO_BASE_URL,
                 logger=logger
@@ -103,20 +107,50 @@ class ModelManager:
         except Exception as e:
             self.logger.error(f"Error during model manager cleanup: {e}")
 
-    async def send_prompt(self, prompt: str, system_message: str = None, prepared_messages: List[Dict[str, str]] = None) -> str:
-        """Send a prompt to the model and get a response"""
+    async def send_prompt(self, prompt: str, system_message: str = None, prepared_messages: List[Dict[str, str]] = None,
+                         provider: Optional[str] = None, model: Optional[str] = None) -> str:
+        """
+        Send a prompt to the model and get a response.
+        
+        Args:
+            prompt: User prompt
+            system_message: Optional system instructions
+            prepared_messages: Pre-prepared message list (if None, will be created from prompt)
+            provider: Optional provider override (admin only)
+            model: Optional model override (admin only)
+            
+        Returns:
+            Response text from the AI model
+        """
         messages = prepared_messages if prepared_messages is not None else self._prepare_messages(prompt, system_message)
-        response_json = await self._get_model_response(messages)
+        response_json = await self._get_model_response(messages, provider=provider, model=model)
         return self._process_response(response_json)
 
-    async def send_prompt_streaming(self, prompt: str, system_message: str = None) -> str:
-        """Send a prompt to the model and get a streaming response"""
+    async def send_prompt_streaming(self, prompt: str, system_message: str = None, 
+                                    provider: Optional[str] = None, model: Optional[str] = None) -> str:
+        """
+        Send a prompt to the model and get a streaming response.
+        
+        Args:
+            prompt: User prompt
+            system_message: Optional system instructions
+            provider: Optional provider override (admin only)
+            model: Optional model override (admin only)
+            
+        Returns:
+            Complete response text from the AI model
+        """
         messages = self._prepare_messages(prompt, system_message)
         
+        # Use admin-specified provider if provided
+        effective_provider = provider if provider else self.provider
+        
         # Only try streaming if using local provider (LM Studio) or all providers
-        if (self.provider == "local" or self.provider == "all") and self.lm_studio_client:
+        if (effective_provider == "local" or effective_provider == "all") and self.lm_studio_client:
             try:
-                response_json = await self.lm_studio_client.console_stream(config.LM_STUDIO_MODEL, messages, self.model_config)
+                # Use admin-specified model if provided, otherwise use default
+                effective_model = model if model else config.LM_STUDIO_MODEL
+                response_json = await self.lm_studio_client.console_stream(effective_model, messages, self.model_config)
                 if response_json is not None:  # Check for valid response before processing
                     return self._process_response(response_json)
                 else:
@@ -125,27 +159,44 @@ class ModelManager:
                 self.logger.warning(f"LM Studio streaming failed: {str(e)}. Falling back to non-streaming mode.")
         
         # Fallback to regular prompt for other providers or if streaming fails
-        return await self.send_prompt(prompt, system_message, prepared_messages=messages)
+        return await self.send_prompt(prompt, system_message, prepared_messages=messages, provider=provider, model=model)
     
     async def send_prompt_with_chart_analysis(self, prompt: str, chart_image: Union[io.BytesIO, bytes, str], 
-                                            system_message: str = None) -> str:
-        """Send a prompt with chart image for pattern analysis"""
+                                            system_message: str = None, provider: Optional[str] = None, 
+                                            model: Optional[str] = None) -> str:
+        """
+        Send a prompt with chart image for pattern analysis.
+        
+        Args:
+            prompt: User prompt
+            chart_image: Chart image data
+            system_message: Optional system instructions
+            provider: Optional provider override (admin only)
+            model: Optional model override (admin only)
+            
+        Returns:
+            Response text from the AI model
+        """
         messages = self._prepare_messages(prompt, system_message)
         
+        # Use admin-specified provider if provided
+        effective_provider = provider if provider else self.provider
+        
         # Use the fallback system for chart analysis based on provider configuration
-        if self.provider == "all":
-            response_json = await self._get_chart_analysis_fallback_response(messages, chart_image)
-        elif self.provider == "googleai" and self.google_client:
-            response_json = await self._try_google_chart_analysis_only(messages, chart_image)
-        elif self.provider == "openrouter" and self.openrouter_client:
-            response_json = await self._try_openrouter_chart_analysis_only(messages, chart_image)
-        elif self.provider == "local" and self.lm_studio_client:
+        if effective_provider == "all":
+            response_json = await self._get_chart_analysis_fallback_response(messages, chart_image, model)
+        elif effective_provider == "googleai" and self.google_client:
+            response_json = await self._try_google_chart_analysis_only(messages, chart_image, model)
+        elif effective_provider == "openrouter" and self.openrouter_client:
+            response_json = await self._try_openrouter_chart_analysis_only(messages, chart_image, model)
+        elif effective_provider == "local" and self.lm_studio_client:
             # Local models typically don't support images - fall back to text-only
             self.logger.warning("Chart analysis requested but local provider doesn't support images. Falling back to text-only analysis.")
             raise ValueError("Chart analysis unavailable - local models don't support images")
         else:
-            self.logger.error(f"Chart analysis not supported for provider '{self.provider}' or client not available")
-            raise ValueError(f"Chart analysis unavailable - provider '{self.provider}' not supported")
+            self.logger.error(f"Chart analysis not supported for provider '{effective_provider}' or client not available")
+            self._log_provider_unavailable_guidance(effective_provider)
+            raise ValueError(f"Chart analysis unavailable - provider '{effective_provider}' not supported")
         
         if self._is_valid_response(response_json):
             return self._process_response(response_json)
@@ -165,47 +216,82 @@ class ModelManager:
             return self.lm_studio_client is not None
         return False
 
-    def _log_provider_action(self, provider: str, *, action: str, chart: bool = False) -> None:
+    def _log_provider_action(self, provider: str, *, action: str, chart: bool = False, model: Optional[str] = None) -> None:
         # action: "attempting" for fallback path, "using" for single-provider path
         noun = "chart analysis" if chart else "request"
         if provider == "googleai":
+            effective_model = model if model else config.GOOGLE_STUDIO_MODEL
             if action == "attempting":
-                self.logger.info(f"Attempting {noun} with Google AI Studio model: {config.GOOGLE_STUDIO_MODEL}")
+                self.logger.info(f"Attempting {noun} with Google AI Studio model: {effective_model}")
             else:
-                self.logger.info(f"Using Google AI Studio model: {config.GOOGLE_STUDIO_MODEL}")
+                self.logger.info(f"Using Google AI Studio model: {effective_model}")
         elif provider == "local":
+            effective_model = model if model else config.LM_STUDIO_MODEL
             if action == "attempting":
-                self.logger.info(f"Attempting {noun} with LM Studio model: {config.LM_STUDIO_MODEL}")
+                self.logger.info(f"Attempting {noun} with LM Studio model: {effective_model}")
             else:
-                self.logger.info(f"Using LM Studio model: {config.LM_STUDIO_MODEL}")
+                self.logger.info(f"Using LM Studio model: {effective_model}")
         elif provider == "openrouter":
+            effective_model = model if model else config.OPENROUTER_BASE_MODEL
             if action == "attempting":
-                self.logger.info(f"Attempting {noun} with OpenRouter model: {config.OPENROUTER_BASE_MODEL}")
+                self.logger.info(f"Attempting {noun} with OpenRouter model: {effective_model}")
             else:
-                self.logger.info(f"Using OpenRouter model: {config.OPENROUTER_BASE_MODEL}")
+                self.logger.info(f"Using OpenRouter model: {effective_model}")
+
+    def _log_provider_unavailable_guidance(self, provider: str) -> None:
+        """Log helpful guidance when a provider is unavailable."""
+        if provider == "openrouter" and not self.openrouter_client:
+            self.logger.error("OpenRouter client not initialized. Check that OPENROUTER_API_KEY is set in keys.env")
+        elif provider == "googleai" and not self.google_client:
+            self.logger.error("Google AI client not initialized. Check that GOOGLE_STUDIO_API_KEY is set in keys.env")
+        elif provider == "local" and not self.lm_studio_client:
+            self.logger.error("LM Studio client not initialized. Check that LM_STUDIO_BASE_URL is set in config.ini and server is running")
+        elif provider == "local":
+            self.logger.error("Local models don't support image analysis")
 
     async def _invoke_provider(self, provider: str, messages: List[Dict[str, str]], *, chart: bool = False,
-                               chart_image: Optional[Union[io.BytesIO, bytes, str]] = None) -> Dict[str, Any]:
-        """Invoke a provider for normal or chart analysis requests and return its raw response dict."""
+                               chart_image: Optional[Union[io.BytesIO, bytes, str]] = None, 
+                               model: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Invoke a provider for normal or chart analysis requests and return its raw response dict.
+        
+        Args:
+            provider: Provider name (googleai, local, openrouter)
+            messages: Message list for the AI model
+            chart: Whether this is a chart analysis request
+            chart_image: Optional chart image data
+            model: Optional model override (admin only)
+            
+        Returns:
+            Response dictionary from the provider
+        """
         if provider == "googleai" and self.google_client:
-            self.logger.info("Attempting chart analysis with Google AI free tier API")
+            # Use admin-specified model if provided, otherwise use default
+            effective_model = model if model else config.GOOGLE_STUDIO_MODEL
+            
+            # Determine if model supports free tier (only Flash variants)
+            is_free_tier_model = "flash" in effective_model.lower()
+            tier_info = "free tier" if is_free_tier_model else "paid tier"
+            self.logger.info(f"Attempting chart analysis with Google AI {tier_info} API (model: {effective_model})")
+            
             if chart:
-                response = await self.google_client.chat_completion_with_chart_analysis(messages, cast(Any, chart_image), self.google_config)
+                response = await self.google_client.chat_completion_with_chart_analysis(messages, cast(Any, chart_image), self.google_config, model=effective_model)
             else:
-                response = await self.google_client.chat_completion(messages, self.google_config)
+                response = await self.google_client.chat_completion(messages, self.google_config, model=effective_model)
             
             # If free tier is overloaded and paid client is available, retry with paid API
             if response and response.get("error") == "overloaded" and self.google_paid_client:
                 self.logger.warning("Google AI free tier overloaded, retrying with paid API key")
                 if chart:
-                    response = await self.google_paid_client.chat_completion_with_chart_analysis(messages, cast(Any, chart_image), self.google_config)
+                    response = await self.google_paid_client.chat_completion_with_chart_analysis(messages, cast(Any, chart_image), self.google_config, model=effective_model)
                 else:
-                    response = await self.google_paid_client.chat_completion(messages, self.google_config)
+                    response = await self.google_paid_client.chat_completion(messages, self.google_config, model=effective_model)
                 
                 if self._is_valid_response(response):
                     self.logger.info("Successfully used paid Google AI API after free tier overload")
             elif self._is_valid_response(response):
-                self.logger.info("Successfully used free Google AI API")
+                tier_success = "free tier" if is_free_tier_model else "paid tier"
+                self.logger.info(f"Successfully used {tier_success} Google AI API")
             
             return response
 
@@ -214,17 +300,21 @@ class ModelManager:
                 # Local models typically don't support image inputs
                 return cast(ResponseDict, {"error": "Chart analysis unavailable - local models don't support images"})
             # LM Studio can raise connection errors; keep try/except parity with previous behavior
+            # Use admin-specified model if provided, otherwise use default
+            effective_model = model if model else config.LM_STUDIO_MODEL
             try:
-                return await self.lm_studio_client.chat_completion(config.LM_STUDIO_MODEL, messages, self.model_config)
+                return await self.lm_studio_client.chat_completion(effective_model, messages, self.model_config)
             except Exception as e:
                 return cast(ResponseDict, {"error": f"LM Studio connection failed: {str(e)}"})
 
         if provider == "openrouter" and self.openrouter_client:
+            # Use admin-specified model if provided, otherwise use default
+            effective_model = model if model else config.OPENROUTER_BASE_MODEL
             if chart:
                 return await self.openrouter_client.chat_completion_with_chart_analysis(
-                    config.OPENROUTER_BASE_MODEL, messages, cast(Any, chart_image), self.openrouter_config
+                    effective_model, messages, cast(Any, chart_image), self.openrouter_config
                 )
-            return await self.openrouter_client.chat_completion(config.OPENROUTER_BASE_MODEL, messages, self.openrouter_config)
+            return await self.openrouter_client.chat_completion(effective_model, messages, self.openrouter_config)
 
         return cast(ResponseDict, {"error": f"Provider '{provider}' is not available"})
 
@@ -238,13 +328,13 @@ class ModelManager:
 
     async def _first_success(self, providers: List[str], messages: List[Dict[str, str]], *, chart: bool = False,
                               chart_image: Optional[Union[io.BytesIO, bytes, str]] = None,
-                              warn_on_fail: bool = True) -> Dict[str, Any]:
+                              model: Optional[str] = None, warn_on_fail: bool = True) -> Dict[str, Any]:
         """Try providers in order, returning the first valid response."""
         for idx, provider in enumerate(providers):
             if not self._provider_available(provider):
                 continue
-            self._log_provider_action(provider, action="attempting", chart=chart)
-            response_json = await self._invoke_provider(provider, messages, chart=chart, chart_image=chart_image)
+            self._log_provider_action(provider, action="attempting", chart=chart, model=model)
+            response_json = await self._invoke_provider(provider, messages, chart=chart, chart_image=chart_image, model=model)
             if self._valid_for_provider(provider, response_json):
                 return response_json
             if warn_on_fail:
@@ -257,28 +347,34 @@ class ModelManager:
                     self.logger.warning("OpenRouter failed or rate limited.")
         return cast(ResponseDict, {"error": "No providers available"})
 
-    async def _get_chart_analysis_fallback_response(self, messages: List[Dict[str, str]], chart_image: Union[io.BytesIO, bytes, str]) -> Dict[str, Any]:
+    async def _get_chart_analysis_fallback_response(self, messages: List[Dict[str, str]], 
+                                                    chart_image: Union[io.BytesIO, bytes, str],
+                                                    model: Optional[str] = None) -> Dict[str, Any]:
         """Chart analysis fallback logic when provider is 'all'"""
         # Try Google first, then OpenRouter
-        response = await self._first_success(["googleai", "openrouter"], messages, chart=True, chart_image=chart_image)
+        response = await self._first_success(["googleai", "openrouter"], messages, chart=True, chart_image=chart_image, model=model)
         if self._is_valid_response(response):
             return response
         return cast(ResponseDict, {"error": "No chart analysis providers available"})
 
-    async def _try_google_chart_analysis_only(self, messages: List[Dict[str, str]], chart_image: Union[io.BytesIO, bytes, str]) -> Dict[str, Any]:
+    async def _try_google_chart_analysis_only(self, messages: List[Dict[str, str]], 
+                                              chart_image: Union[io.BytesIO, bytes, str],
+                                              model: Optional[str] = None) -> Dict[str, Any]:
         """Use Google AI Studio only for chart analysis"""
-        self._log_provider_action("googleai", action="using", chart=True)
-        response_json = await self._invoke_provider("googleai", messages, chart=True, chart_image=chart_image)
+        self._log_provider_action("googleai", action="using", chart=True, model=model)
+        response_json = await self._invoke_provider("googleai", messages, chart=True, chart_image=chart_image, model=model)
         if not self._is_valid_response(response_json):
             self.logger.error("Google AI Studio chart analysis failed or returned invalid response")
             error_detail = response_json.get("error", "Unknown Google API failure") if response_json else "No response from Google API"
             return cast(ResponseDict, {"error": f"Google AI Studio chart analysis failed: {error_detail}"})
         return response_json
 
-    async def _try_openrouter_chart_analysis_only(self, messages: List[Dict[str, str]], chart_image: Union[io.BytesIO, bytes, str]) -> Dict[str, Any]:
+    async def _try_openrouter_chart_analysis_only(self, messages: List[Dict[str, str]], 
+                                                  chart_image: Union[io.BytesIO, bytes, str],
+                                                  model: Optional[str] = None) -> Dict[str, Any]:
         """Use OpenRouter only for chart analysis"""
-        self._log_provider_action("openrouter", action="using", chart=True)
-        response_json = await self._invoke_provider("openrouter", messages, chart=True, chart_image=chart_image)
+        self._log_provider_action("openrouter", action="using", chart=True, model=model)
+        response_json = await self._invoke_provider("openrouter", messages, chart=True, chart_image=chart_image, model=model)
         if not self._is_valid_response(response_json) or self._rate_limited(response_json):
             self.logger.error("OpenRouter chart analysis failed or returned invalid response")
             error_detail = response_json.get("error", "Unknown OpenRouter failure") if response_json else "No response from OpenRouter"
@@ -320,40 +416,54 @@ class ModelManager:
     
         return messages
 
-    async def _get_model_response(self, messages: List[Dict[str, str]]) -> Dict[str, Any]:
-        """Get response from the selected provider(s)"""
+    async def _get_model_response(self, messages: List[Dict[str, str]], provider: Optional[str] = None, 
+                                  model: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Get response from the selected provider(s).
+        
+        Args:
+            messages: Message list for the AI model
+            provider: Optional provider override (admin only)
+            model: Optional model override (admin only)
+            
+        Returns:
+            Response dictionary from the AI provider
+        """
+        # Use admin-specified provider if provided
+        effective_provider = provider if provider else self.provider
         
         # If provider is "all", use fallback system (current behavior)
-        if self.provider == "all":
-            return await self._get_fallback_response(messages)
+        if effective_provider == "all":
+            return await self._get_fallback_response(messages, model)
         
         # Use single provider only
-        if self.provider == "googleai" and self.google_client:
-            return await self._try_google_only(messages)
-        elif self.provider == "local" and self.lm_studio_client:
-            return await self._try_lm_studio_only(messages)
-        elif self.provider == "openrouter" and self.openrouter_client:
-            return await self._try_openrouter_only(messages)
+        if effective_provider == "googleai" and self.google_client:
+            return await self._try_google_only(messages, model)
+        elif effective_provider == "local" and self.lm_studio_client:
+            return await self._try_lm_studio_only(messages, model)
+        elif effective_provider == "openrouter" and self.openrouter_client:
+            return await self._try_openrouter_only(messages, model)
         else:
             # Fallback if provider is misconfigured or client not available
-            self.logger.error(f"Provider '{self.provider}' is not properly configured or client not available")
-            return cast(ResponseDict, {"error": f"Provider '{self.provider}' is not available"})
+            self.logger.error(f"Provider '{effective_provider}' is not properly configured or client not available")
+            self._log_provider_unavailable_guidance(effective_provider)
+            return cast(ResponseDict, {"error": f"Provider '{effective_provider}' is not available"})
 
-    async def _get_fallback_response(self, messages: List[Dict[str, str]]) -> Dict[str, Any]:
+    async def _get_fallback_response(self, messages: List[Dict[str, str]], model: Optional[str] = None) -> Dict[str, Any]:
         """Original fallback logic when provider is 'all'"""
         # Try Google, then LM Studio, then OpenRouter
-        response = await self._first_success(["googleai", "local", "openrouter"], messages)
+        response = await self._first_success(["googleai", "local", "openrouter"], messages, model=model)
         if self._is_valid_response(response):
             return response
         # If still no success but OpenRouter is available, log the explicit fallback message then try once more
         if self.openrouter_client:
-            return await self._try_openrouter(messages)
+            return await self._try_openrouter(messages, model)
         return response
 
-    async def _try_google_only(self, messages: List[Dict[str, str]]) -> Dict[str, Any]:
+    async def _try_google_only(self, messages: List[Dict[str, str]], model: Optional[str] = None) -> Dict[str, Any]:
         """Use Google AI Studio only"""
-        self._log_provider_action("googleai", action="using")
-        response_json = await self._invoke_provider("googleai", messages)
+        self._log_provider_action("googleai", action="using", model=model)
+        response_json = await self._invoke_provider("googleai", messages, model=model)
 
         if not self._is_valid_response(response_json):
             self.logger.error("Google AI Studio request failed or returned invalid response")
@@ -362,10 +472,10 @@ class ModelManager:
 
         return response_json
 
-    async def _try_lm_studio_only(self, messages: List[Dict[str, str]]) -> Dict[str, Any]:
+    async def _try_lm_studio_only(self, messages: List[Dict[str, str]], model: Optional[str] = None) -> Dict[str, Any]:
         """Use LM Studio only"""
-        self._log_provider_action("local", action="using")
-        response_json = await self._invoke_provider("local", messages)
+        self._log_provider_action("local", action="using", model=model)
+        response_json = await self._invoke_provider("local", messages, model=model)
 
         if not self._is_valid_response(response_json):
             self.logger.error("LM Studio request failed or returned invalid response")
@@ -374,10 +484,10 @@ class ModelManager:
 
         return response_json
 
-    async def _try_openrouter_only(self, messages: List[Dict[str, str]]) -> Dict[str, Any]:
+    async def _try_openrouter_only(self, messages: List[Dict[str, str]], model: Optional[str] = None) -> Dict[str, Any]:
         """Use OpenRouter only"""
-        self._log_provider_action("openrouter", action="using")
-        response_json = await self._invoke_provider("openrouter", messages)
+        self._log_provider_action("openrouter", action="using", model=model)
+        response_json = await self._invoke_provider("openrouter", messages, model=model)
 
         if not self._is_valid_response(response_json) or self._rate_limited(response_json):
             self.logger.error("OpenRouter request failed or returned invalid response")
@@ -386,10 +496,10 @@ class ModelManager:
 
         return response_json
 
-    async def _try_openrouter(self, messages: List[Dict[str, str]]) -> Optional[ResponseDict]:
+    async def _try_openrouter(self, messages: List[Dict[str, str]], model: Optional[str] = None) -> Optional[ResponseDict]:
         """Use OpenRouter as fallback"""
         self.logger.warning("Google AI Studio and LM Studio (if enabled) failed. Falling back to OpenRouter...")
-        response_json = await self._invoke_provider("openrouter", messages)
+        response_json = await self._invoke_provider("openrouter", messages, model=model)
 
         if not self._is_valid_response(response_json) or self._rate_limited(response_json):
             self.logger.error("OpenRouter request failed or returned invalid response")

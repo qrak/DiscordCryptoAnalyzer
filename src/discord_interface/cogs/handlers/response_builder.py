@@ -13,13 +13,15 @@ class ResponseBuilder:
     def __init__(self, logger):
         self.logger = logger
     
-    def build_analysis_embed(self, symbol: str, user: discord.Member, language: Optional[str] = None, timeframe: Optional[str] = None) -> discord.Embed:
+    def build_analysis_embed(self, symbol: str, user: discord.Member, language: Optional[str] = None, timeframe: Optional[str] = None, provider: Optional[str] = None, model: Optional[str] = None) -> discord.Embed:
         """Build embed for analysis start confirmation."""
         language_text = f" in {language}" if language else ""
         timeframe_text = f" on {timeframe} timeframe" if timeframe else ""
+        provider_text = f"\nProvider: {provider}" if provider else ""
+        model_text = f"\nModel: {model}" if model else ""
         embed = discord.Embed(
             title=f"🔍 Analyzing {symbol}{language_text}",
-            description=f"Requested by {user.mention}{timeframe_text}\nResults will be posted when ready.",
+            description=f"Requested by {user.mention}{timeframe_text}{provider_text}{model_text}\nResults will be posted when ready.",
             color=discord.Colour.blue()
         )
         embed.set_footer(text="This may take up to a minute.")

@@ -57,8 +57,22 @@ class AnalysisResultProcessor:
             return None
         
     async def process_analysis(self, system_prompt: str, prompt: str, language: Optional[str] = None, 
-                              chart_image: Optional[Union[io.BytesIO, bytes, str]] = None) -> Dict[str, Any]:
-        """Process analysis by sending prompts to AI model and formatting response"""
+                              chart_image: Optional[Union[io.BytesIO, bytes, str]] = None,
+                              provider: Optional[str] = None, model: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Process analysis by sending prompts to AI model and formatting response.
+        
+        Args:
+            system_prompt: System instructions for the AI model
+            prompt: User prompt for analysis
+            language: Optional language for output
+            chart_image: Optional chart image for visual analysis
+            provider: Optional provider override (admin only)
+            model: Optional model override (admin only)
+            
+        Returns:
+            Dictionary containing formatted analysis results
+        """
         # Send the prompt to the model
         self.logger.debug("Sending prompt to AI model for analysis")
         
@@ -69,7 +83,9 @@ class AnalysisResultProcessor:
                 complete_response = await self.model_manager.send_prompt_with_chart_analysis(
                     prompt=prompt,
                     chart_image=chart_image,
-                    system_message=system_prompt
+                    system_message=system_prompt,
+                    provider=provider,
+                    model=model
                 )
             except ValueError as e:
                 # Chart analysis failed, re-raise to let analysis engine handle fallback
@@ -79,7 +95,9 @@ class AnalysisResultProcessor:
             # Use the standard send_prompt_streaming method
             complete_response = await self.model_manager.send_prompt_streaming(
                 prompt=prompt,
-                system_message=system_prompt
+                system_message=system_prompt,
+                provider=provider,
+                model=model
             )
         
         self.logger.debug("Received response from AI model")

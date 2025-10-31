@@ -19,6 +19,8 @@ class ValidationResult:
     symbol: Optional[str] = None
     timeframe: Optional[str] = None
     language: Optional[str] = None
+    provider: Optional[str] = None
+    model: Optional[str] = None
     error_message: Optional[str] = None
 
 
@@ -136,14 +138,70 @@ class CommandValidator:
     def _get_usage_message(self) -> str:
         """Get command usage message."""
         return (
-            "Usage: `!analyze <SYMBOL> [TIMEFRAME] [LANGUAGE]`\n"
-            "Examples:\n"
-            "  `!analyze BTC/USDT` - Analyze with default settings\n"
-            "  `!analyze BTC/USDT 4h` - Analyze on 4-hour timeframe\n"
-            "  `!analyze BTC/USDT Polish` - Analyze in Polish\n"
-            "  `!analyze BTC/USDT 1d English` - Daily timeframe in English\n"
-            "Supported timeframes: 1h, 2h, 4h, 6h, 8h, 12h, 1d"
+            "**Usage**: `!analyze <SYMBOL> [TIMEFRAME] [LANGUAGE]`\n\n"
+            "**Examples**:\n"
+            "• `!analyze BTC/USDT` - Analyze Bitcoin with default settings\n"
+            "• `!analyze BTC/USDT 4h` - Analyze on 4-hour timeframe\n"
+            "• `!analyze ETH/USDT Polish` - Analyze Ethereum in Polish\n"
+            "• `!analyze SOL/USDT 1d English` - Daily timeframe in English\n\n"
+            "**Supported Timeframes**: `1h`, `2h`, `4h`, `6h`, `8h`, `12h`, `1d`\n"
+            "**Supported Languages**: English, Polish (more available via config)\n\n"
+            "**Symbol Format**: Use format like `BTC/USDT`, `ETH/USDC`, `XRP/BTC`"
         )
+    
+    def _get_help_message(self, is_admin: bool = False) -> str:
+        """Get comprehensive help message for the analyze command."""
+        base_help = (
+            "📊 **Market Analysis Command Help**\n\n"
+            "**Basic Usage**:\n"
+            "`!analyze <SYMBOL> [TIMEFRAME] [LANGUAGE]`\n\n"
+            "**Parameters**:\n"
+            "• **SYMBOL** (required): Trading pair in format `BTC/USDT`, `ETH/USDC`, etc.\n"
+            "• **TIMEFRAME** (optional): Analysis timeframe - `1h`, `2h`, `4h`, `6h`, `8h`, `12h`, `1d`\n"
+            "• **LANGUAGE** (optional): Output language - English, Polish, etc.\n\n"
+            "**Examples**:\n"
+            "```\n"
+            "!analyze BTC/USDT           → Default timeframe, English\n"
+            "!analyze BTC/USDT 4h        → 4-hour timeframe analysis\n"
+            "!analyze ETH/USDT Polish    → Analysis in Polish language\n"
+            "!analyze SOL/USDT 1d Polish → Daily analysis in Polish\n"
+            "```\n\n"
+            "**What You Get**:\n"
+            "✅ Technical indicator analysis (RSI, MACD, Bollinger Bands, etc.)\n"
+            "✅ Chart pattern detection (head & shoulders, triangles, etc.)\n"
+            "✅ Support & resistance levels identification\n"
+            "✅ Market sentiment analysis (Fear & Greed Index)\n"
+            "✅ Interactive HTML report with detailed charts\n\n"
+            "**Supported Trading Pairs**:\n"
+            "Thousands of cryptocurrencies from Binance, KuCoin, Gate.io, MEXC, and Hyperliquid\n"
+            "Examples: BTC/USDT, ETH/USDC, XRP/BTC, SOL/USDT, ADA/USDT, DOGE/USDT, LINK/USDT\n\n"
+            "**Notes**:\n"
+            "• Analysis typically takes 30-60 seconds\n"
+            "• Results are automatically deleted after expiry time\n"
+            "• One analysis per user at a time\n"
+            "• Cooldown periods apply between analyses"
+        )
+        
+        if is_admin:
+            admin_help = (
+                "\n\n"
+                "🔧 **Admin-Only Features**:\n"
+                "`!analyze <SYMBOL> [TIMEFRAME] [LANGUAGE] <PROVIDER> <MODEL>`\n\n"
+                "**Provider Options**: `googleai`, `openrouter`, `local`, `all`\n"
+                "**Examples**:\n"
+                "```\n"
+                "!analyze BTC/USDT googleai gemini-2.5-pro\n"
+                "!analyze BTC/USDT 4h openrouter google/gemini-2.5-pro\n"
+                "!analyze ETH/USDT 1d Polish local my-model\n"
+                "```\n"
+                "**Admin Benefits**:\n"
+                "• No cooldown periods when using provider override\n"
+                "• Direct model selection for testing\n"
+                "• Access to all available AI providers"
+            )
+            return base_help + admin_help
+        
+        return base_help
     
     def check_analysis_in_progress(self, symbol: str) -> bool:
         """Check if analysis is already in progress for symbol."""
@@ -211,10 +269,14 @@ class CommandValidator:
         
         Returns ValidationResult with all validation outcomes.
         """
-        # Validate arguments (now returns 4-tuple)
-        is_valid, error_msg, usage, (symbol, timeframe, language) = self.validate_command_args(args)
+        # Validate arguments with admin support
+        is_valid, error_msg, usage, (symbol, timeframe, language, provider, model) = self.validate_command_args_with_admin(ctx, args)
         if not is_valid:
-            return ValidationResult(is_valid=False, error_message=f"{error_msg}\n{usage}" if usage else error_msg)
+            # If error_msg is None, it's a help request - show usage only
+            if error_msg is None and usage:
+                return ValidationResult(is_valid=False, error_message=usage)
+            # Otherwise combine error and usage
+            return ValidationResult(is_valid=False, error_message=f"{error_msg}\n\n{usage}" if usage else error_msg)
 
         # If timeframe provided, validate it's fully supported
         if timeframe:
@@ -230,8 +292,8 @@ class CommandValidator:
         if self.check_analysis_in_progress(symbol):
             return ValidationResult(is_valid=False, error_message=f"⏳ {symbol} is currently being analyzed. Please wait.")
 
-        # Check cooldowns for non-admin users
-        if not self.is_admin(ctx):
+        # Check cooldowns for non-admin users (skip cooldown when provider/model override is used)
+        if not self.is_admin(ctx) or not (provider and model):
             # Check coin cooldown
             is_on_cooldown, time_remaining = self.check_coin_cooldown(symbol, analysis_cooldown_coin)
             if is_on_cooldown:
@@ -242,8 +304,139 @@ class CommandValidator:
             if is_on_cooldown:
                 return ValidationResult(is_valid=False, error_message=f"⌛ {ctx.author.mention}, you can request another analysis in {time_remaining}.")
 
-        return ValidationResult(is_valid=True, symbol=symbol, timeframe=timeframe, language=language)
+        return ValidationResult(is_valid=True, symbol=symbol, timeframe=timeframe, language=language, provider=provider, model=model)
     
     def is_admin(self, ctx: commands.Context) -> bool:
         """Check if user has admin permissions."""
+        # Check if user ID is in admin list
+        admin_ids = config.ADMIN_USER_IDS
+        if ctx.author.id in admin_ids:
+            return True
+        # Fallback to Discord guild permissions
         return ctx.author.guild_permissions.administrator
+    
+    def validate_provider(self, provider: str) -> Tuple[bool, Optional[str]]:
+        """
+        Validate AI provider name.
+        
+        Args:
+            provider: Provider name (e.g., "googleai", "openrouter", "local", "all")
+            
+        Returns:
+            Tuple of (is_valid, validated_provider)
+        """
+        if not provider:
+            return True, None
+        
+        provider_lower = provider.lower()
+        valid_providers = ["googleai", "openrouter", "local", "all"]
+        if provider_lower in valid_providers:
+            return True, provider_lower
+        return False, None
+    
+    def validate_command_args_with_admin(self, ctx: commands.Context, args: list) -> Tuple[bool, Optional[str], Optional[str], Tuple[Optional[str], Optional[str], Optional[str], Optional[str], Optional[str]]]:
+        """
+        Validate command arguments for analyze command with admin-only provider/model support.
+        
+        Supported patterns (all users):
+        - !analyze help                   → show help message
+        - !analyze BTC/USDT               → symbol, default timeframe, English
+        - !analyze BTC/USDT 4h            → symbol, 4h timeframe, English
+        - !analyze BTC/USDT Polish        → symbol, default timeframe, Polish
+        - !analyze BTC/USDT 4h Polish     → symbol, 4h timeframe, Polish
+        
+        Admin-only patterns:
+        - !analyze BTC/USDT googleai gemini-flash-latest  → custom provider and model
+        - !analyze BTC/USDT 4h openrouter google/gemini-2.5-pro  → timeframe + provider + model
+        - !analyze BTC/USDT 4h Polish googleai gemini-2.5-pro  → timeframe + language + provider + model
+        
+        Returns:
+            Tuple of (is_valid, error_message, usage_message, (symbol, timeframe, language, provider, model))
+        """
+        if not args:
+            return False, "Missing arguments", self._get_help_message(self.is_admin(ctx)), (None, None, None, None, None)
+        
+        # Handle help command
+        if args[0].lower() in ['help', 'h', '?']:
+            return False, None, self._get_help_message(self.is_admin(ctx)), (None, None, None, None, None)
+        
+        symbol = args[0].upper()
+        if not self.validate_symbol_format(symbol):
+            return False, "Invalid symbol format. Type `!analyze help` for more information.", None, (None, None, None, None, None)
+        
+        timeframe = None
+        language = None
+        provider = None
+        model = None
+        is_admin = self.is_admin(ctx)
+        
+        # Single argument - just symbol
+        if len(args) == 1:
+            return True, None, None, (symbol, timeframe, language, provider, model)
+        
+        # Parse remaining arguments
+        remaining_args = args[1:]
+        idx = 0
+        
+        # Check first arg - could be timeframe, language, or provider (admin only)
+        if idx < len(remaining_args):
+            arg = remaining_args[idx]
+            
+            if self._is_valid_timeframe(arg):
+                timeframe = arg.lower()
+                idx += 1
+            elif self.validate_language(arg)[0]:
+                _, language = self.validate_language(arg)
+                idx += 1
+            elif self.validate_provider(arg)[0]:
+                # Provider argument - admin check
+                if not is_admin:
+                    return False, "❌ Provider selection is only available for administrators.", None, (None, None, None, None, None)
+                _, provider = self.validate_provider(arg)
+                idx += 1
+        
+        # Check second arg if exists - could be language, provider, or model
+        if idx < len(remaining_args):
+            arg = remaining_args[idx]
+            
+            # If we already have a provider, next should be model
+            if provider:
+                model = arg  # Accept any model name
+                idx += 1
+            elif self.validate_language(arg)[0] and not language:
+                _, language = self.validate_language(arg)
+                idx += 1
+            elif self.validate_provider(arg)[0]:
+                if not is_admin:
+                    return False, "❌ Provider selection is only available for administrators.", None, (None, None, None, None, None)
+                _, provider = self.validate_provider(arg)
+                idx += 1
+        
+        # Check third arg if exists
+        if idx < len(remaining_args):
+            arg = remaining_args[idx]
+            
+            # If we have provider but no model yet
+            if provider and not model:
+                model = arg
+                idx += 1
+            elif self.validate_provider(arg)[0] and not provider:
+                if not is_admin:
+                    return False, "❌ Provider selection is only available for administrators.", None, (None, None, None, None, None)
+                _, provider = self.validate_provider(arg)
+                idx += 1
+        
+        # Check fourth arg if exists (model name after provider)
+        if idx < len(remaining_args):
+            arg = remaining_args[idx]
+            if provider and not model:
+                model = arg
+                idx += 1
+        
+        # Validate provider and model are paired
+        if provider and not model:
+            return False, "❌ Provider specified without model. Format: `!analyze SYMBOL [TIMEFRAME] [LANGUAGE] PROVIDER MODEL`", None, (None, None, None, None, None)
+        if model and not provider:
+            return False, "❌ Model specified without provider. Format: `!analyze SYMBOL [TIMEFRAME] [LANGUAGE] PROVIDER MODEL`", None, (None, None, None, None, None)
+        
+        return True, None, None, (symbol, timeframe, language, provider, model)

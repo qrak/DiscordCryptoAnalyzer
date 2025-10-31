@@ -10,6 +10,7 @@ from src.discord_interface.notifier import DiscordNotifier
 from src.rag import RagEngine
 from src.utils.token_counter import TokenCounter
 from src.utils.keyboard_handler import KeyboardHandler
+from src.utils.loader import config
 
 
 class DiscordCryptoBot:
@@ -104,6 +105,7 @@ class DiscordCryptoBot:
         self.keyboard_handler.register_command('o', self.refresh_market_overview, "Refresh market overview data")
         self.keyboard_handler.register_command('h', self.show_help, "Show this help message")
         self.keyboard_handler.register_command('q', self.request_shutdown, "Quit the application")
+        self.keyboard_handler.register_command('R', self.reload_configuration, "Reload config.ini and keys.env (SHIFT+R)")
         
         # Start keyboard handler
         keyboard_task = asyncio.create_task(
@@ -150,6 +152,16 @@ class DiscordCryptoBot:
                 self.logger.warning("Failed to fetch market overview data")
         except Exception as e:
             self.logger.error(f"Error refreshing market overview: {e}")
+
+    async def reload_configuration(self):
+        """Reload config.ini and keys.env without restarting"""
+        self.logger.info("Reloading configuration files (config.ini and keys.env)...")
+        try:
+            config.reload()
+            self.logger.info("Configuration files reloaded successfully!")
+            self.logger.info("Note: Some components may require manual refresh to use new settings")
+        except Exception as e:
+            self.logger.error(f"Error reloading configuration: {e}")
 
     async def show_help(self):
         """Show help information about available commands"""

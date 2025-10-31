@@ -176,6 +176,41 @@ class Config:
     def CRYPTOCOMPARE_API_KEY(self):
         return self.get_env('CRYPTOCOMPARE_API_KEY')
     
+    @property
+    def ADMIN_USER_IDS(self):
+        """Get list of admin user IDs from environment."""
+        admin_ids = self.get_env('ADMIN_USER_IDS', '')
+        if not admin_ids:
+            return []
+
+        # Handle single integer values produced by automatic type conversion
+        if isinstance(admin_ids, int):
+            return [admin_ids]
+
+        # Handle pre-parsed iterables (lists/tuples) defensively
+        if isinstance(admin_ids, (list, tuple)):
+            parsed_ids = []
+            for raw_id in admin_ids:
+                try:
+                    parsed_ids.append(int(str(raw_id).strip()))
+                except (TypeError, ValueError):
+                    logging.warning("Invalid ADMIN_USER_IDS entry '%s' in keys.env. Expected integers.", raw_id)
+                    return []
+            return parsed_ids
+
+        if isinstance(admin_ids, str):
+            try:
+                return [int(uid.strip()) for uid in admin_ids.split(',') if uid.strip()]
+            except ValueError:
+                logging.warning("Invalid ADMIN_USER_IDS format in keys.env. Expected comma-separated integers.")
+                return []
+
+        logging.warning(
+            "Unsupported ADMIN_USER_IDS type %s encountered. Expected string, int, list, or tuple.",
+            type(admin_ids).__name__
+        )
+        return []
+    
     # AI Provider Configuration
     @property
     def PROVIDER(self):
@@ -327,6 +362,24 @@ class Config:
     def _is_google_model(self, model_name: str) -> bool:
         """Determine if a model should use Google-specific configuration."""
         return model_name == self.GOOGLE_STUDIO_MODEL
+
+    def reload(self):
+        """Reload both keys.env and config.ini files.
+        
+        This allows runtime configuration changes without restarting the application.
+        """
+        logging.info("Reloading configuration files...")
+        try:
+            self._env_vars = {}
+            self._config_data = {}
+            self._load_environment()
+            self._load_ini_config()
+            self._build_dynamic_urls()
+            self._build_model_configs()
+            logging.info("Configuration reloaded successfully")
+        except Exception as e:
+            logging.error(f"Error reloading configuration: {e}")
+            raise
 
 
 # Create global config instance

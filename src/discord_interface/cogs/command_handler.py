@@ -91,24 +91,39 @@ class CommandHandler(commands.Cog):
                 return
 
             symbol = validation_result.symbol
-            timeframe = validation_result.timeframe  # NEW: Extract timeframe
+            timeframe = validation_result.timeframe
             language = validation_result.language
+            provider = validation_result.provider
+            model = validation_result.model
+
+            # Use default provider and model from config if not specified
+            if provider is None:
+                provider = config.PROVIDER
+            if model is None:
+                if provider == 'googleai':
+                    model = config.GOOGLE_STUDIO_MODEL
+                elif provider == 'openrouter':
+                    model = config.OPENROUTER_BASE_MODEL
+                elif provider == 'local':
+                    model = config.LM_STUDIO_MODEL
 
             self.validator.add_ongoing_analysis(symbol)
             self.analysis_handler.add_user_in_progress(ctx.author.id)
 
             if self.logger:
                 timeframe_info = f", Timeframe: {timeframe}" if timeframe else ""
-                self.logger.info(f"Analysis initiated: {symbol}, User: {ctx.author.id}, Language: {language or 'English'}{timeframe_info}")
+                provider_info = f", Provider: {provider}" if provider else ""
+                model_info = f", Model: {model}" if model else ""
+                self.logger.info(f"Analysis initiated: {symbol}, User: {ctx.author.id}, Language: {language or 'English'}{timeframe_info}{provider_info}{model_info}")
 
-            embed = self.response_builder.build_analysis_embed(symbol, ctx.author, language, timeframe)
+            embed = self.response_builder.build_analysis_embed(symbol, ctx.author, language, timeframe, provider, model)
             confirmation_message = await self.send_tracked_message(ctx, "", embed=embed)
 
             self.analysis_handler.add_analysis_request(symbol, confirmation_message, ctx.author, ctx.channel, language)
 
             # Create and track the analysis task
             analysis_task = self.bot.loop.create_task(
-                self._perform_analysis_workflow(symbol, ctx, language, timeframe),  # NEW: Pass timeframe
+                self._perform_analysis_workflow(symbol, ctx, language, timeframe, provider, model),
                 name=f"Analysis-{symbol}"
             )
             self.analysis_handler._analysis_tasks.add(analysis_task)
@@ -127,11 +142,15 @@ class CommandHandler(commands.Cog):
         args = ctx.message.content.split()[1:]
         return self.validator.validate_full_analysis_request(ctx, args, config.ANALYSIS_COOLDOWN_COIN, config.ANALYSIS_COOLDOWN_USER)
 
-    async def _perform_analysis_workflow(self, symbol: str, ctx: commands.Context, language: Optional[str], timeframe: Optional[str] = None) -> None:
+    async def _perform_analysis_workflow(self, symbol: str, ctx: commands.Context, language: Optional[str], 
+                                         timeframe: Optional[str] = None, provider: Optional[str] = None, 
+                                         model: Optional[str] = None) -> None:
         """Perform the complete analysis workflow using the specialized components."""
         timeframe_info = f", Timeframe: {timeframe}" if timeframe else ""
+        provider_info = f", Provider: {provider}" if provider else ""
+        model_info = f", Model: {model}" if model else ""
         if self.logger:
-            self.logger.info(f"Starting analysis: {symbol}, Lang: {language or 'English'}{timeframe_info}, User: {ctx.author}")
+            self.logger.info(f"Starting analysis: {symbol}, Lang: {language or 'English'}{timeframe_info}{provider_info}{model_info}, User: {ctx.author}")
         
         try:
             # Validate prerequisites
@@ -149,8 +168,8 @@ class CommandHandler(commands.Cog):
             if self.logger:
                 self.logger.info(f"Using {exchange_id} for {symbol} analysis")
             
-            # Perform analysis with optional timeframe override
-            success, result = await self.analysis_handler.execute_analysis(symbol, exchange, language, timeframe)
+            # Perform analysis with optional timeframe, provider, and model overrides
+            success, result = await self.analysis_handler.execute_analysis(symbol, exchange, language, timeframe, provider, model)
             
             # Update cooldowns if not admin
             if not self.validator.is_admin(ctx):
