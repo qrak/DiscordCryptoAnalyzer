@@ -553,7 +553,11 @@ class ModelManager:
 
     def _is_valid_response(self, response: Optional[Dict[str, Any]]) -> bool:
         """Check if response contains valid choices with content"""
-        if not (response and "choices" in response and response["choices"]):
+        # Check if response exists and is a dict with choices
+        if not response or not isinstance(response, dict):
+            return False
+        
+        if "choices" not in response or not response["choices"]:
             return False
         
         # Check first choice for errors or empty content

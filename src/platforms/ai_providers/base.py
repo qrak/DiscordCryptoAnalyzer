@@ -83,9 +83,13 @@ class BaseApiClient:
         except asyncio.TimeoutError as e:
             self.logger.error(f"Timeout error when {operation} for model {model}: {e}")
             return {"error": "timeout", "details": str(e)}
+        except aiohttp.ClientPayloadError as e:
+            # Incomplete payload transfer - retryable
+            self.logger.error(f"Payload transfer error when {operation} for model {model}: {type(e).__name__} - {e}")
+            return {"error": {"code": 502, "message": str(e)}, "details": "Incomplete payload transfer"}
         except aiohttp.ClientError as e:
             self.logger.error(f"Network error when {operation} for model {model}: {type(e).__name__} - {e}")
-            return None  # Network errors usually not retried
+            return {"error": {"code": 503, "message": str(e)}, "details": "Network error"}
         except Exception as e:
             self.logger.error(f"Unexpected error when {operation} for model {model}: {type(e).__name__} - {e}")
             return None
