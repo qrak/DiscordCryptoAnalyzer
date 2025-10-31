@@ -9,6 +9,9 @@
   <img src="https://img.shields.io/badge/ccxt-4.5.3-blue.svg" />
 </p>
 
+> **⚠️ NOTICE: This repository is no longer public.**  
+> The source code has been moved to a private repository. This page remains for documentation and community access.
+
 A powerful Discord bot for real-time cryptocurrency market analysis using advanced AI models.
 
 ## Try It Live
@@ -63,12 +66,9 @@ Discord Crypto Analyzer provides real-time cryptocurrency analysis directly to y
 
 ### Steps
 
-1. Clone the repository or download the source code:
+> **Note:** The source code is now in a private repository. Installation instructions are for reference only.
 
-```bash
-git clone https://github.com/qrak/DiscordCryptoAnalyzer
-cd DiscordCryptoAnalyzer
-```
+1. Obtain access to the private repository (contact via Discord for access)
 
 2. (Recommended) Create a Python virtual environment:
 
