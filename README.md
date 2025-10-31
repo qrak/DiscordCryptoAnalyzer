@@ -209,6 +209,59 @@ Use the `provider` setting in the `[ai_providers]` section of `config/config.ini
 
 **Supported Timeframes:** 1h, 2h, 4h, 6h, 8h, 12h, 1d
 
+#### Admin: Custom AI Provider & Model Selection
+
+Administrators can override the default AI provider and model for analysis. This is useful for testing different models or using specific providers:
+
+```
+!analyze <symbol> [timeframe] [language] <provider> <model>
+```
+
+**Available Providers:**
+- `googleai` — Google AI Studio (Gemini models)
+- `openrouter` — OpenRouter (access to 500+ models: GPT, Claude, Gemini, DeepSeek, etc.)
+- `local` — LM Studio (local models)
+- `all` — Fallback chain (tries: Google AI → LM Studio → OpenRouter)
+
+**Admin Command Examples:**
+```
+# Use specific Gemini model
+!analyze BTC/USDT googleai gemini-2.5-pro
+
+# Use OpenRouter with GPT model
+!analyze BTC/USDT openrouter openai/gpt-4o
+
+# Use custom local model
+!analyze ETH/USDT 4h local llama-2-7b
+
+# Full command with timeframe and language
+!analyze BTC/USDT 4h openrouter openai/gpt-4-turbo
+```
+
+**Admin Benefits:**
+- No cooldown periods when using provider/model override
+- Direct access to all configured AI providers and models
+- Useful for testing and comparing different models
+- Skip rate limiting restrictions
+
+#### Future: Tiered Model Access for Paid Users
+
+As the platform grows with a paid userbase, the bot will support tiered model access:
+
+- **Free Tier**: Default model (e.g., `gemini-flash-latest`)
+  - Standard analysis quality
+  - Shared rate limits
+  - Community channels
+
+- **Premium Tier**: Access to advanced models (e.g., `GPT-5`, `Claude 4.5 Sonnet` (recommended), `Gemini 2.5 Pro`)
+  - Superior analysis quality and reasoning
+  - Higher accuracy for pattern recognition
+  - Dedicated rate limits
+  - Priority processing
+  - Advanced features
+
+This tiered approach will allow casual users to enjoy the bot's capabilities while providing paid users with access to state-of-the-art AI models for more accurate financial analysis. Implementation details and pricing will be determined as the community grows.
+
 Note: There are no `!shutdown` or `!restart` Discord commands. To stop the running bot use the console keyboard shortcut `q` (Windows console) or send an OS signal (SIGINT/SIGTERM) to the process.
 
 ### Example Commands
