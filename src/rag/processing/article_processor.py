@@ -6,16 +6,15 @@ from typing import Dict, Any, Set
 import logging
 
 from src.parsing.unified_parser import UnifiedParser
-from src.utils.format_utils import FormatUtils
 
 
 class ArticleProcessor:
     """Utility class for common article processing operations."""
     
-    def __init__(self, logger: logging.Logger = None):
+    def __init__(self, logger: logging.Logger = None, format_utils=None):
         self.logger = logger or logging.getLogger(__name__)
-        self.parser = UnifiedParser(self.logger)
-        self.format_utils = FormatUtils()
+        self.parser = UnifiedParser(self.logger, format_utils)
+        self.format_utils = format_utils
     
     def detect_coins_in_article(self, article: Dict[str, Any], known_crypto_tickers: Set[str]) -> Set[str]:
         """Detect cryptocurrency mentions in article content."""

@@ -80,19 +80,19 @@ def detect_stoch_overbought_numba(stoch_k: np.ndarray, threshold: float = 80.0) 
 
 
 @njit
-def detect_stoch_bullish_crossover_numba(stoch_k: np.ndarray, stoch_d: np.ndarray, oversold_threshold: float = 30.0) -> tuple:
+def _detect_stochastic_crossover_numba(stoch_k: np.ndarray, stoch_d: np.ndarray, 
+                                       is_bullish: bool, threshold: float) -> tuple:
     """
-    Detect bullish Stochastic crossover: %K crosses above %D while in oversold territory.
-    
-    Strong bullish signal when occurring below 30.
+    Generic stochastic crossover detection (helper function).
     
     Args:
         stoch_k: Stochastic %K array (fast line)
         stoch_d: Stochastic %D array (slow line)
-        oversold_threshold: Consider oversold below this (default 30)
+        is_bullish: True for bullish crossover (K crosses above D), False for bearish (K crosses below D)
+        threshold: Oversold/overbought threshold value
         
     Returns:
-        (found: bool, periods_ago: int, k_value: float, d_value: float, is_in_oversold: bool)
+        (found: bool, periods_ago: int, k_value: float, d_value: float, is_in_zone: bool)
     """
     if len(stoch_k) < 2 or len(stoch_d) < 2:
         return False, 0, 0.0, 0.0, False
@@ -109,19 +109,50 @@ def detect_stoch_bullish_crossover_numba(stoch_k: np.ndarray, stoch_d: np.ndarra
         if np.isnan(stoch_d[idx]) or np.isnan(stoch_d[idx + 1]):
             continue
         
-        # Detect crossover: %K crosses above %D
-        was_below = stoch_k[idx] <= stoch_d[idx]
-        now_above = stoch_k[idx + 1] > stoch_d[idx + 1]
+        # Detect crossover based on direction
+        if is_bullish:
+            # Bullish: %K crosses above %D
+            was_below = stoch_k[idx] <= stoch_d[idx]
+            now_above = stoch_k[idx + 1] > stoch_d[idx + 1]
+            crossover = was_below and now_above
+        else:
+            # Bearish: %K crosses below %D
+            was_above = stoch_k[idx] >= stoch_d[idx]
+            now_below = stoch_k[idx + 1] < stoch_d[idx + 1]
+            crossover = was_above and now_below
         
-        if was_below and now_above:
+        if crossover:
             # Use values at crossover point, not current values
             k_val = float(stoch_k[idx + 1])
             d_val = float(stoch_d[idx + 1])
-            in_oversold = k_val < oversold_threshold or d_val < oversold_threshold
             
-            return True, i, k_val, d_val, in_oversold
+            # Check if in oversold (bullish) or overbought (bearish) zone
+            if is_bullish:
+                in_zone = k_val < threshold or d_val < threshold
+            else:
+                in_zone = k_val > threshold or d_val > threshold
+            
+            return True, i, k_val, d_val, in_zone
     
     return False, 0, 0.0, 0.0, False
+
+
+@njit
+def detect_stoch_bullish_crossover_numba(stoch_k: np.ndarray, stoch_d: np.ndarray, oversold_threshold: float = 30.0) -> tuple:
+    """
+    Detect bullish Stochastic crossover: %K crosses above %D while in oversold territory.
+    
+    Strong bullish signal when occurring below 30.
+    
+    Args:
+        stoch_k: Stochastic %K array (fast line)
+        stoch_d: Stochastic %D array (slow line)
+        oversold_threshold: Consider oversold below this (default 30)
+        
+    Returns:
+        (found: bool, periods_ago: int, k_value: float, d_value: float, is_in_oversold: bool)
+    """
+    return _detect_stochastic_crossover_numba(stoch_k, stoch_d, True, oversold_threshold)
 
 
 @njit
@@ -139,34 +170,7 @@ def detect_stoch_bearish_crossover_numba(stoch_k: np.ndarray, stoch_d: np.ndarra
     Returns:
         (found: bool, periods_ago: int, k_value: float, d_value: float, is_in_overbought: bool)
     """
-    if len(stoch_k) < 2 or len(stoch_d) < 2:
-        return False, 0, 0.0, 0.0, False
-    
-    # Check last 5 periods for crossover
-    lookback = min(5, len(stoch_k))
-    
-    for i in range(1, lookback):
-        idx = len(stoch_k) - i - 1
-        
-        # Skip if any values are NaN
-        if np.isnan(stoch_k[idx]) or np.isnan(stoch_k[idx + 1]):
-            continue
-        if np.isnan(stoch_d[idx]) or np.isnan(stoch_d[idx + 1]):
-            continue
-        
-        # Detect crossover: %K crosses below %D
-        was_above = stoch_k[idx] >= stoch_d[idx]
-        now_below = stoch_k[idx + 1] < stoch_d[idx + 1]
-        
-        if was_above and now_below:
-            # Use values at crossover point, not current values
-            k_val = float(stoch_k[idx + 1])
-            d_val = float(stoch_d[idx + 1])
-            in_overbought = k_val > overbought_threshold or d_val > overbought_threshold
-            
-            return True, i, k_val, d_val, in_overbought
-    
-    return False, 0, 0.0, 0.0, False
+    return _detect_stochastic_crossover_numba(stoch_k, stoch_d, False, overbought_threshold)
 
 
 @njit

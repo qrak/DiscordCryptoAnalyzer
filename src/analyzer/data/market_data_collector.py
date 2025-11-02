@@ -127,6 +127,13 @@ class MarketDataCollector:
                 return False
 
             context.ohlcv_candles, context.current_price = result
+            
+            # Convert timestamps once here for reuse across all components
+            try:
+                context.timestamps = [datetime.fromtimestamp(ts / 1000) for ts in context.ohlcv_candles[:, 0]]
+            except Exception as e:
+                self.logger.warning(f"Could not extract timestamps from OHLCV data: {e}")
+                context.timestamps = None
 
             if len(context.ohlcv_candles) < 720:
                 hours_available = len(context.ohlcv_candles)
@@ -336,8 +343,15 @@ class MarketDataCollector:
             self.logger.warning("No OHLCV data available for metrics calculation")
             return data
         
+        # Use pre-computed timestamps if available
+        timestamps = context.timestamps if hasattr(context, 'timestamps') and context.timestamps else None
+        
         for idx in range(len(context.ohlcv_candles)):
-            timestamp = datetime.fromtimestamp(float(context.ohlcv_candles[idx, 0]) / 1000.0)
+            # Use pre-computed timestamp or fallback to conversion
+            if timestamps and idx < len(timestamps):
+                timestamp = timestamps[idx]
+            else:
+                timestamp = datetime.fromtimestamp(float(context.ohlcv_candles[idx, 0]) / 1000.0)
             
             market_data = dict(
                 timestamp=timestamp,

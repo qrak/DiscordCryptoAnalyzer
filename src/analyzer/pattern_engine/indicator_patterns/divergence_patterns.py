@@ -80,6 +80,31 @@ def _find_local_extrema_numba(
 
 
 @njit(cache=True)
+def _find_matching_indicator_extrema(
+    indicator_indices: np.ndarray,
+    indicator_values: np.ndarray,
+    price_idx: int,
+    tolerance: int = 3
+) -> Tuple[int, float]:
+    """
+    Find indicator extrema near a price extrema.
+    
+    Args:
+        indicator_indices: Array of indicator extrema indices
+        indicator_values: Array of indicator extrema values
+        price_idx: Index of price extrema to match
+        tolerance: Maximum periods difference to consider a match
+        
+    Returns:
+        (indicator_idx, indicator_value) or (-1, 0.0) if not found
+    """
+    for j in range(len(indicator_indices)):
+        if abs(indicator_indices[j] - price_idx) <= tolerance:
+            return (indicator_indices[j], indicator_values[j])
+    return (-1, 0.0)
+
+
+@njit(cache=True)
 def detect_bullish_divergence_numba(
     prices: np.ndarray,
     indicator: np.ndarray,
@@ -140,27 +165,15 @@ def detect_bullish_divergence_numba(
             continue
         
         # Find corresponding indicator lows around same times
-        # Look for indicator low near first price low
-        first_indicator_idx = -1
-        first_indicator_value = 0.0
-        for j in range(len(indicator_low_indices)):
-            if abs(indicator_low_indices[j] - first_price_idx) <= 3:  # Within 3 periods
-                first_indicator_idx = indicator_low_indices[j]
-                first_indicator_value = indicator_low_values[j]
-                break
-        
+        first_indicator_idx, first_indicator_value = _find_matching_indicator_extrema(
+            indicator_low_indices, indicator_low_values, first_price_idx
+        )
         if first_indicator_idx == -1:
             continue
         
-        # Look for indicator low near second price low
-        second_indicator_idx = -1
-        second_indicator_value = 0.0
-        for j in range(len(indicator_low_indices)):
-            if abs(indicator_low_indices[j] - second_price_idx) <= 3:  # Within 3 periods
-                second_indicator_idx = indicator_low_indices[j]
-                second_indicator_value = indicator_low_values[j]
-                break
-        
+        second_indicator_idx, second_indicator_value = _find_matching_indicator_extrema(
+            indicator_low_indices, indicator_low_values, second_price_idx
+        )
         if second_indicator_idx == -1:
             continue
         
@@ -241,27 +254,15 @@ def detect_bearish_divergence_numba(
             continue
         
         # Find corresponding indicator highs around same times
-        # Look for indicator high near first price high
-        first_indicator_idx = -1
-        first_indicator_value = 0.0
-        for j in range(len(indicator_high_indices)):
-            if abs(indicator_high_indices[j] - first_price_idx) <= 3:  # Within 3 periods
-                first_indicator_idx = indicator_high_indices[j]
-                first_indicator_value = indicator_high_values[j]
-                break
-        
+        first_indicator_idx, first_indicator_value = _find_matching_indicator_extrema(
+            indicator_high_indices, indicator_high_values, first_price_idx
+        )
         if first_indicator_idx == -1:
             continue
         
-        # Look for indicator high near second price high
-        second_indicator_idx = -1
-        second_indicator_value = 0.0
-        for j in range(len(indicator_high_indices)):
-            if abs(indicator_high_indices[j] - second_price_idx) <= 3:  # Within 3 periods
-                second_indicator_idx = indicator_high_indices[j]
-                second_indicator_value = indicator_high_values[j]
-                break
-        
+        second_indicator_idx, second_indicator_value = _find_matching_indicator_extrema(
+            indicator_high_indices, indicator_high_values, second_price_idx
+        )
         if second_indicator_idx == -1:
             continue
         

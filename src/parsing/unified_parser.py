@@ -8,7 +8,6 @@ from datetime import datetime
 from typing import Dict, Any, Set, Optional, Union, List
 
 from src.logger.logger import Logger
-from src.utils.format_utils import FormatUtils
 
 
 class UnifiedParser:
@@ -17,9 +16,9 @@ class UnifiedParser:
     Replaces multiple scattered parsing components with a single, comprehensive solution.
     """
     
-    def __init__(self, logger: Logger):
+    def __init__(self, logger: Logger, format_utils=None):
         self.logger = logger
-        self.format_utils = FormatUtils()
+        self.format_utils = format_utils
         
         # Numeric fields that should be converted from strings with their defaults
         self._numeric_fields = {

@@ -207,6 +207,34 @@ class ModelManager:
     # ----------------------------
     # Internal DRY helper methods
     # ----------------------------
+    def _handle_provider_failure(self, provider: str, response_json: Optional[Dict[str, Any]], 
+                                 is_final_fallback: bool = False) -> ResponseDict:
+        """
+        Handle provider failure and create error response.
+        
+        Args:
+            provider: Provider name that failed
+            response_json: Response from the provider (may contain error details)
+            is_final_fallback: Whether this is the final fallback attempt
+            
+        Returns:
+            Error response dictionary
+        """
+        provider_names = {
+            "googleai": "Google AI Studio",
+            "local": "LM Studio",
+            "openrouter": "OpenRouter"
+        }
+        provider_name = provider_names.get(provider, provider)
+        
+        self.logger.error(f"{provider_name} request failed or returned invalid response")
+        error_detail = response_json.get("error", f"Unknown {provider_name} failure") if response_json else f"No response from {provider_name}"
+        
+        if is_final_fallback:
+            return cast(ResponseDict, {"error": f"All models failed. Last attempt ({provider_name}): {error_detail}"})
+        else:
+            return cast(ResponseDict, {"error": f"{provider_name} failed: {error_detail}"})
+    
     def _provider_available(self, provider: str) -> bool:
         if provider == "googleai":
             return self.google_client is not None
@@ -503,9 +531,7 @@ class ModelManager:
         response_json = await self._invoke_provider("googleai", messages, model=model)
 
         if not self._is_valid_response(response_json):
-            self.logger.error("Google AI Studio request failed or returned invalid response")
-            error_detail = response_json.get("error", "Unknown Google API failure") if response_json else "No response from Google API"
-            return cast(ResponseDict, {"error": f"Google AI Studio failed: {error_detail}"})
+            return self._handle_provider_failure("googleai", response_json)
 
         return response_json
 
@@ -515,9 +541,7 @@ class ModelManager:
         response_json = await self._invoke_provider("local", messages, model=model)
 
         if not self._is_valid_response(response_json):
-            self.logger.error("LM Studio request failed or returned invalid response")
-            error_detail = response_json.get("error", "Unknown LM Studio failure") if response_json else "No response from LM Studio"
-            return cast(ResponseDict, {"error": f"LM Studio failed: {error_detail}"})
+            return self._handle_provider_failure("local", response_json)
 
         return response_json
 
@@ -527,9 +551,7 @@ class ModelManager:
         response_json = await self._invoke_provider("openrouter", messages, model=model)
 
         if not self._is_valid_response(response_json) or self._rate_limited(response_json):
-            self.logger.error("OpenRouter request failed or returned invalid response")
-            error_detail = response_json.get("error", "Unknown OpenRouter failure") if response_json else "No response from OpenRouter"
-            return cast(ResponseDict, {"error": f"OpenRouter failed: {error_detail}"})
+            return self._handle_provider_failure("openrouter", response_json)
 
         return response_json
 
@@ -539,9 +561,7 @@ class ModelManager:
         response_json = await self._invoke_provider("openrouter", messages, model=model)
 
         if not self._is_valid_response(response_json) or self._rate_limited(response_json):
-            self.logger.error("OpenRouter request failed or returned invalid response")
-            error_detail = response_json.get("error", "Unknown OpenRouter failure") if response_json else "No response from OpenRouter"
-            return cast(ResponseDict, {"error": f"All models failed. Last attempt (OpenRouter): {error_detail}"})
+            return self._handle_provider_failure("openrouter", response_json, is_final_fallback=True)
 
         return response_json
 

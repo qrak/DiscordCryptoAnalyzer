@@ -13,11 +13,11 @@ from ..processing.article_processor import ArticleProcessor
 class NewsManager:
     """Manages cryptocurrency news articles and related operations."""
     
-    def __init__(self, logger: Logger, file_handler: RagFileHandler, cryptocompare_api=None):
+    def __init__(self, logger: Logger, file_handler: RagFileHandler, cryptocompare_api=None, format_utils=None):
         self.logger = logger
         self.file_handler = file_handler
         self.cryptocompare_api = cryptocompare_api
-        self.article_processor = ArticleProcessor(logger)
+        self.article_processor = ArticleProcessor(logger, format_utils)
         
         # News database
         self.news_database: List[Dict[str, Any]] = []
@@ -76,7 +76,7 @@ class NewsManager:
             self.logger.debug("No new articles to process")
             return False
             
-        recent_articles = self.file_handler.filter_recent_articles(new_articles)
+        recent_articles = self.file_handler.filter_articles_by_age(new_articles, max_age_seconds=86400)
         
         existing_ids = {article.get('id') for article in self.news_database if article.get('id')}
         unique_articles = [art for art in recent_articles if art.get('id') and art.get('id') not in existing_ids]
@@ -89,7 +89,7 @@ class NewsManager:
             combined_articles.sort(key=lambda x: self._get_article_timestamp(x), reverse=True)
             
             # Filter to keep only recent articles
-            self.news_database = self.file_handler.filter_recent_articles(combined_articles)
+            self.news_database = self.file_handler.filter_articles_by_age(combined_articles, max_age_seconds=86400)
             
             # Save updated database
             self.file_handler.save_news_articles(self.news_database)

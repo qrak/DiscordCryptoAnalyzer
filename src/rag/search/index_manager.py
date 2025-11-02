@@ -14,9 +14,9 @@ from ..processing.article_processor import ArticleProcessor
 class IndexManager:
     """Manages search indices for efficient article lookup."""
     
-    def __init__(self, logger: Logger):
+    def __init__(self, logger: Logger, format_utils=None):
         self.logger = logger
-        self.article_processor = ArticleProcessor(logger)
+        self.article_processor = ArticleProcessor(logger, format_utils)
         
         # Search indices
         self.category_index: Dict[str, List[int]] = defaultdict(list)

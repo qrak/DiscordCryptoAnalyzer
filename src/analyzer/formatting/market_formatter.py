@@ -5,17 +5,16 @@ Handles all market analysis formatting in a single comprehensive class.
 from typing import Dict, List, Optional, Any
 from src.logger.logger import Logger
 from src.utils.token_counter import TokenCounter
-from src.utils.format_utils import FormatUtils
 
 
 class MarketFormatter:
     """Consolidated formatter for all market analysis sections."""
     
-    def __init__(self, logger: Optional[Logger] = None):
+    def __init__(self, logger: Optional[Logger] = None, format_utils=None):
         """Initialize the market formatter."""
         self.logger = logger
         self.token_counter = TokenCounter()
-        self.format_utils = FormatUtils()
+        self.format_utils = format_utils
         # Define indicator thresholds locally since we don't have indicator_calculator here
         self.INDICATOR_THRESHOLDS = {
             'rsi': {'oversold': 30, 'overbought': 70},
@@ -115,25 +114,28 @@ class MarketFormatter:
         sections = []
         
         # Market cap and dominance
-        if 'total_market_cap_usd' in market_overview:
-            market_cap = market_overview['total_market_cap_usd']
+        market_cap_data = market_overview.get("market_cap", {})
+        if 'total_usd' in market_cap_data:
+            market_cap = market_cap_data['total_usd']
             sections.append(f"📊 Total Market Cap: ${self.format_utils.fmt(market_cap)}")
         
-        if 'bitcoin_dominance' in market_overview:
-            btc_dom = market_overview['bitcoin_dominance']
+        dominance_data = market_overview.get("dominance", {})
+        if 'btc' in dominance_data:
+            btc_dom = dominance_data['btc']
             sections.append(f"₿ Bitcoin Dominance: {self.format_utils.fmt(btc_dom)}%")
         
-        if 'ethereum_dominance' in market_overview:
-            eth_dom = market_overview['ethereum_dominance']
+        if 'eth' in dominance_data:
+            eth_dom = dominance_data['eth']
             sections.append(f"Ξ Ethereum Dominance: {self.format_utils.fmt(eth_dom)}%")
         
         # Market metrics
-        if 'total_volume_24h_usd' in market_overview:
-            volume = market_overview['total_volume_24h_usd']
+        volume_data = market_overview.get("volume", {})
+        if 'total_usd' in volume_data:
+            volume = volume_data['total_usd']
             sections.append(f"📈 24h Volume: ${self.format_utils.fmt(volume)}")
         
-        if 'market_cap_change_24h_percentage_usd' in market_overview:
-            change = market_overview['market_cap_change_24h_percentage_usd']
+        if 'change_24h' in market_cap_data:
+            change = market_cap_data['change_24h']
             direction = "📈" if change >= 0 else "📉"
             sections.append(f"{direction} Market Cap Change (24h): {self.format_utils.fmt(change)}%")
         

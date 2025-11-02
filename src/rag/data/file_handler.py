@@ -67,6 +67,19 @@ class RagFileHandler:
                 except:
                     pass
             self.logger.error(f"Error saving JSON file {file_path}: {e}")
+    
+    def filter_articles_by_age(self, articles: List[Dict], max_age_seconds: int) -> List[Dict]:
+        """Filter articles by age in seconds."""
+        current_timestamp = datetime.now().timestamp()
+        cutoff_time = current_timestamp - max_age_seconds
+        
+        filtered_articles = []
+        for art in articles:
+            article_timestamp = self.unified_parser.parse_timestamp(art.get('published_on', 0))
+            if article_timestamp > cutoff_time:
+                filtered_articles.append(art)
+        
+        return filtered_articles
         
     def save_news_articles(self, articles: List[Dict]):
         if not articles:
@@ -79,15 +92,8 @@ class RagFileHandler:
             return
             
         self._last_news_save_time = current_time
-            
-        current_timestamp = datetime.now().timestamp()
-        one_day_ago = current_timestamp - 86400
         
-        recent_articles = []
-        for art in articles:
-            article_timestamp = self.unified_parser.parse_timestamp(art.get('published_on', 0))
-            if article_timestamp > one_day_ago:
-                recent_articles.append(art)
+        recent_articles = self.filter_articles_by_age(articles, max_age_seconds=86400)
         
         if not recent_articles:
             self.logger.debug("No recent articles to save")
@@ -117,15 +123,7 @@ class RagFileHandler:
                 return []
                 
             articles = data.get('articles', [])
-            
-            current_timestamp = datetime.now().timestamp()
-            one_day_ago = current_timestamp - 86400
-            
-            recent_articles = []
-            for art in articles:
-                article_timestamp = self.unified_parser.parse_timestamp(art.get('published_on', 0))
-                if article_timestamp > one_day_ago:
-                    recent_articles.append(art)
+            recent_articles = self.filter_articles_by_age(articles, max_age_seconds=86400)
             
             if len(recent_articles) < len(articles):
                 self.logger.debug(f"Filtered out {len(articles) - len(recent_articles)} articles older than 24 hours")
@@ -145,15 +143,9 @@ class RagFileHandler:
                 return []
                 
             articles = data.get('articles', [])
-            
-            current_timestamp = datetime.now().timestamp()
-            cutoff_time = current_timestamp - (max_age_hours * 3600)  # Convert hours to seconds
-            
-            fallback_articles = []
-            for art in articles:
-                article_timestamp = self.unified_parser.parse_timestamp(art.get('published_on', 0))
-                if article_timestamp > cutoff_time:
-                    fallback_articles.append(art)
+            fallback_articles = self.filter_articles_by_age(
+                articles, max_age_seconds=max_age_hours * 3600
+            )
             
             if fallback_articles:
                 self.logger.debug(f"Using {len(fallback_articles)} cached articles as fallback")
@@ -163,18 +155,6 @@ class RagFileHandler:
         except Exception as e:
             self.logger.error(f"Error loading fallback news articles: {e}")
             return []
-            
-    def filter_recent_articles(self, articles: List[Dict]) -> List[Dict]:
-        current_timestamp = datetime.now().timestamp()
-        one_day_ago = current_timestamp - 86400
-        
-        recent_articles = []
-        for art in articles:
-            article_timestamp = self.unified_parser.parse_timestamp(art.get('published_on', 0))
-            if article_timestamp > one_day_ago:
-                recent_articles.append(art)
-        
-        return recent_articles
     
     def load_known_tickers(self) -> Optional[List[str]]:
         """Load known tickers from disk."""

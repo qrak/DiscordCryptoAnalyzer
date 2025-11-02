@@ -13,7 +13,6 @@ from src.discord_interface.cogs.command_handler import CommandHandler
 from src.discord_interface.cogs.reaction_handler import ReactionHandler
 from .filehandler import DiscordFileHandler
 from src.utils.decorators import retry_async
-from src.utils.format_utils import FormatUtils
 
 
 class DiscordNotifier:
@@ -22,9 +21,10 @@ class DiscordNotifier:
     def __init__(self,
                  logger,
                  symbol_manager,
-                 market_analyzer) -> None:
+                 market_analyzer,
+                 format_utils=None) -> None:
         self.logger = logger
-        self.format_utils = FormatUtils()
+        self.format_utils = format_utils
         self.symbol_manager = symbol_manager
         self.market_analyzer = market_analyzer
         self.session: Optional[ClientSession] = None

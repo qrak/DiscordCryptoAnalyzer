@@ -9,7 +9,6 @@ import numpy as np
 from typing import Dict, List, Any, Optional
 from datetime import datetime
 
-from src.utils.format_utils import FormatUtils
 from .rsi_patterns import (
     detect_rsi_oversold_numba,
     detect_rsi_overbought_numba,
@@ -59,10 +58,10 @@ class IndicatorPatternEngine:
     Pure NumPy/Numba implementation - no heavy classes, fast execution.
     """
     
-    def __init__(self, logger=None):
+    def __init__(self, logger=None, format_utils=None):
         """Initialize indicator pattern engine"""
         self.logger = logger
-        self.format_utils = FormatUtils()
+        self.format_utils = format_utils
     
     def _format_pattern_time(self, periods_ago: int, index: int, timestamps: Optional[List]) -> str:
         """
@@ -346,6 +345,66 @@ class IndicatorPatternEngine:
         
         return patterns
     
+    def _create_divergence_pattern(
+        self,
+        pattern_type: str,
+        indicator_name: str,
+        is_bullish: bool,
+        first_idx: int,
+        second_idx: int,
+        first_p: float,
+        second_p: float,
+        first_i: float,
+        second_i: float,
+        timestamps: Optional[List]
+    ) -> Dict[str, Any]:
+        """
+        Create a divergence pattern dictionary (helper method).
+        
+        Args:
+            pattern_type: Pattern type string (e.g., 'rsi_bullish_divergence')
+            indicator_name: Indicator name (e.g., 'rsi', 'macd')
+            is_bullish: True for bullish divergence, False for bearish
+            first_idx: Index of first extreme
+            second_idx: Index of second extreme
+            first_p: First price value
+            second_p: Second price value
+            first_i: First indicator value
+            second_i: Second indicator value
+            timestamps: Optional timestamp list
+            
+        Returns:
+            Pattern dictionary
+        """
+        timestamp_str = self._format_pattern_time(0, second_idx, timestamps)
+        
+        if is_bullish:
+            if indicator_name == 'rsi':
+                description = f'RSI Bullish Divergence: Price lower low (${second_p:.2f}), RSI higher low ({second_i:.2f}) {timestamp_str}'
+            else:
+                description = f'MACD Bullish Divergence: Price lower low, MACD higher low {timestamp_str}'
+        else:
+            if indicator_name == 'rsi':
+                description = f'RSI Bearish Divergence: Price higher high (${second_p:.2f}), RSI lower high ({second_i:.2f}) {timestamp_str}'
+            else:
+                description = f'MACD Bearish Divergence: Price higher high, MACD lower high {timestamp_str}'
+        
+        return {
+            'type': pattern_type,
+            'description': description,
+            'index': second_idx,
+            'details': {
+                'indicator': indicator_name,
+                'first_price': float(first_p),
+                'second_price': float(second_p),
+                'first_indicator': float(first_i),
+                'second_indicator': float(second_i),
+                'first_idx': int(first_idx),
+                'second_idx': int(second_idx),
+                'periods_ago': 0
+            }
+        }
+    
     def _detect_divergence_patterns(
         self,
         prices: np.ndarray,
@@ -363,43 +422,19 @@ class IndicatorPatternEngine:
             found, first_idx, second_idx, first_p, second_p, first_i, second_i = \
                 detect_bullish_divergence_numba(prices, rsi)
             if found:
-                timestamp_str = self._format_pattern_time(0, second_idx, timestamps)
-                patterns.append({
-                    'type': 'rsi_bullish_divergence',
-                    'description': f'RSI Bullish Divergence: Price lower low (${second_p:.2f}), RSI higher low ({second_i:.2f}) {timestamp_str}',
-                    'index': second_idx,
-                    'details': {
-                        'indicator': 'rsi',
-                        'first_price': float(first_p),
-                        'second_price': float(second_p),
-                        'first_indicator': float(first_i),
-                        'second_indicator': float(second_i),
-                        'first_idx': int(first_idx),
-                        'second_idx': int(second_idx),
-                        'periods_ago': 0
-                    }
-                })
+                patterns.append(self._create_divergence_pattern(
+                    'rsi_bullish_divergence', 'rsi', True,
+                    first_idx, second_idx, first_p, second_p, first_i, second_i, timestamps
+                ))
             
             # Bearish divergence
             found, first_idx, second_idx, first_p, second_p, first_i, second_i = \
                 detect_bearish_divergence_numba(prices, rsi)
             if found:
-                timestamp_str = self._format_pattern_time(0, second_idx, timestamps)
-                patterns.append({
-                    'type': 'rsi_bearish_divergence',
-                    'description': f'RSI Bearish Divergence: Price higher high (${second_p:.2f}), RSI lower high ({second_i:.2f}) {timestamp_str}',
-                    'index': second_idx,
-                    'details': {
-                        'indicator': 'rsi',
-                        'first_price': float(first_p),
-                        'second_price': float(second_p),
-                        'first_indicator': float(first_i),
-                        'second_indicator': float(second_i),
-                        'first_idx': int(first_idx),
-                        'second_idx': int(second_idx),
-                        'periods_ago': 0
-                    }
-                })
+                patterns.append(self._create_divergence_pattern(
+                    'rsi_bearish_divergence', 'rsi', False,
+                    first_idx, second_idx, first_p, second_p, first_i, second_i, timestamps
+                ))
         
         # MACD Divergences
         if 'macd_line' in technical_history:
@@ -409,43 +444,19 @@ class IndicatorPatternEngine:
             found, first_idx, second_idx, first_p, second_p, first_i, second_i = \
                 detect_bullish_divergence_numba(prices, macd)
             if found:
-                timestamp_str = self._format_pattern_time(0, second_idx, timestamps)
-                patterns.append({
-                    'type': 'macd_bullish_divergence',
-                    'description': f'MACD Bullish Divergence: Price lower low, MACD higher low {timestamp_str}',
-                    'index': second_idx,
-                    'details': {
-                        'indicator': 'macd',
-                        'first_price': float(first_p),
-                        'second_price': float(second_p),
-                        'first_indicator': float(first_i),
-                        'second_indicator': float(second_i),
-                        'first_idx': int(first_idx),
-                        'second_idx': int(second_idx),
-                        'periods_ago': 0
-                    }
-                })
+                patterns.append(self._create_divergence_pattern(
+                    'macd_bullish_divergence', 'macd', True,
+                    first_idx, second_idx, first_p, second_p, first_i, second_i, timestamps
+                ))
             
             # Bearish divergence
             found, first_idx, second_idx, first_p, second_p, first_i, second_i = \
                 detect_bearish_divergence_numba(prices, macd)
             if found:
-                timestamp_str = self._format_pattern_time(0, second_idx, timestamps)
-                patterns.append({
-                    'type': 'macd_bearish_divergence',
-                    'description': f'MACD Bearish Divergence: Price higher high, MACD lower high {timestamp_str}',
-                    'index': second_idx,
-                    'details': {
-                        'indicator': 'macd',
-                        'first_price': float(first_p),
-                        'second_price': float(second_p),
-                        'first_indicator': float(first_i),
-                        'second_indicator': float(second_i),
-                        'first_idx': int(first_idx),
-                        'second_idx': int(second_idx),
-                        'periods_ago': 0
-                    }
-                })
+                patterns.append(self._create_divergence_pattern(
+                    'macd_bearish_divergence', 'macd', False,
+                    first_idx, second_idx, first_p, second_p, first_i, second_i, timestamps
+                ))
         
         return patterns
     

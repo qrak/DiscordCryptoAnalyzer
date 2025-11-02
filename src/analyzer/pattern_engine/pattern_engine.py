@@ -2,7 +2,6 @@ import numpy as np
 from typing import Dict, List, Any
 from datetime import datetime
 
-from src.utils.format_utils import FormatUtils
 from src.analyzer.pattern_engine.swing_detection import (
     detect_swing_highs_numba,
     detect_swing_lows_numba,
@@ -20,10 +19,10 @@ from src.analyzer.pattern_engine.pattern_matchers import (
 
 class PatternEngine:
     
-    def __init__(self, lookback: int = 7, lookahead: int = 7):
+    def __init__(self, lookback: int = 7, lookahead: int = 7, format_utils=None):
         self.lookback = lookback
         self.lookahead = lookahead
-        self.format_utils = FormatUtils()
+        self.format_utils = format_utils
     
     def detect_patterns(self, ohlcv: np.ndarray, timestamps: List[datetime] = None) -> Dict[str, List[Dict[str, Any]]]:
         if len(ohlcv) < self.lookback + self.lookahead:

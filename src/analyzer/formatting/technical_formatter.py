@@ -4,13 +4,12 @@ Handles all technical analysis formatting in a single comprehensive class.
 """
 from typing import Optional
 from src.logger.logger import Logger
-from src.utils.format_utils import FormatUtils
 
 
 class TechnicalFormatter:
     """Consolidated formatter for all technical analysis sections."""
     
-    def __init__(self, technical_calculator, logger: Optional[Logger] = None):
+    def __init__(self, technical_calculator, logger: Optional[Logger] = None, format_utils=None):
         """Initialize the technical analysis formatter.
         
         Args:
@@ -20,7 +19,7 @@ class TechnicalFormatter:
         self.technical_calculator = technical_calculator
         self.logger = logger
         self.INDICATOR_THRESHOLDS = technical_calculator.INDICATOR_THRESHOLDS
-        self.format_utils = FormatUtils()
+        self.format_utils = format_utils
     
     def format_technical_analysis(self, context, timeframe: str) -> str:
         """Format complete technical analysis section.

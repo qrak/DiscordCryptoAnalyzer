@@ -5,6 +5,24 @@ from src.indicators.indicators.trend import supertrend_numba
 
 
 @njit(cache=True)
+def _calculate_volume_filter_numba(volume, length, i):
+    """
+    Calculate volume filter for support/resistance detection (helper function).
+    
+    Args:
+        volume: Volume array
+        length: Lookback period
+        i: Current index
+        
+    Returns:
+        (rolling_avg_volume: float, volume_filter: bool)
+    """
+    rolling_avg_volume = np.mean(volume[i - length:i])
+    volume_filter = volume[i] > rolling_avg_volume
+    return rolling_avg_volume, volume_filter
+
+
+@njit(cache=True)
 def support_resistance_numba(high, low, length):
     n = len(high)
     rolling_resistance = np.full(n, np.nan)
@@ -27,14 +45,12 @@ def support_resistance_numba_advanced(high, low, close, volume, length):
     rolling_avg_volume = np.full(n, np.nan)
 
     for i in range(length, n):
-        rolling_avg_volume[i] = np.mean(volume[i - length:i])
+        rolling_avg_volume[i], volume_filter[i] = _calculate_volume_filter_numba(volume, length, i)
 
         pivot_points[i] = (high[i - 1] + low[i - 1] + close[i - 1]) / 3
 
         r1[i] = (2 * pivot_points[i]) - low[i - 1]
         s1[i] = (2 * pivot_points[i]) - high[i - 1]
-
-        volume_filter[i] = volume[i] > rolling_avg_volume[i]
 
     strong_support = np.where(volume_filter, s1, np.nan)
     strong_resistance = np.where(volume_filter, r1, np.nan)
@@ -62,15 +78,13 @@ def advanced_support_resistance_numba(high, low, close, volume, length=50, stren
     strong_resistance = np.full(n, np.nan)
 
     for i in range(length, n):
-        rolling_avg_volume[i] = np.mean(volume[i - length:i])
+        rolling_avg_volume[i], volume_filter[i] = _calculate_volume_filter_numba(volume, length, i)
         pivot_points[i] = (high[i - 1] + low[i - 1] + close[i - 1]) / 3
 
         r1[i] = (2 * pivot_points[i]) - low[i - 1]
         s1[i] = (2 * pivot_points[i]) - high[i - 1]
         r2[i] = pivot_points[i] + (high[i - 1] - low[i - 1])
         s2[i] = pivot_points[i] - (high[i - 1] - low[i - 1])
-
-        volume_filter[i] = volume[i] > rolling_avg_volume[i]
 
         if close[i] < s1[i]:
             support_strength[i] = support_strength[i - 1] + 1

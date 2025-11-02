@@ -8,7 +8,6 @@ from datetime import datetime
 from typing import Any, Dict, Optional
 
 from src.logger.logger import Logger
-from src.utils.format_utils import FormatUtils
 from src.utils.timeframe_validator import TimeframeValidator
 from ..formatting.indicator_formatter import IndicatorFormatter
 
@@ -16,7 +15,7 @@ from ..formatting.indicator_formatter import IndicatorFormatter
 class ContextBuilder:
     """Builds context sections for prompts including trading context, sentiment, and market data."""
     
-    def __init__(self, timeframe: str = "1h", logger: Optional[Logger] = None):
+    def __init__(self, timeframe: str = "1h", logger: Optional[Logger] = None, format_utils=None, data_processor=None):
         """Initialize the context builder.
         
         Args:
@@ -25,8 +24,8 @@ class ContextBuilder:
         """
         self.timeframe = timeframe
         self.logger = logger
-        self.format_utils = FormatUtils()
-        self.formatter = IndicatorFormatter(logger)
+        self.format_utils = format_utils
+        self.formatter = IndicatorFormatter(logger, format_utils, data_processor)
     
     def build_trading_context(self, context) -> str:
         """Build trading context section with current market information.

@@ -3,14 +3,16 @@ import numpy as np
 
 from src.indicators.base.technical_indicators import TechnicalIndicators
 from src.logger.logger import Logger
+from src.utils.data_utils import hash_data
 
 
 class TechnicalCalculator:
     """Core calculator for technical indicators with caching capability"""
     
-    def __init__(self, logger: Optional[Logger] = None):
+    def __init__(self, logger: Optional[Logger] = None, format_utils=None):
         """Initialize the technical indicator calculator"""
         self.logger = logger
+        self.format_utils = format_utils
         self.ti = TechnicalIndicators()
         
         # Cache storage
@@ -31,7 +33,7 @@ class TechnicalCalculator:
         
     def get_indicators(self, ohlcv_data: np.ndarray) -> Dict[str, np.ndarray]:
         """Calculate all technical indicators with caching based on data hash"""
-        data_hash = self._hash_data(ohlcv_data)
+        data_hash = hash_data(ohlcv_data)
         
         # Return cached results if data hasn't changed
         if data_hash == self._ohlcv_hash and self._cache:
@@ -215,7 +217,7 @@ class TechnicalCalculator:
 
         Refactor note: Logic split into helper methods for clarity & reduced cyclomatic complexity.
         """
-        data_hash = self._hash_data(ohlcv_data)
+        data_hash = hash_data(ohlcv_data)
         cache_key = f"long_term_{data_hash}"
 
         if cache_key in self._cache:
@@ -258,7 +260,7 @@ class TechnicalCalculator:
 
     def get_weekly_macro_indicators(self, weekly_ohlcv_data: np.ndarray) -> Dict[str, Any]:
         """Calculate macro indicators using weekly data (200W SMA methodology)."""
-        data_hash = self._hash_data(weekly_ohlcv_data)
+        data_hash = hash_data(weekly_ohlcv_data)
         cache_key = f"weekly_macro_{data_hash}"
 
         if cache_key in self._cache:
@@ -313,8 +315,7 @@ class TechnicalCalculator:
         Args:
             price_change_pct: Already-calculated price change percentage from _compute_change_metrics
         """
-        from src.utils.format_utils import FormatUtils
-        
+        formatter = self.format_utils
         analysis = {
             'trend_direction': 'Neutral',
             'weekly_sma_alignment': 'Mixed',
@@ -335,7 +336,6 @@ class TechnicalCalculator:
             return analysis
         
         current_price = float(ti.close[-1])
-        formatter = FormatUtils()
         
         # Multi-year trend with timestamps (use already-calculated price_change_pct)
         if available_weeks >= 2:
@@ -758,18 +758,3 @@ class TechnicalCalculator:
                 indicators["bb_signal"] = 0
         else:
             indicators["bb_signal"] = 0
-
-    def _hash_data(self, data: np.ndarray) -> str:
-        """Create a simple hash of the data for caching"""
-        if data is None or len(data) == 0:
-            return "empty"
-            
-        # Use last few candles and length for hashing
-        # This is faster than hashing the entire array
-        try:
-            last_candle = data[-1].tobytes()
-            data_len = len(data)
-            return f"{hash(last_candle)}_{data_len}"
-        except (AttributeError, IndexError):
-            # Fallback if tobytes() is not available
-            return str(hash(str(data[-1])) + len(data))

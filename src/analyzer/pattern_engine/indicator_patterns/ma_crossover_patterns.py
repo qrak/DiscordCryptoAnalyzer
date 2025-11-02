@@ -10,15 +10,14 @@ from numba import njit
 
 
 @njit
-def detect_golden_cross_numba(sma_50: np.ndarray, sma_200: np.ndarray) -> tuple:
+def _detect_ma_crossover_numba(sma_50: np.ndarray, sma_200: np.ndarray, is_bullish: bool) -> tuple:
     """
-    Detect Golden Cross: 50 SMA crosses above 200 SMA.
-    
-    Strong bullish signal indicating potential long-term uptrend.
+    Generic MA crossover detection (helper function).
     
     Args:
         sma_50: 50-period SMA array
         sma_200: 200-period SMA array
+        is_bullish: True for golden cross (50 crosses above 200), False for death cross (50 crosses below 200)
         
     Returns:
         (found: bool, periods_ago: int, sma_50_value: float, sma_200_value: float)
@@ -38,15 +37,40 @@ def detect_golden_cross_numba(sma_50: np.ndarray, sma_200: np.ndarray) -> tuple:
         if np.isnan(sma_200[idx]) or np.isnan(sma_200[idx + 1]):
             continue
         
-        # Detect crossover: was below, now above
-        was_below = sma_50[idx] <= sma_200[idx]
-        now_above = sma_50[idx + 1] > sma_200[idx + 1]
+        # Detect crossover based on direction
+        if is_bullish:
+            # Golden Cross: was below, now above
+            was_below = sma_50[idx] <= sma_200[idx]
+            now_above = sma_50[idx + 1] > sma_200[idx + 1]
+            crossover = was_below and now_above
+        else:
+            # Death Cross: was above, now below
+            was_above = sma_50[idx] >= sma_200[idx]
+            now_below = sma_50[idx + 1] < sma_200[idx + 1]
+            crossover = was_above and now_below
         
-        if was_below and now_above:
+        if crossover:
             # Use values at crossover point, not current values
             return True, i, float(sma_50[idx + 1]), float(sma_200[idx + 1])
     
     return False, 0, 0.0, 0.0
+
+
+@njit
+def detect_golden_cross_numba(sma_50: np.ndarray, sma_200: np.ndarray) -> tuple:
+    """
+    Detect Golden Cross: 50 SMA crosses above 200 SMA.
+    
+    Strong bullish signal indicating potential long-term uptrend.
+    
+    Args:
+        sma_50: 50-period SMA array
+        sma_200: 200-period SMA array
+        
+    Returns:
+        (found: bool, periods_ago: int, sma_50_value: float, sma_200_value: float)
+    """
+    return _detect_ma_crossover_numba(sma_50, sma_200, True)
 
 
 @njit
@@ -63,30 +87,7 @@ def detect_death_cross_numba(sma_50: np.ndarray, sma_200: np.ndarray) -> tuple:
     Returns:
         (found: bool, periods_ago: int, sma_50_value: float, sma_200_value: float)
     """
-    if len(sma_50) < 2 or len(sma_200) < 2:
-        return False, 0, 0.0, 0.0
-    
-    # Check last 5 periods for crossover
-    lookback = min(5, len(sma_50))
-    
-    for i in range(1, lookback):
-        idx = len(sma_50) - i - 1
-        
-        # Skip if any values are NaN
-        if np.isnan(sma_50[idx]) or np.isnan(sma_50[idx + 1]):
-            continue
-        if np.isnan(sma_200[idx]) or np.isnan(sma_200[idx + 1]):
-            continue
-        
-        # Detect crossover: was above, now below
-        was_above = sma_50[idx] >= sma_200[idx]
-        now_below = sma_50[idx + 1] < sma_200[idx + 1]
-        
-        if was_above and now_below:
-            # Use values at crossover point, not current values
-            return True, i, float(sma_50[idx + 1]), float(sma_200[idx + 1])
-    
-    return False, 0, 0.0, 0.0
+    return _detect_ma_crossover_numba(sma_50, sma_200, False)
 
 
 @njit

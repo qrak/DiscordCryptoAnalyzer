@@ -3,13 +3,32 @@ from numba import njit
 
 
 @njit(cache=True)
+def _extract_swing_indices(swing_array: np.ndarray) -> np.ndarray:
+    """Extract indices where swing points occur."""
+    return np.where(swing_array)[0]
+
+
+@njit(cache=True)
+def _is_monotonic_sequence(values: np.ndarray, ascending: bool) -> bool:
+    """Check if values form a monotonic sequence (strictly ascending or descending)."""
+    for j in range(len(values) - 1):
+        if ascending:
+            if values[j + 1] <= values[j]:
+                return False
+        else:  # descending
+            if values[j + 1] >= values[j]:
+                return False
+    return True
+
+
+@njit(cache=True)
 def detect_head_shoulder_numba(high: np.ndarray, low: np.ndarray, close: np.ndarray,
                                swing_highs: np.ndarray, swing_lows: np.ndarray,
                                tolerance: float = 0.035) -> np.ndarray:
     n = len(high)
     patterns = np.zeros(n, dtype=np.int32)
     
-    swing_high_indices = np.where(swing_highs)[0]
+    swing_high_indices = _extract_swing_indices(swing_highs)
     
     if len(swing_high_indices) < 3:
         return patterns
@@ -28,7 +47,7 @@ def detect_head_shoulder_numba(high: np.ndarray, low: np.ndarray, close: np.ndar
             if shoulder_diff < tolerance:
                 patterns[head_idx] = 1
     
-    swing_low_indices = np.where(swing_lows)[0]
+    swing_low_indices = _extract_swing_indices(swing_lows)
     
     if len(swing_low_indices) < 3:
         return patterns
@@ -57,7 +76,7 @@ def detect_double_top_bottom_numba(high: np.ndarray, low: np.ndarray,
     n = len(high)
     patterns = np.zeros(n, dtype=np.int32)
     
-    swing_high_indices = np.where(swing_highs)[0]
+    swing_high_indices = _extract_swing_indices(swing_highs)
     
     if len(swing_high_indices) >= 2:
         for i in range(len(swing_high_indices) - 1):
@@ -71,7 +90,7 @@ def detect_double_top_bottom_numba(high: np.ndarray, low: np.ndarray,
             if price_diff < tolerance:
                 patterns[idx2] = 1
     
-    swing_low_indices = np.where(swing_lows)[0]
+    swing_low_indices = _extract_swing_indices(swing_lows)
     
     if len(swing_low_indices) >= 2:
         for i in range(len(swing_low_indices) - 1):
@@ -95,8 +114,8 @@ def detect_triangle_numba(high: np.ndarray, low: np.ndarray,
     n = len(high)
     patterns = np.zeros(n, dtype=np.int32)
     
-    swing_high_indices = np.where(swing_highs)[0]
-    swing_low_indices = np.where(swing_lows)[0]
+    swing_high_indices = _extract_swing_indices(swing_highs)
+    swing_low_indices = _extract_swing_indices(swing_lows)
     
     if len(swing_high_indices) < min_swings or len(swing_low_indices) < min_swings:
         return patterns
@@ -105,26 +124,14 @@ def detect_triangle_numba(high: np.ndarray, low: np.ndarray,
         indices = swing_high_indices[i:i + min_swings]
         values = high[indices]
         
-        is_descending = True
-        for j in range(len(values) - 1):
-            if values[j + 1] >= values[j]:
-                is_descending = False
-                break
-        
-        if is_descending:
+        if _is_monotonic_sequence(values, ascending=False):
             patterns[indices[-1]] = 1
     
     for i in range(len(swing_low_indices) - min_swings + 1):
         indices = swing_low_indices[i:i + min_swings]
         values = low[indices]
         
-        is_ascending = True
-        for j in range(len(values) - 1):
-            if values[j + 1] <= values[j]:
-                is_ascending = False
-                break
-        
-        if is_ascending:
+        if _is_monotonic_sequence(values, ascending=True):
             patterns[indices[-1]] = 2
     
     return patterns
@@ -137,8 +144,8 @@ def detect_wedge_numba(high: np.ndarray, low: np.ndarray,
     n = len(high)
     patterns = np.zeros(n, dtype=np.int32)
     
-    swing_high_indices = np.where(swing_highs)[0]
-    swing_low_indices = np.where(swing_lows)[0]
+    swing_high_indices = _extract_swing_indices(swing_highs)
+    swing_low_indices = _extract_swing_indices(swing_lows)
     
     if len(swing_high_indices) < min_swings or len(swing_low_indices) < min_swings:
         return patterns
@@ -150,29 +157,10 @@ def detect_wedge_numba(high: np.ndarray, low: np.ndarray,
         high_values = high[high_indices]
         low_values = low[low_indices]
         
-        high_rising = True
-        for j in range(len(high_values) - 1):
-            if high_values[j + 1] <= high_values[j]:
-                high_rising = False
-                break
-        
-        low_rising = True
-        for j in range(len(low_values) - 1):
-            if low_values[j + 1] <= low_values[j]:
-                low_rising = False
-                break
-        
-        high_falling = True
-        for j in range(len(high_values) - 1):
-            if high_values[j + 1] >= high_values[j]:
-                high_falling = False
-                break
-        
-        low_falling = True
-        for j in range(len(low_values) - 1):
-            if low_values[j + 1] >= low_values[j]:
-                low_falling = False
-                break
+        high_rising = _is_monotonic_sequence(high_values, ascending=True)
+        low_rising = _is_monotonic_sequence(low_values, ascending=True)
+        high_falling = _is_monotonic_sequence(high_values, ascending=False)
+        low_falling = _is_monotonic_sequence(low_values, ascending=False)
         
         if high_rising and low_rising:
             patterns[max(high_indices[-1], low_indices[-1])] = 1
@@ -189,8 +177,8 @@ def detect_channel_numba(high: np.ndarray, low: np.ndarray,
     n = len(high)
     patterns = np.zeros(n, dtype=np.int32)
     
-    swing_high_indices = np.where(swing_highs)[0]
-    swing_low_indices = np.where(swing_lows)[0]
+    swing_high_indices = _extract_swing_indices(swing_highs)
+    swing_low_indices = _extract_swing_indices(swing_lows)
     
     if len(swing_high_indices) < min_swings or len(swing_low_indices) < min_swings:
         return patterns
@@ -243,7 +231,7 @@ def detect_multiple_tops_bottoms_numba(high: np.ndarray, low: np.ndarray,
     n = len(high)
     patterns = np.zeros(n, dtype=np.int32)
     
-    swing_high_indices = np.where(swing_highs)[0]
+    swing_high_indices = _extract_swing_indices(swing_highs)
     
     if len(swing_high_indices) >= min_count:
         for i in range(len(swing_high_indices) - min_count + 1):
@@ -260,7 +248,7 @@ def detect_multiple_tops_bottoms_numba(high: np.ndarray, low: np.ndarray,
             if all_close:
                 patterns[indices[-1]] = 1
     
-    swing_low_indices = np.where(swing_lows)[0]
+    swing_low_indices = _extract_swing_indices(swing_lows)
     
     if len(swing_low_indices) >= min_count:
         for i in range(len(swing_low_indices) - min_count + 1):

@@ -15,10 +15,10 @@ from ..processing.article_processor import ArticleProcessor
 class ContextBuilder:
     """Builds analysis context from various data sources."""
     
-    def __init__(self, logger: Logger, token_counter: TokenCounter):
+    def __init__(self, logger: Logger, token_counter: TokenCounter, format_utils=None):
         self.logger = logger
         self.token_counter = token_counter
-        self.article_processor = ArticleProcessor(logger)
+        self.article_processor = ArticleProcessor(logger, format_utils)
         self.latest_article_urls: Dict[str, str] = {}
     
     async def keyword_search(self, query: str, news_database: List[Dict[str, Any]], 

@@ -7,17 +7,16 @@ from src.html.generators.template_processor import TemplateProcessor
 from src.html.generators.chart_section_generator import ChartSectionGenerator
 from src.html.generators.content_link_processor import ContentLinkProcessor
 from src.html.generators.content_formatter import ContentFormatter
-from src.utils.format_utils import FormatUtils
 
 
 class AnalysisHtmlGenerator:
     """Generates HTML files for detailed analysis using specialized components."""
     
-    def __init__(self, temp_dir: str = 'temp_analysis/', logger=None):
+    def __init__(self, temp_dir: str = 'temp_analysis/', logger=None, format_utils=None):
         self.logger = logger
         self.temp_dir = temp_dir
         # Format utilities instance for number/timestamp formatting
-        self.format_utils = FormatUtils()
+        self.format_utils = format_utils
 
         # Initialize specialized components
         self.template_processor = TemplateProcessor(logger)

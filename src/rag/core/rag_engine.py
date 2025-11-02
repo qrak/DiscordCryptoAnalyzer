@@ -22,22 +22,23 @@ class RagEngine:
         token_counter: TokenCounter,
         coingecko_api: Optional[CoinGeckoAPI] = None,
         cryptocompare_api: Optional[CryptoCompareAPI] = None,
-        symbol_manager=None
+        symbol_manager=None,
+        format_utils=None
     ):
         self.logger = logger
         self.token_counter = token_counter
         self.file_handler = RagFileHandler(logger=self.logger)
         
         # Initialize component managers
-        self.news_manager = NewsManager(logger, self.file_handler, cryptocompare_api)
+        self.news_manager = NewsManager(logger, self.file_handler, cryptocompare_api, format_utils)
         self.market_data_manager = MarketDataManager(
             logger, self.file_handler, coingecko_api, cryptocompare_api, symbol_manager
         )
-        self.index_manager = IndexManager(logger)
+        self.index_manager = IndexManager(logger, format_utils)
         self.category_manager = CategoryManager(
             logger, self.file_handler, cryptocompare_api, symbol_manager
         )
-        self.context_builder = ContextBuilder(logger, token_counter)
+        self.context_builder = ContextBuilder(logger, token_counter, format_utils)
         
         # API clients with dependency injection
         self.coingecko_api = coingecko_api

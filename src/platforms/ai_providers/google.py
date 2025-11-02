@@ -77,6 +77,23 @@ class GoogleAIClient:
         
         return "\n\n".join(text_parts)
     
+    def _create_generation_config(self, model_config: Dict[str, Any]) -> types.GenerateContentConfig:
+        """
+        Create a generation config from model configuration dictionary.
+        
+        Args:
+            model_config: Configuration parameters for the model
+            
+        Returns:
+            GenerateContentConfig object
+        """
+        return types.GenerateContentConfig(
+            temperature=model_config.get("temperature", 0.7),
+            top_p=model_config.get("top_p", 0.9),
+            top_k=model_config.get("top_k", 40),
+            max_output_tokens=model_config.get("max_tokens", 32768),
+        )
+    
     @retry_api_call(max_retries=3, initial_delay=1, backoff_factor=2, max_delay=30)
     async def chat_completion(self, messages: List[Dict[str, Any]], model_config: Dict[str, Any], model: Optional[str] = None) -> Optional[ResponseDict]:
         """
@@ -96,13 +113,7 @@ class GoogleAIClient:
             # Convert messages to simple text prompt
             prompt = self._extract_text_from_messages(messages)
             
-            # Create generation config
-            generation_config = types.GenerateContentConfig(
-                temperature=model_config.get("temperature", 0.7),
-                top_p=model_config.get("top_p", 0.9),
-                top_k=model_config.get("top_k", 40),
-                max_output_tokens=model_config.get("max_tokens", 32768),
-            )
+            generation_config = self._create_generation_config(model_config)
             
             # Use override model if provided, otherwise use default
             effective_model = model if model else self.model
@@ -180,13 +191,7 @@ class GoogleAIClient:
             # Combine prompt and image
             contents = [prompt, image_part]
             
-            # Create generation config
-            generation_config = types.GenerateContentConfig(
-                temperature=model_config.get("temperature", 0.7),
-                top_p=model_config.get("top_p", 0.9),
-                top_k=model_config.get("top_k", 40),
-                max_output_tokens=model_config.get("max_tokens", 32768),
-            )
+            generation_config = self._create_generation_config(model_config)
             
             # Use override model if provided, otherwise use default
             effective_model = model if model else self.model
@@ -276,13 +281,7 @@ class GoogleAIClient:
             # Combine prompt and images
             contents = [prompt] + image_parts
             
-            # Create generation config
-            generation_config = types.GenerateContentConfig(
-                temperature=model_config.get("temperature", 0.7),
-                top_p=model_config.get("top_p", 0.9),
-                top_k=model_config.get("top_k", 40),
-                max_output_tokens=model_config.get("max_tokens", 32768),
-            )
+            generation_config = self._create_generation_config(model_config)
             
             self.logger.debug(f"Sending multimodal request to Google AI with {len(images)} images")
             

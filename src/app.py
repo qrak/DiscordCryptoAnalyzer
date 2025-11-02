@@ -11,6 +11,8 @@ from src.rag import RagEngine
 from src.utils.token_counter import TokenCounter
 from src.utils.keyboard_handler import KeyboardHandler
 from src.utils.loader import config
+from src.utils.format_utils import FormatUtils
+from src.analyzer.data.data_processor import DataProcessor
 
 
 class DiscordCryptoBot:
@@ -25,6 +27,8 @@ class DiscordCryptoBot:
         self.symbol_manager = None
         self.token_counter = None
         self.keyboard_handler = None
+        self.format_utils = None
+        self.data_processor = None
         self.tasks = []
         self.running = False
         self._active_tasks = set()
@@ -35,6 +39,11 @@ class DiscordCryptoBot:
         # Initialize TokenCounter early
         self.token_counter = TokenCounter()
         self.logger.debug("TokenCounter initialized")
+
+        # Initialize DataProcessor and FormatUtils
+        self.data_processor = DataProcessor()
+        self.format_utils = FormatUtils(self.data_processor)
+        self.logger.debug("DataProcessor and FormatUtils initialized")
 
         self.symbol_manager = ExchangeManager(self.logger)
         await self.symbol_manager.initialize()
@@ -58,7 +67,8 @@ class DiscordCryptoBot:
             self.logger, 
             self.token_counter,
             coingecko_api=self.coingecko_api,
-            cryptocompare_api=self.cryptocompare_api
+            cryptocompare_api=self.cryptocompare_api,
+            format_utils=self.format_utils
         )
         await self.rag_engine.initialize()
         self.logger.debug("RagEngine initialized")
@@ -71,7 +81,9 @@ class DiscordCryptoBot:
             rag_engine=self.rag_engine,
             coingecko_api=self.coingecko_api,
             alternative_me_api=self.alternative_me_api,
-            cryptocompare_api=self.cryptocompare_api
+            cryptocompare_api=self.cryptocompare_api,
+            format_utils=self.format_utils,
+            data_processor=self.data_processor
         )
 
         self.logger.debug("AnalysisEngine initialized")
@@ -80,6 +92,7 @@ class DiscordCryptoBot:
             logger=self.logger,
             symbol_manager=self.symbol_manager,
             market_analyzer=self.market_analyzer,
+            format_utils=self.format_utils
         )
         discord_task = asyncio.create_task(
             self.discord_notifier.start(),

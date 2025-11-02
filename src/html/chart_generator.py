@@ -15,13 +15,12 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
 from src.logger.logger import Logger
-from src.utils.format_utils import FormatUtils
 
 
 class ChartGenerator:
     """Generates interactive charts and static images for market data with OHLCV and RSI."""
     
-    def __init__(self, logger: Optional[Logger] = None, config: Optional[Any] = None, formatter: Optional[Callable] = None):
+    def __init__(self, logger: Optional[Logger] = None, config: Optional[Any] = None, formatter: Optional[Callable] = None, format_utils=None):
         """Initialize the chart generator.
         
         Args:
@@ -32,7 +31,7 @@ class ChartGenerator:
         self.logger = logger
         self.config = config
         self.formatter = formatter
-        self.format_utils = FormatUtils()
+        self.format_utils = format_utils
         self.logger = logger
         self.config = config
         self.formatter = formatter or self._default_formatter
@@ -164,7 +163,8 @@ class ChartGenerator:
         height: int = 800,
         width: int = None,
         for_ai: bool = False,
-        limit_candles: int = None
+        limit_candles: int = None,
+        timestamps: Optional[List] = None
     ) -> go.Figure:
         """Create the base chart figure that can be used for both HTML and image output.
         
@@ -193,10 +193,16 @@ class ChartGenerator:
         # Choose color scheme based on usage
         colors = self.ai_colors if for_ai else self.default_colors
 
-        # Convert timestamps to Python datetime for reliable Plotly date axes
-        # Using Python datetime objects avoids axis type inference issues in static image export
-        timestamps = pd.to_datetime(ohlcv[:, 0], unit='ms')
-        timestamps_py = timestamps.to_pydatetime().tolist()
+        # Use provided timestamps or convert from OHLCV data
+        if timestamps is not None:
+            # Limit timestamps if candles were limited
+            if limit_candles and len(timestamps) > limit_candles:
+                timestamps = timestamps[-limit_candles:]
+            timestamps_py = timestamps
+        else:
+            # Fallback: convert timestamps from OHLCV data
+            timestamps = pd.to_datetime(ohlcv[:, 0], unit='ms')
+            timestamps_py = timestamps.to_pydatetime().tolist()
         
         # Determine if RSI data is available
         has_rsi = technical_history and 'rsi' in technical_history and len(technical_history['rsi']) == len(timestamps)
@@ -397,11 +403,12 @@ class ChartGenerator:
         pair_symbol: str = "",
         timeframe: str = "1h",
         height: int = 800,
-        width: int = None
+        width: int = None,
+        timestamps: Optional[List] = None
     ) -> str:
         """Create an interactive HTML chart with OHLCV, Volume, and RSI."""
         fig = self._create_base_chart(
-            ohlcv, technical_history, pair_symbol, timeframe, height, width, for_ai=False
+            ohlcv, technical_history, pair_symbol, timeframe, height, width, for_ai=False, timestamps=timestamps
         )
         
         # Generate a unique ID for this chart instance 
@@ -474,7 +481,8 @@ class ChartGenerator:
         width: int = 1600,   # Reduced from 1000 for better file size
         save_to_disk: bool = False,
         output_path: Optional[str] = None,
-        simple_mode: bool = True  # Default to simple mode for AI analysis
+        simple_mode: bool = True,  # Default to simple mode for AI analysis
+        timestamps: Optional[List] = None
     ) -> Union[io.BytesIO, str]:
         """Create a PNG chart image optimized for AI pattern analysis.
         
@@ -488,12 +496,13 @@ class ChartGenerator:
             save_to_disk: If True, saves image to disk for testing
             output_path: Optional custom output path for disk save
             simple_mode: If True, creates simplified chart with only price data (recommended for AI)
+            timestamps: Optional pre-computed timestamps to avoid redundant conversion
             
         Returns:
             BytesIO object containing PNG image data, or file path if saved to disk
         """
         try:
-            fig = self._create_simple_candlestick_chart(ohlcv, pair_symbol, timeframe, height, width)
+            fig = self._create_simple_candlestick_chart(ohlcv, pair_symbol, timeframe, height, width, timestamps)
             
             # Generate the image with retry logic to handle kaleido/choreographer issues
             img_bytes = self._retry_image_export(fig, format="png", width=width, height=height, scale=2)
@@ -546,7 +555,8 @@ class ChartGenerator:
         pair_symbol: str,
         timeframe: str,
         height: int,
-        width: int
+        width: int,
+        timestamps: Optional[List] = None
     ) -> go.Figure:
         """Create a simple candlestick chart focused on price action patterns.
         
@@ -556,6 +566,7 @@ class ChartGenerator:
             timeframe: Chart timeframe
             height: Chart height
             width: Chart width
+            timestamps: Optional pre-computed timestamps to avoid redundant conversion
             
         Returns:
             Plotly figure object
@@ -564,9 +575,17 @@ class ChartGenerator:
         chosen_limit = int(self.ai_candle_limit)
         if chosen_limit and len(ohlcv) > chosen_limit:
             ohlcv = ohlcv[-chosen_limit:]
+            # Limit timestamps if provided
+            if timestamps is not None and len(timestamps) > chosen_limit:
+                timestamps = timestamps[-chosen_limit:]
 
-        timestamps = pd.to_datetime(ohlcv[:, 0], unit='ms')
-        timestamps_py = timestamps.to_pydatetime().tolist()
+        # Use provided timestamps or convert from OHLCV data
+        if timestamps is not None:
+            timestamps_py = timestamps
+        else:
+            # Fallback: convert timestamps from OHLCV data
+            timestamps = pd.to_datetime(ohlcv[:, 0], unit='ms')
+            timestamps_py = timestamps.to_pydatetime().tolist()
         opens = ohlcv[:, 1].astype(float)
         highs = ohlcv[:, 2].astype(float)
         lows = ohlcv[:, 3].astype(float)

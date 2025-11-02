@@ -4,9 +4,7 @@ Simplified orchestrator using the new consolidated formatting components.
 """
 from typing import Optional
 
-from ..data.data_processor import DataProcessor
 from src.logger.logger import Logger
-from src.utils.format_utils import FormatUtils
 from .market_formatter import MarketFormatter
 
 
@@ -16,14 +14,14 @@ class IndicatorFormatter:
     Simplified to use consolidated formatting components.
     """
     
-    def __init__(self, logger: Optional[Logger] = None):
+    def __init__(self, logger: Optional[Logger] = None, format_utils=None, data_processor=None):
         """Initialize the indicator formatter with consolidated components."""
         self.logger = logger
-        self.data_processor = DataProcessor()
-        self.format_utils = FormatUtils()
+        self.data_processor = data_processor
+        self.format_utils = format_utils
         
         # Initialize consolidated formatter
-        self.market_formatter = MarketFormatter(logger)
+        self.market_formatter = MarketFormatter(logger, format_utils)
         # Default thresholds for indicator analysis
         self.INDICATOR_THRESHOLDS = {
             'rsi': {'oversold': 30, 'overbought': 70},

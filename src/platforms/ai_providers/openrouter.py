@@ -15,6 +15,46 @@ class ResponseDict(TypedDict, total=False):
 class OpenRouterClient(BaseApiClient):
     """Client for handling OpenRouter API requests."""
     
+    def _extract_user_text_from_messages(self, messages: List[Dict[str, Any]]) -> str:
+        """Extract text content from the last user message."""
+        for message in reversed(messages):
+            if message["role"] == "user":
+                return message["content"]
+        return ""
+    
+    def _prepare_multimodal_messages(self, 
+                                     messages: List[Dict[str, Any]], 
+                                     user_text: str,
+                                     multimodal_content: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """
+        Convert messages to OpenRouter multimodal format.
+        
+        Args:
+            messages: Original messages
+            user_text: Extracted user text
+            multimodal_content: Content parts for multimodal message (text + images)
+            
+        Returns:
+            Converted messages with system messages as user messages
+        """
+        multimodal_messages = []
+        
+        for message in messages:
+            if message["role"] == "system":
+                multimodal_messages.append({
+                    "role": "user",
+                    "content": f"System instructions: {message['content']}"
+                })
+            elif message["role"] == "user" and message == messages[-1]:
+                multimodal_messages.append({
+                    "role": "user",
+                    "content": multimodal_content
+                })
+            else:
+                multimodal_messages.append(message)
+        
+        return multimodal_messages
+    
     @retry_api_call(max_retries=3, initial_delay=1, backoff_factor=2, max_delay=30)
     async def chat_completion(self, model: str, messages: list, model_config: Dict[str, Any]) -> Optional[ResponseDict]:
         """Send a chat completion request to the OpenRouter API."""
@@ -59,43 +99,25 @@ class OpenRouterClient(BaseApiClient):
             img_data = self._process_chart_image(chart_image)
             base64_image = base64.b64encode(img_data).decode('utf-8')
             
-            # Extract text from the last user message
-            user_text = ""
-            for message in reversed(messages):
-                if message["role"] == "user":
-                    user_text = message["content"]
-                    break
+            user_text = self._extract_user_text_from_messages(messages)
             
-            # Create multimodal messages with image
-            multimodal_messages = []
+            # Create multimodal content with image
+            multimodal_content = [
+                {
+                    "type": "text",
+                    "text": user_text
+                },
+                {
+                    "type": "image_url",
+                    "image_url": {
+                        "url": f"data:image/png;base64,{base64_image}"
+                    }
+                }
+            ]
             
-            # Add system messages as user messages (OpenRouter format)
-            for message in messages:
-                if message["role"] == "system":
-                    multimodal_messages.append({
-                        "role": "user",
-                        "content": f"System instructions: {message['content']}"
-                    })
-                elif message["role"] == "user" and message == messages[-1]:
-                    # This is the main user message - make it multimodal
-                    multimodal_messages.append({
-                        "role": "user",
-                        "content": [
-                            {
-                                "type": "text",
-                                "text": user_text
-                            },
-                            {
-                                "type": "image_url",
-                                "image_url": {
-                                    "url": f"data:image/png;base64,{base64_image}"
-                                }
-                            }
-                        ]
-                    })
-                else:
-                    # Other messages remain as-is
-                    multimodal_messages.append(message)
+            multimodal_messages = self._prepare_multimodal_messages(
+                messages, user_text, multimodal_content
+            )
             
             headers = {
                 "Authorization": f"Bearer {self.api_key}",
@@ -155,33 +177,14 @@ class OpenRouterClient(BaseApiClient):
                     }
                 })
             
-            # Extract text from the last user message
-            user_text = ""
-            for message in reversed(messages):
-                if message["role"] == "user":
-                    user_text = message["content"]
-                    break
+            user_text = self._extract_user_text_from_messages(messages)
             
-            # Create multimodal messages with images
-            multimodal_messages = []
+            # Create multimodal content with images
+            multimodal_content = [{"type": "text", "text": user_text}] + image_parts
             
-            # Add system messages as user messages (OpenRouter format)
-            for message in messages:
-                if message["role"] == "system":
-                    multimodal_messages.append({
-                        "role": "user",
-                        "content": f"System instructions: {message['content']}"
-                    })
-                elif message["role"] == "user" and message == messages[-1]:
-                    # This is the main user message - make it multimodal
-                    content_parts = [{"type": "text", "text": user_text}] + image_parts
-                    multimodal_messages.append({
-                        "role": "user",
-                        "content": content_parts
-                    })
-                else:
-                    # Other messages remain as-is
-                    multimodal_messages.append(message)
+            multimodal_messages = self._prepare_multimodal_messages(
+                messages, user_text, multimodal_content
+            )
             
             headers = {
                 "Authorization": f"Bearer {self.api_key}",

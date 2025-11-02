@@ -19,6 +19,7 @@ class AnalysisContext:
         # OHLCV data
         self._ohlcv_candles = None
         self._current_price = None
+        self._timestamps = None
         
         # Indicator data
         self._technical_data = {}
@@ -90,6 +91,16 @@ class AnalysisContext:
                 raise ValueError("Current price must be a valid number")
         else:
             self._current_price = None
+    
+    @property
+    def timestamps(self) -> Optional[List[datetime]]:
+        """Get datetime timestamps extracted from OHLCV data"""
+        return self._timestamps
+    
+    @timestamps.setter
+    def timestamps(self, value: Optional[List[datetime]]):
+        """Set timestamps"""
+        self._timestamps = value
             
     @property
     def technical_data(self) -> Dict[str, Any]:

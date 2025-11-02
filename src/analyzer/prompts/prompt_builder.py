@@ -11,7 +11,7 @@ from .context_builder import ContextBuilder
 
 
 class PromptBuilder:
-    def __init__(self, timeframe: str = "1h", logger: Optional[Logger] = None, technical_calculator: Optional[TechnicalCalculator] = None, config: Any = None) -> None:
+    def __init__(self, timeframe: str = "1h", logger: Optional[Logger] = None, technical_calculator: Optional[TechnicalCalculator] = None, config: Any = None, format_utils=None, data_processor=None) -> None:
         """Initialize the PromptBuilder
         
         Args:
@@ -24,17 +24,19 @@ class PromptBuilder:
         self.custom_instructions: list[str] = []
         self.language: Optional[str] = None
         self.context: Optional[AnalysisContext] = None
-        self.technical_calculator = technical_calculator or TechnicalCalculator(logger)
+        self.technical_calculator = technical_calculator or TechnicalCalculator(logger, format_utils)
         self.config = config
+        self.format_utils = format_utils
+        self.data_processor = data_processor
         
         # Access indicator thresholds from the calculator
         self.INDICATOR_THRESHOLDS = self.technical_calculator.INDICATOR_THRESHOLDS
         
         # Initialize component managers
         self.template_manager = TemplateManager(config=self.config, logger=logger)
-        self.market_formatter = MarketFormatter(logger)
-        self.technical_analysis_formatter = TechnicalFormatter(self.technical_calculator, logger)
-        self.context_builder = ContextBuilder(timeframe, logger)
+        self.market_formatter = MarketFormatter(logger, format_utils)
+        self.technical_analysis_formatter = TechnicalFormatter(self.technical_calculator, logger, format_utils)
+        self.context_builder = ContextBuilder(timeframe, logger, format_utils, data_processor)
 
     def build_prompt(self, context: AnalysisContext, has_chart_analysis: bool = False) -> str:
         """Build the complete prompt using component managers.

@@ -30,7 +30,9 @@ class AnalysisEngine:
              coingecko_api: CoinGeckoAPI,
              alternative_me_api: AlternativeMeAPI = None,
              cryptocompare_api=None,
-             discord_notifier=None) -> None:
+             discord_notifier=None,
+             format_utils=None,
+             data_processor=None) -> None:
         self.logger = logger
 
         # Basic properties
@@ -60,16 +62,18 @@ class AnalysisEngine:
 
         # Initialize specialized components
         self.model_manager = ModelManager(logger)
-        self.technical_calculator = TechnicalCalculator(logger=logger)
-        self.pattern_analyzer = PatternAnalyzer(logger=logger)
+        self.technical_calculator = TechnicalCalculator(logger=logger, format_utils=format_utils)
+        self.pattern_analyzer = PatternAnalyzer(logger=logger, format_utils=format_utils)
         self.prompt_builder = PromptBuilder(
             timeframe=self.timeframe, 
             logger=logger,
             technical_calculator=self.technical_calculator,
-            config=config
+            config=config,
+            format_utils=format_utils,
+            data_processor=data_processor
         )
-        self.html_generator = AnalysisHtmlGenerator(logger=logger)
-        self.chart_generator = ChartGenerator(logger=logger, config=config)
+        self.html_generator = AnalysisHtmlGenerator(logger=logger, format_utils=format_utils)
+        self.chart_generator = ChartGenerator(logger=logger, config=config, format_utils=format_utils)
         
         # Create specialized components for separated concerns
         self.data_collector = MarketDataCollector(
@@ -238,7 +242,8 @@ class AnalysisEngine:
             technical_patterns = self.pattern_analyzer.detect_patterns(
                 self.context.ohlcv_candles,
                 self.context.technical_history,
-                self.context.long_term_data if hasattr(self.context, 'long_term_data') else None
+                self.context.long_term_data if hasattr(self.context, 'long_term_data') else None,
+                self.context.timestamps
             )
             
             # If we found meaningful patterns, add them to context
@@ -267,7 +272,8 @@ class AnalysisEngine:
                         technical_history=self.context.technical_history,
                         pair_symbol=self.symbol,
                         timeframe=self.context.timeframe,
-                        save_to_disk=config.DEBUG_SAVE_CHARTS
+                        save_to_disk=config.DEBUG_SAVE_CHARTS,
+                        timestamps=self.context.timestamps
                     )
                     
                 except Exception as e:

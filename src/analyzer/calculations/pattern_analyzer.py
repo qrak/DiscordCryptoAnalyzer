@@ -5,14 +5,16 @@ from datetime import datetime
 from src.analyzer.pattern_engine import PatternEngine
 from src.analyzer.pattern_engine.indicator_patterns import IndicatorPatternEngine
 from src.logger.logger import Logger
+from src.utils.data_utils import hash_data
 
 
 class PatternAnalyzer:
     
-    def __init__(self, logger: Optional[Logger] = None):
+    def __init__(self, logger: Optional[Logger] = None, format_utils=None):
         self.logger = logger
-        self.pattern_engine = PatternEngine(lookback=5, lookahead=5)
-        self.indicator_pattern_engine = IndicatorPatternEngine()
+        self.format_utils = format_utils
+        self.pattern_engine = PatternEngine(lookback=5, lookahead=5, format_utils=format_utils)
+        self.indicator_pattern_engine = IndicatorPatternEngine(format_utils=format_utils)
         
         self._pattern_cache = {}
     
@@ -20,9 +22,10 @@ class PatternAnalyzer:
         self,
         ohlcv_data: np.ndarray,
         technical_history: Dict[str, np.ndarray],
-        long_term_data: Optional[Dict] = None
+        long_term_data: Optional[Dict] = None,
+        timestamps: Optional[List] = None
     ) -> Dict[str, Any]:
-        data_hash = self._hash_data(ohlcv_data)
+        data_hash = hash_data(ohlcv_data)
         cache_key = f"patterns_{data_hash}"
         
         if cache_key in self._pattern_cache:
@@ -33,11 +36,9 @@ class PatternAnalyzer:
         if self.logger:
             self.logger.debug(f"Running pattern detection on {len(ohlcv_data)} candles")
         
-        # Extract timestamps from OHLCV data (column 0)
-        timestamps = None
-        if ohlcv_data is not None and len(ohlcv_data) > 0:
+        # Use provided timestamps or extract from OHLCV data as fallback
+        if timestamps is None and ohlcv_data is not None and len(ohlcv_data) > 0:
             try:
-                # Convert Unix timestamps to datetime objects
                 timestamps = [datetime.fromtimestamp(ts / 1000) for ts in ohlcv_data[:, 0]]
             except Exception as e:
                 if self.logger:
@@ -102,18 +103,3 @@ class PatternAnalyzer:
             if self.logger:
                 self.logger.warning(f"Error in pattern detection: {e}")
             return []
-
-    def _hash_data(self, data: np.ndarray) -> str:
-        """Create a simple hash of the data for caching"""
-        if data is None or len(data) == 0:
-            return "empty"
-            
-        # Use last few candles and length for hashing
-        # This is faster than hashing the entire array
-        try:
-            last_candle = data[-1].tobytes()
-            data_len = len(data)
-            return f"{hash(last_candle)}_{data_len}"
-        except (AttributeError, IndexError):
-            # Fallback if tobytes() is not available
-            return str(hash(str(data[-1])) + len(data))

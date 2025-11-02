@@ -8,39 +8,7 @@ import numpy as np
 from datetime import datetime
 from typing import Optional
 
-
-class DataProcessor:
-    """Handles processing, validation, and extraction of indicator values.
-    
-    Copied from analyzer.data.data_processor to avoid circular import.
-    This is a lightweight utility with no external dependencies.
-    """
-    
-    def __init__(self):
-        """Initialize the indicator data processor"""
-        pass
-        
-    def get_indicator_value(self, td: dict, key: str):
-        """Get indicator value with proper type checking and error handling
-        
-        Args:
-            td: Technical data dictionary
-            key: Indicator key to retrieve
-            
-        Returns:
-            float or str: Indicator value or 'N/A' if invalid
-        """
-        try:
-            value = td[key]
-            if isinstance(value, (int, float)):
-                return float(value)
-            if isinstance(value, (list, tuple)) and len(value) == 1:
-                return float(value[0])
-            if isinstance(value, (list, tuple)) and len(value) > 1:
-                return float(value[-1])
-            return 'N/A'
-        except (KeyError, TypeError, ValueError, IndexError):
-            return 'N/A'
+from src.analyzer.data.data_processor import DataProcessor
 
 
 class FormatUtils:
@@ -50,9 +18,9 @@ class FormatUtils:
     circular import dependencies. It has no imports from the analyzer module.
     """
     
-    def __init__(self):
+    def __init__(self, data_processor: DataProcessor):
         """Initialize the formatting utilities with a data processor instance."""
-        self.data_processor = DataProcessor()
+        self.data_processor = data_processor
     
     def fmt(self, val, precision=8):
         """Format a value with appropriate precision based on its magnitude"""

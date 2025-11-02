@@ -10,6 +10,48 @@ from numba import njit
 
 
 @njit
+def _calculate_average_volume_numba(volume: np.ndarray, lookback: int) -> tuple:
+    """
+    Calculate average volume with NaN handling (helper function).
+    
+    Args:
+        volume: Volume array
+        lookback: Number of periods to look back
+        
+    Returns:
+        (is_valid: bool, avg_volume: float, valid_count: int)
+    """
+    if len(volume) < lookback + 1:
+        return False, 0.0, 0
+    
+    current_vol = volume[-1]
+    
+    if np.isnan(current_vol) or current_vol < 0:
+        return False, 0.0, 0
+    
+    # Calculate average volume (excluding current)
+    recent_volume = volume[-(lookback + 1):-1]
+    
+    # Skip if any NaN values
+    valid_count = 0
+    vol_sum = 0.0
+    for i in range(len(recent_volume)):
+        if not np.isnan(recent_volume[i]) and recent_volume[i] > 0:
+            vol_sum += recent_volume[i]
+            valid_count += 1
+    
+    if valid_count < lookback // 2:  # Need at least half the data
+        return False, 0.0, valid_count
+    
+    avg_vol = vol_sum / valid_count
+    
+    if avg_vol <= 0:
+        return False, 0.0, valid_count
+    
+    return True, avg_vol, valid_count
+
+
+@njit
 def detect_volume_spike_numba(volume: np.ndarray, multiplier: float = 2.5, lookback: int = 20) -> tuple:
     """
     Detect volume spike: current volume significantly above average.
@@ -24,33 +66,12 @@ def detect_volume_spike_numba(volume: np.ndarray, multiplier: float = 2.5, lookb
     Returns:
         (is_spike: bool, current_volume: float, avg_volume: float, spike_ratio: float)
     """
-    if len(volume) < lookback + 1:
+    is_valid, avg_vol, _ = _calculate_average_volume_numba(volume, lookback)
+    
+    if not is_valid:
         return False, 0.0, 0.0, 0.0
     
     current_vol = volume[-1]
-    
-    if np.isnan(current_vol) or current_vol <= 0:
-        return False, 0.0, 0.0, 0.0
-    
-    # Calculate average volume (excluding current)
-    recent_volume = volume[-(lookback + 1):-1]
-    
-    # Skip if any NaN values
-    valid_count = 0
-    vol_sum = 0.0
-    for i in range(len(recent_volume)):
-        if not np.isnan(recent_volume[i]) and recent_volume[i] > 0:
-            vol_sum += recent_volume[i]
-            valid_count += 1
-    
-    if valid_count < lookback // 2:  # Need at least half the data
-        return False, 0.0, 0.0, 0.0
-    
-    avg_vol = vol_sum / valid_count
-    
-    if avg_vol <= 0:
-        return False, 0.0, 0.0, 0.0
-    
     spike_ratio = current_vol / avg_vol
     
     if spike_ratio >= multiplier:
@@ -74,33 +95,12 @@ def detect_volume_dryup_numba(volume: np.ndarray, threshold: float = 0.5, lookba
     Returns:
         (is_dryup: bool, current_volume: float, avg_volume: float, dryup_ratio: float)
     """
-    if len(volume) < lookback + 1:
+    is_valid, avg_vol, _ = _calculate_average_volume_numba(volume, lookback)
+    
+    if not is_valid:
         return False, 0.0, 0.0, 0.0
     
     current_vol = volume[-1]
-    
-    if np.isnan(current_vol) or current_vol < 0:
-        return False, 0.0, 0.0, 0.0
-    
-    # Calculate average volume (excluding current)
-    recent_volume = volume[-(lookback + 1):-1]
-    
-    # Skip if any NaN values
-    valid_count = 0
-    vol_sum = 0.0
-    for i in range(len(recent_volume)):
-        if not np.isnan(recent_volume[i]) and recent_volume[i] > 0:
-            vol_sum += recent_volume[i]
-            valid_count += 1
-    
-    if valid_count < lookback // 2:
-        return False, 0.0, 0.0, 0.0
-    
-    avg_vol = vol_sum / valid_count
-    
-    if avg_vol <= 0:
-        return False, 0.0, 0.0, 0.0
-    
     dryup_ratio = current_vol / avg_vol
     
     if dryup_ratio <= threshold:
@@ -241,32 +241,12 @@ def detect_climax_volume_numba(volume: np.ndarray, multiplier: float = 3.0, look
     Returns:
         (is_climax: bool, current_volume: float, avg_volume: float, climax_ratio: float)
     """
-    if len(volume) < lookback + 1:
+    is_valid, avg_vol, _ = _calculate_average_volume_numba(volume, lookback)
+    
+    if not is_valid:
         return False, 0.0, 0.0, 0.0
     
     current_vol = volume[-1]
-    
-    if np.isnan(current_vol) or current_vol <= 0:
-        return False, 0.0, 0.0, 0.0
-    
-    # Calculate average volume over longer period
-    recent_volume = volume[-(lookback + 1):-1]
-    
-    valid_count = 0
-    vol_sum = 0.0
-    for i in range(len(recent_volume)):
-        if not np.isnan(recent_volume[i]) and recent_volume[i] > 0:
-            vol_sum += recent_volume[i]
-            valid_count += 1
-    
-    if valid_count < lookback // 2:
-        return False, 0.0, 0.0, 0.0
-    
-    avg_vol = vol_sum / valid_count
-    
-    if avg_vol <= 0:
-        return False, 0.0, 0.0, 0.0
-    
     climax_ratio = current_vol / avg_vol
     
     if climax_ratio >= multiplier:
