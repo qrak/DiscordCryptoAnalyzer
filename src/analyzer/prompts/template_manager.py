@@ -39,6 +39,7 @@ class TemplateManager:
             f"You are providing educational crypto market analysis of {symbol} on {timeframe} timeframe along with multi-timeframe technical metrics and recent market data.",
             "Focus on objective technical indicator readings and historical pattern recognition (e.g., identify potential chart patterns like triangles, head and shoulders, flags based on OHLCV data) for educational purposes only.",
             "Present clear, data-driven observations with specific numeric values from the provided metrics. Prioritize recent price action and technical indicators over older news unless the news is highly significant.",
+            "After presenting quantitative data in each section, provide brief interpretive commentary explaining what the numbers mean for traders. Balance technical precision with accessible explanations.",
             "Identify key price levels based solely on technical analysis concepts (Support, Resistance, Pivot Points, Fibonacci levels if applicable).",
         ]
 
@@ -114,15 +115,23 @@ class TemplateManager:
         
         **IMPORTANT: Include a note that technical indicators are calculated using only completed candles, and the current candle (if incomplete) is not included in calculations.**
         
+        **INTERPRETIVE GUIDANCE: After presenting raw numerical data in each section, provide a brief 4-8 sentence interpretation explaining what these numbers mean for traders. Use phrases like "What this means:", "Interpretation:", or "Key takeaway:" to clearly separate data from analysis.**
+        
         Organize the Markdown analysis into these sections:
         
         - Disclaimer (emphasize this is for educational purposes only, not financial advice)
         - Technical Analysis Overview (objective description of what the indicators show, quantified) - INCLUDE NOTE: "All technical indicators in this analysis are calculated using only completed {timeframe} candles. The current incomplete candle is not included in indicator calculations."
+          * After the quantified metrics, add: "**What this means:** [brief interpretation of the overall technical picture]"
         - Multi-Timeframe Assessment (describe short, medium, long-term patterns with quantified changes)
+          * After each timeframe subsection, add: "**Interpretation:** [what this timeframe suggests for traders]"
         - Technical Indicators Summary (describe indicators in organized paragraphs grouped by category)
+          * After each indicator category (Momentum, Trend, Volatility, Volume), add: "**Key takeaway:** [what these indicators collectively suggest]"
         - Key Technical Levels (describe support and resistance levels in text format with specific prices and distances)
+          * After presenting levels, add: "**Trading implication:** [how these levels should inform decision-making]"
         - Market Context (describe asset performance vs broader market)
-        - News Summary (summarize relevant recent news and their potential impact on the asset)'''
+          * After the data, add: "**What this tells us:** [interpretation of relative performance and market positioning]"
+        - News Summary (summarize relevant recent news and their potential impact on the asset)
+          * After each major news item, briefly explain: "**Impact assessment:** [potential effect on price action]"'''
         
         # Add chart analysis sections only if chart images are available
         if has_chart_analysis:
@@ -135,15 +144,31 @@ class TemplateManager:
             - Key structural levels (neckline, shoulders, peaks, breakout points)
             - Current status (forming, completed, breached)
           * **Visual Observations**: Describe what you see in the chart image
-          * **Pattern-Indicator Alignment**: How visual patterns confirm or contradict technical indicators'''
+          * **Pattern-Indicator Alignment**: How visual patterns confirm or contradict technical indicators
+          * After pattern analysis, add: "**Visual interpretation:** [what the chart patterns suggest for near-term price action]"'''
         
         response_template += '''
         - Potential Catalysts (Summarize factors like news, events, strong technical signals that could drive future price movement)
+          * Add: "**Catalyst assessment:** [which catalysts are most likely to materialize and their potential impact]"
         - Educational Context (explain technical concepts related to the current market conditions)
         - Historical Patterns (similar technical setups in the past and what they typically indicate)
+          * Add: "**Historical context takeaway:** [what past patterns suggest about current probabilities]"
         - Risk Considerations (discuss technical factors that may invalidate the analysis)
+          * Add: "**Risk summary:** [key levels and scenarios that would invalidate the current thesis]"
         
         End with another reminder that users must do their own research and that this analysis is purely educational.
+        
+        **FINAL SECTION - Add this at the very end after all educational content:**
+        
+        - **Final Thoughts & Synthesis**:
+          * Provide a concise 3-5 paragraph synthesis that:
+            - Summarizes the current market state in plain language
+            - Highlights the 2-3 most critical factors driving the analysis
+            - Explains the highest-probability scenarios (bullish/bearish/neutral) with percentage likelihood estimates if appropriate
+            - Identifies the key levels or events that would confirm or invalidate each scenario
+            - Offers perspective on the risk/reward profile at current levels
+            - Concludes with what traders should be watching most closely in the coming days/weeks
+          * This should read as a cohesive "bottom line" summary that synthesizes all the technical, fundamental, and sentiment analysis into actionable insights while maintaining the educational disclaimer framework
         '''
         
         return response_template
@@ -173,6 +198,8 @@ class TemplateManager:
         analysis_steps = f"""
         ANALYSIS STEPS:
         Follow these steps to generate the analysis. In the final JSON response, briefly justify the 'observed_trend' and 'technical_bias' fields by referencing specific indicators or patterns from the provided data (e.g., "Bearish due to MACD crossover and price below Supertrend").
+        
+        IMPORTANT: For each analysis step below, first present the quantitative data/observations, then provide a brief interpretation of what those findings mean for traders. This interpretive commentary should explain the practical implications and trading context.
 
         1. Multi-Timeframe Assessment:
             - {timeframe_desc}
