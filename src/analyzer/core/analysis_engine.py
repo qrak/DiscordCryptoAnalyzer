@@ -214,6 +214,15 @@ class AnalysisEngine:
                 # Initialize as empty dict to avoid AttributeError
                 self.context.market_overview = {}
             
+            # Fetch market microstructure (order book, trades, funding rate)
+            try:
+                microstructure = await self.data_collector.data_fetcher.fetch_market_microstructure(self.symbol)
+                self.context.market_microstructure = microstructure
+                self.logger.debug(f"Market microstructure data fetched for {self.symbol}")
+            except Exception as e:
+                self.logger.warning(f"Failed to fetch market microstructure: {e}")
+                self.context.market_microstructure = {}
+            
             # Fetch cryptocurrency details if CryptoCompare is available
             if self.cryptocompare_api:
                 try:

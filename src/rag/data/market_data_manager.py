@@ -170,15 +170,6 @@ class MarketDataManager:
             overview["id"] = "market_overview"
             overview["title"] = "Crypto Market Overview"
             
-            # Add descriptive comments to help models understand the data structure
-            overview["_description"] = {
-                "top_coins": "Price and metrics for leading cryptocurrencies",
-                "market_cap": "Total cryptocurrency market capitalization and changes",
-                "volume": "Total trading volume across all markets",
-                "dominance": "Percentage share of total market cap by leading assets",
-                "stats": "General statistics about cryptocurrency markets"
-            }
-            
             self.logger.debug("Market overview data fetched/processed.")
             return overview
         else:

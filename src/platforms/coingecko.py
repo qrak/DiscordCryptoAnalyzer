@@ -15,6 +15,8 @@ class CoinGeckoAPI:
     GLOBAL_API_URL = "https://api.coingecko.com/api/v3/global"
     COINS_LIST_URL = "https://api.coingecko.com/api/v3/coins/list"
     COIN_DATA_URL_TEMPLATE = "https://api.coingecko.com/api/v3/coins/{coin_id}"
+    COINS_MARKETS_URL = "https://api.coingecko.com/api/v3/coins/markets"
+    GLOBAL_DEFI_URL = "https://api.coingecko.com/api/v3/global/decentralized_finance_defi"
     
     def __init__(
         self,
@@ -98,10 +100,120 @@ class CoinGeckoAPI:
             self.logger.error(f"Error fetching coin image for {base_symbol} on {exchange_name}: {e}")
         return ''
 
+    def _get_dominance_coin_ids(self, dominance_data: Optional[Dict[str, float]] = None) -> List[str]:
+        """
+        Map dominance symbols to CoinGecko coin IDs dynamically.
+        
+        Args:
+            dominance_data: Optional dominance dictionary from API. If not provided,
+                          uses a default mapping for top coins.
+        
+        Returns:
+            List of CoinGecko coin IDs
+        """
+        # Standard mapping for common symbols
+        symbol_to_id = {
+            "btc": "bitcoin",
+            "eth": "ethereum",
+            "usdt": "tether",
+            "xrp": "ripple",
+            "bnb": "binancecoin",
+            "sol": "solana",
+            "usdc": "usd-coin",
+            "steth": "staked-ether",
+            "doge": "dogecoin",
+            "trx": "tron",
+            "ada": "cardano",
+            "avax": "avalanche-2",
+            "shib": "shiba-inu",
+            "link": "chainlink",
+            "dot": "polkadot",
+            "matic": "matic-network",
+            "ltc": "litecoin",
+            "dai": "dai",
+            "uni": "uniswap"
+        }
+        
+        # If dominance data provided, use those symbols
+        if dominance_data:
+            coin_ids = []
+            for symbol in dominance_data.keys():
+                symbol_lower = symbol.lower()
+                if symbol_lower in symbol_to_id:
+                    coin_ids.append(symbol_to_id[symbol_lower])
+            return coin_ids if coin_ids else list(symbol_to_id.values())[:10]
+        
+        # Default: return top 10 most common coins
+        return list(symbol_to_id.values())[:10]
+
+    async def get_top_coins_by_dominance(self, dominance_coins: List[str]) -> List[Dict[str, Any]]:
+        """
+        Fetch market data for top coins by dominance.
+        
+        Args:
+            dominance_coins: List of coin IDs (e.g., ['bitcoin', 'ethereum', 'tether'])
+        
+        Returns:
+            List of coin market data objects
+        """
+        if not dominance_coins:
+            return []
+        
+        if not self.session:
+            self.session = CachedSession(cache=self.cache_backend)
+        
+        ids_str = ",".join(dominance_coins)
+        params = {
+            "vs_currency": "usd",
+            "ids": ids_str,
+            "order": "market_cap_desc",
+            "per_page": 100,
+            "page": 1,
+            "sparkline": "false",
+            "price_change_percentage": "1h,24h,7d",
+            "precision": "full"  # Get full precision from API, we'll format later
+        }
+        
+        try:
+            async with self.session.get(
+                self.COINS_MARKETS_URL,
+                params=params
+            ) as response:
+                if response.status == 200:
+                    return await response.json()
+                else:
+                    self.logger.error(f"Failed to fetch coins/markets. Status: {response.status}")
+                    return []
+        except Exception as e:
+            self.logger.error(f"Error fetching coins/markets: {e}")
+            return []
+
+    async def get_defi_market_data(self) -> Dict[str, Any]:
+        """
+        Fetch global DeFi market data.
+        
+        Returns:
+            Dictionary containing DeFi metrics
+        """
+        if not self.session:
+            self.session = CachedSession(cache=self.cache_backend)
+        
+        try:
+            async with self.session.get(self.GLOBAL_DEFI_URL) as response:
+                if response.status == 200:
+                    return await response.json()
+                else:
+                    self.logger.error(f"Failed to fetch global/defi. Status: {response.status}")
+                    return {}
+        except Exception as e:
+            self.logger.error(f"Error fetching DeFi data: {e}")
+            return {}
+
     @retry_api_call(max_retries=3)
     async def get_global_market_data(self, force_refresh: bool = False) -> Dict[str, Any]:
         """
-        Get global market data from CoinGecko.
+        Get global market data, top coins, and DeFi metrics from CoinGecko.
+        Caches everything in coingecko_global.json every 4h.
         
         Args:
             force_refresh: If True, bypass cache and fetch fresh data
@@ -123,35 +235,86 @@ class CoinGeckoAPI:
             except Exception as e:
                 self.logger.warning(f"Failed to read cached data: {e}")
         
-        # Fetch fresh data
-        self.logger.debug("Fetching fresh CoinGecko global data")
+        # Fetch fresh data from all endpoints in parallel
+        self.logger.debug("Fetching fresh CoinGecko global, top coins, and DeFi data")
         if not self.session:
             self.session = CachedSession(cache=self.cache_backend)
-            
+        
         try:
-            async with self.session.get(self.GLOBAL_API_URL) as response:
-                if response.status == 200:
-                    api_data = await response.json()
-                    processed_data = self._process_global_data(api_data)
-                    
-                    # Save to cache
-                    cache_data = {
-                        "timestamp": current_time.isoformat(),
-                        "data": processed_data
-                    }
-                    with open(self.coingecko_cache_file, 'w', encoding='utf-8') as f:
-                        json.dump(cache_data, f, ensure_ascii=False, indent=2)
-                    
-                    self.last_update = current_time
-                    self.logger.debug("Updated CoinGecko global data cache")
-                    return processed_data
-                else:
-                    self.logger.error(f"Failed to fetch global data. Status: {response.status}")
-                    # Try to return cached data as fallback
-                    return await self._get_cached_global_data()
+            # First fetch global data to get dominance info
+            global_data = await self._fetch_global()
+            
+            if isinstance(global_data, Exception):
+                self.logger.error(f"Error fetching global data: {global_data}")
+                return await self._get_cached_global_data()
+            
+            # Process global data to extract dominance
+            processed_global = self._process_global_data(global_data)
+            dominance_data = processed_global.get("dominance", {})
+            
+            # Get coin IDs based on current dominance
+            dominance_coin_ids = self._get_dominance_coin_ids(dominance_data)
+            
+            # Now fetch top coins and DeFi in parallel
+            top_coins, defi_data = await asyncio.gather(
+                self.get_top_coins_by_dominance(dominance_coin_ids),
+                self.get_defi_market_data(),
+                return_exceptions=True
+            )
+            
+            # Start with processed global data
+            processed_data = processed_global
+            
+            # Add top coins if successful
+            if top_coins and not isinstance(top_coins, Exception):
+                processed_data["top_coins"] = top_coins
+            elif isinstance(top_coins, Exception):
+                self.logger.warning(f"Error fetching top coins: {top_coins}")
+            
+            # Add DeFi data if successful (with precision cleanup)
+            if defi_data and not isinstance(defi_data, Exception):
+                defi_dict = defi_data.get("data", {})
+                # Clean up precision on string numbers
+                if defi_dict:
+                    for key in ["defi_market_cap", "eth_market_cap", "defi_to_eth_ratio", 
+                               "trading_volume_24h", "defi_dominance"]:
+                        if key in defi_dict and isinstance(defi_dict[key], str):
+                            try:
+                                # Convert to float and round to reasonable precision
+                                defi_dict[key] = round(float(defi_dict[key]), 2)
+                            except (ValueError, TypeError):
+                                pass
+                processed_data["defi"] = defi_dict
+            elif isinstance(defi_data, Exception):
+                self.logger.warning(f"Error fetching DeFi data: {defi_data}")
+            
+            # Save to cache
+            cache_data = {
+                "timestamp": current_time.isoformat(),
+                "data": processed_data
+            }
+            with open(self.coingecko_cache_file, 'w', encoding='utf-8') as f:
+                json.dump(cache_data, f, ensure_ascii=False, indent=2)
+            
+            self.last_update = current_time
+            self.logger.debug("Updated CoinGecko global data cache with top coins and DeFi metrics")
+            return processed_data
         except Exception as e:
             self.logger.error(f"Error fetching global market data: {e}")
             return await self._get_cached_global_data()
+    
+    async def _fetch_global(self) -> Dict[str, Any]:
+        """Fetch /global endpoint."""
+        try:
+            async with self.session.get(self.GLOBAL_API_URL) as response:
+                if response.status == 200:
+                    return await response.json()
+                else:
+                    self.logger.error(f"Failed to fetch /global. Status: {response.status}")
+                    return {}
+        except Exception as e:
+            self.logger.error(f"Error fetching /global: {e}")
+            return {}
     
     async def _get_cached_global_data(self) -> Dict[str, Any]:
         """Retrieve cached global data as fallback"""

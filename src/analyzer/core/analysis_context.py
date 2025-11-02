@@ -32,6 +32,7 @@ class AnalysisContext:
         self._long_term_data = None
         self._weekly_macro_indicators = None
         self._market_overview = {}  # Initialize as an empty dictionary
+        self._market_microstructure = {}  # Order book, trades, funding rate data
         
         # News and articles
         self._news_articles = []
@@ -197,6 +198,18 @@ class AnalysisContext:
         if value is not None and not isinstance(value, dict):
             raise TypeError("Market overview data must be a dictionary")
         self._market_overview = value or {}
+    
+    @property
+    def market_microstructure(self) -> Dict[str, Any]:
+        """Get market microstructure data (order book, trades, funding rate)"""
+        return self._market_microstructure
+    
+    @market_microstructure.setter
+    def market_microstructure(self, value: Dict[str, Any]):
+        """Set market microstructure data"""
+        if value is not None and not isinstance(value, dict):
+            raise TypeError("Market microstructure data must be a dictionary")
+        self._market_microstructure = value or {}
         
     @property
     def news_articles(self) -> List[Dict[str, Any]]:

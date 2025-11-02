@@ -239,9 +239,10 @@ class RagEngine:
                         "market_cap": coingecko_data.get("market_cap", {}),
                         "volume": coingecko_data.get("volume", {}),
                         "dominance": coingecko_data.get("dominance", {}),
-                        "stats": coingecko_data.get("stats", {})
+                        "stats": coingecko_data.get("stats", {}),
+                        "top_coins": coingecko_data.get("top_coins", []),
+                        "defi": coingecko_data.get("defi", {})
                     }
-                    self.logger.debug("Using live CoinGecko data as market overview")
                     return market_overview
             
             # Fallback to complex market data manager if CoinGecko fails

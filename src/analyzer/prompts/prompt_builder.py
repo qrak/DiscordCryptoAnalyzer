@@ -57,7 +57,43 @@ class PromptBuilder:
 
         # Add market overview first before technical analysis to give it more prominence
         if context.market_overview:
-            sections.append(self.market_formatter.format_market_overview(context.market_overview))
+            sections.append(self.market_formatter.format_market_overview(
+                context.market_overview,
+                analyzed_symbol=context.symbol
+            ))
+            
+            # Add ticker data from coin_data if available
+            coin_data = context.market_overview.get("coin_data", {})
+            if coin_data and context.symbol:
+                # Extract base symbol (e.g., "BTC" from "BTC/USDT")
+                base_symbol = context.symbol.split('/')[0]
+                ticker_info = coin_data.get(base_symbol)
+                if ticker_info:
+                    ticker_section = self.market_formatter.format_ticker_data(ticker_info, context.symbol)
+                    if ticker_section:
+                        sections.append(ticker_section)
+        
+        # Add market microstructure data (order book, trades, funding rate)
+        if context.market_microstructure:
+            microstructure = context.market_microstructure
+            
+            # Add order book depth
+            if "order_book" in microstructure and microstructure["order_book"]:
+                ob_section = self.market_formatter.format_order_book_depth(microstructure["order_book"], context.symbol)
+                if ob_section:
+                    sections.append(ob_section)
+            
+            # Add trade flow
+            if "recent_trades" in microstructure and microstructure["recent_trades"]:
+                trades_section = self.market_formatter.format_trade_flow(microstructure["recent_trades"], context.symbol)
+                if trades_section:
+                    sections.append(trades_section)
+            
+            # Add funding rate (if futures contract)
+            if "funding_rate" in microstructure and microstructure["funding_rate"]:
+                funding_section = self.market_formatter.format_funding_rate(microstructure["funding_rate"], context.symbol)
+                if funding_section:
+                    sections.append(funding_section)
 
         # Add cryptocurrency details if available
         coin_details_section = self.context_builder.build_coin_details_section(

@@ -106,10 +106,25 @@ class MarketFormatter:
         
         return ""
     
-    def format_market_overview(self, market_overview: dict) -> str:
-        """Format market overview data."""
+    def format_market_overview(self, market_overview: dict, analyzed_symbol: str = None) -> str:
+        """
+        Format market overview data with top coins and DeFi metrics.
+        
+        Args:
+            market_overview: Market overview data from CoinGecko
+            analyzed_symbol: Trading pair being analyzed (e.g., "BTC/USDT")
+                           Used to provide comparison context and exclude from top coins list
+        
+        Returns:
+            Formatted market overview string
+        """
         if not market_overview:
             return ""
+        
+        # Extract base symbol from trading pair (BTC/USDT -> BTC)
+        analyzed_coin_symbol = None
+        if analyzed_symbol:
+            analyzed_coin_symbol = analyzed_symbol.split('/')[0].lower()
         
         sections = []
         
@@ -130,19 +145,205 @@ class MarketFormatter:
         
         # Market metrics
         volume_data = market_overview.get("volume", {})
-        if 'total_usd' in volume_data:
-            volume = volume_data['total_usd']
-            sections.append(f"📈 24h Volume: ${self.format_utils.fmt(volume)}")
+        total_volume = volume_data.get('total_usd', 0)
+        if total_volume:
+            sections.append(f"📈 Total Market 24h Volume: ${self.format_utils.fmt(total_volume)}")
         
         if 'change_24h' in market_cap_data:
             change = market_cap_data['change_24h']
             direction = "📈" if change >= 0 else "📉"
-            sections.append(f"{direction} Market Cap Change (24h): {self.format_utils.fmt(change)}%")
+            sections.append(f"{direction} Total Market Cap Change (24h): {self.format_utils.fmt(change)}%")
+        
+        # Find analyzed coin in top_coins if present
+        top_coins = market_overview.get("top_coins", [])
+        analyzed_coin_data = None
+        other_top_coins = []
+        
+        if top_coins and analyzed_coin_symbol:
+            for coin in top_coins:
+                if coin.get("symbol", "").lower() == analyzed_coin_symbol:
+                    analyzed_coin_data = coin
+                else:
+                    other_top_coins.append(coin)
+        else:
+            other_top_coins = top_coins
+        
+        # Show analyzed coin position if it's in top coins
+        if analyzed_coin_data:
+            position_summary = self._format_analyzed_coin_position(
+                analyzed_coin_data, 
+                market_cap_data.get('total_usd', 0),
+                total_volume
+            )
+            if position_summary:
+                sections.append(position_summary)
+        
+        # Top coins summary (excluding analyzed coin)
+        if other_top_coins:
+            top_coins_summary = self._format_top_coins_summary(
+                other_top_coins[:5],
+                total_volume
+            )
+            if top_coins_summary:
+                sections.append(top_coins_summary)
+        
+        # DeFi metrics
+        defi_data = market_overview.get("defi", {})
+        if defi_data:
+            total_market_cap = market_cap_data.get('total_usd', 0)
+            defi_summary = self._format_defi_summary(defi_data, total_market_cap)
+            if defi_summary:
+                sections.append(defi_summary)
         
         if sections:
             return "## Market Overview:\n" + "\n".join([f"- {section}" for section in sections])
         
         return ""
+    
+    def _format_analyzed_coin_position(self, coin_data: dict, total_market_cap: float, total_volume: float) -> str:
+        """
+        Format position summary for the coin being analyzed.
+        Shows its rank, market share, volume share, and supply metrics.
+        """
+        if not coin_data:
+            return ""
+        
+        symbol = coin_data.get("symbol", "?").upper()
+        name = coin_data.get("name", symbol)
+        rank = coin_data.get("market_cap_rank", "?")
+        market_cap = coin_data.get("market_cap", 0)
+        coin_volume = coin_data.get("total_volume", 0)
+        circ_supply = coin_data.get("circulating_supply", 0)
+        max_supply = coin_data.get("max_supply")
+        
+        lines = [f"## {symbol} ({name}) Market Position:"]
+        
+        # Rank and market share
+        if rank and market_cap and total_market_cap:
+            market_share = (market_cap / total_market_cap * 100) if total_market_cap > 0 else 0
+            lines.append(f"  • Rank: #{rank} | Market Cap: ${self.format_utils.fmt(market_cap)} ({market_share:.2f}% of total)")
+        
+        # Volume share and liquidity
+        if coin_volume and total_volume:
+            volume_share = (coin_volume / total_volume * 100) if total_volume > 0 else 0
+            lines.append(f"  • 24h Volume: ${self.format_utils.fmt(coin_volume)} ({volume_share:.2f}% of total market volume)")
+        
+        # Supply metrics
+        if circ_supply:
+            if max_supply:
+                supply_pct = (circ_supply / max_supply * 100)
+                lines.append(f"  • Supply: {self.format_utils.fmt(circ_supply)} circulating / {self.format_utils.fmt(max_supply)} max ({supply_pct:.1f}%)")
+            else:
+                lines.append(f"  • Circulating Supply: {self.format_utils.fmt(circ_supply)} (no max supply)")
+        
+        # Market cap change
+        mcap_change_24h = coin_data.get("market_cap_change_percentage_24h", 0)
+        if mcap_change_24h:
+            direction = "📈" if mcap_change_24h >= 0 else "📉"
+            lines.append(f"  • Market Cap 24h Change: {direction} {mcap_change_24h:+.2f}%")
+        
+        return "\n".join(lines)
+    
+    def _format_top_coins_summary(self, top_coins: list, total_volume: float = 0) -> str:
+        """
+        Format top coins with ATH, price changes, and volume metrics.
+        Shows comparison data useful for relative analysis.
+        """
+        if not top_coins:
+            return ""
+        
+        lines = ["## Top Coins Status (Market Leaders):"]
+        for coin in top_coins:
+            symbol = coin.get("symbol", "?").upper()
+            name = coin.get("name", symbol)
+            rank = coin.get("market_cap_rank", "?")
+            price = coin.get("current_price", 0)
+            change_1h = coin.get("price_change_percentage_1h_in_currency", 0)
+            change_24h = coin.get("price_change_percentage_24h", 0)
+            change_7d = coin.get("price_change_percentage_7d_in_currency", 0)
+            ath = coin.get("ath", 0)
+            ath_pct = coin.get("ath_change_percentage", 0)
+            ath_date = coin.get("ath_date", "")
+            market_cap = coin.get("market_cap", 0)
+            coin_volume = coin.get("total_volume", 0)
+            
+            direction = "📈" if change_24h >= 0 else "📉"
+            
+            # Parse ATH date if available
+            ath_date_str = ""
+            if ath_date:
+                try:
+                    from datetime import datetime
+                    dt = datetime.fromisoformat(ath_date.replace('Z', '+00:00'))
+                    ath_date_str = dt.strftime("%b %d, %Y")
+                except:
+                    pass
+            
+            # Format: Rank #X Symbol (Name): $price (momentum data) | volume | ATH context
+            line_parts = [f"  • #{rank} {symbol} ({name}): ${price:,.2f}"]
+            
+            # Momentum: 1h, 24h, 7d
+            momentum_parts = []
+            if change_1h:
+                mom_dir = "📈" if change_1h >= 0 else "📉"
+                momentum_parts.append(f"{mom_dir}{change_1h:+.1f}% 1h")
+            if change_24h is not None:
+                momentum_parts.append(f"{direction}{change_24h:+.2f}% 24h")
+            if change_7d:
+                momentum_parts.append(f"{change_7d:+.1f}% 7d")
+            
+            if momentum_parts:
+                line_parts.append(f"({', '.join(momentum_parts)})")
+            
+            # Volume share (if total volume provided)
+            if coin_volume and total_volume:
+                volume_share = (coin_volume / total_volume * 100)
+                line_parts.append(f"| Vol: {volume_share:.1f}% of market")
+            
+            # ATH context
+            if ath and ath_pct:
+                ath_info = f"| ATH: ${ath:,.2f}"
+                if ath_date_str:
+                    ath_info += f" ({ath_date_str})"
+                ath_info += f", now {ath_pct:+.1f}%"
+                line_parts.append(ath_info)
+            
+            lines.append(" ".join(line_parts))
+        
+        return "\n".join(lines)
+    
+    def _format_defi_summary(self, defi_data: dict, total_market_cap: float) -> str:
+        """Format DeFi metrics."""
+        if not defi_data:
+            return ""
+        
+        try:
+            defi_mcap = float(defi_data.get("defi_market_cap", 0))
+            defi_dom = float(defi_data.get("defi_dominance", 0))
+            defi_vol = float(defi_data.get("trading_volume_24h", 0))
+            
+            lines = [
+                "## DeFi Market:",
+                f"  • DeFi Market Cap: ${self.format_utils.fmt(defi_mcap)}",
+                f"  • DeFi Dominance: {defi_dom:.2f}%"
+            ]
+            
+            if total_market_cap > 0:
+                defi_pct_of_total = (defi_mcap / total_market_cap * 100)
+                lines.append(f"  • DeFi % of Total Market: {defi_pct_of_total:.2f}%")
+            
+            if defi_vol > 0:
+                lines.append(f"  • 24h DeFi Volume: ${self.format_utils.fmt(defi_vol)}")
+            
+            top_coin = defi_data.get("top_coin_name")
+            top_coin_dom = defi_data.get("top_coin_defi_dominance")
+            if top_coin and top_coin_dom:
+                lines.append(f"  • Top DeFi Asset: {top_coin} ({top_coin_dom:.1f}% of DeFi)")
+            
+            return "\n".join(lines)
+        except (ValueError, TypeError) as e:
+            self.logger.warning(f"Error formatting DeFi summary: {e}") if self.logger else None
+            return ""
     
     def _format_period_price_section(self, metrics: dict) -> List[str]:
         """Format price-related metrics for a period."""
@@ -537,6 +738,223 @@ class MarketFormatter:
                     # Add ellipsis to indicate truncation
                     return truncated.rstrip() + '...'
             
+            
             truncated = test_text
         
         return truncated
+    
+    def format_ticker_data(self, ticker_data: dict, symbol: str) -> str:
+        """
+        Format ticker data for the analyzed coin.
+        Shows VWAP, bid/ask spreads, and volume metrics from CCXT ticker.
+        
+        Args:
+            ticker_data: Ticker data dict with VWAP, bid, ask, volumes
+            symbol: Trading pair symbol (e.g., "BTC/USDT")
+        
+        Returns:
+            Formatted ticker string
+        """
+        if not ticker_data:
+            return ""
+        
+        lines = [f"## {symbol} Real-Time Ticker Data:"]
+        
+        # Price metrics
+        vwap = ticker_data.get("VWAP")
+        last = ticker_data.get("LAST")
+        if vwap:
+            lines.append(f"  • VWAP (24h): ${self.format_utils.fmt(vwap, precision=2)}")
+        if last and vwap:
+            vwap_diff = ((last - vwap) / vwap * 100)
+            direction = "above" if vwap_diff >= 0 else "below"
+            lines.append(f"  • Current Price vs VWAP: {vwap_diff:+.2f}% ({direction})")
+        
+        # Bid/Ask spread
+        bid = ticker_data.get("BID")
+        ask = ticker_data.get("ASK")
+        if bid and ask:
+            spread = ask - bid
+            spread_pct = (spread / bid * 100) if bid > 0 else 0
+            lines.append(f"  • Bid/Ask Spread: ${spread:.2f} ({spread_pct:.3f}%)")
+            lines.append(f"    - Best Bid: ${self.format_utils.fmt(bid, precision=2)} | Best Ask: ${self.format_utils.fmt(ask, precision=2)}")
+        
+        # Volume metrics
+        volume = ticker_data.get("VOLUME24HOUR")
+        quote_volume = ticker_data.get("QUOTEVOLUME24HOUR")
+        if volume:
+            lines.append(f"  • 24h Volume: {self.format_utils.fmt(volume, precision=2)} {symbol.split('/')[0]}")
+        if quote_volume:
+            lines.append(f"  • 24h Quote Volume: ${self.format_utils.fmt(quote_volume)}")
+        
+        # Bid/Ask volume (liquidity at best levels)
+        bid_volume = ticker_data.get("BIDVOLUME")
+        ask_volume = ticker_data.get("ASKVOLUME")
+        if bid_volume and ask_volume:
+            total_depth = bid_volume + ask_volume
+            bid_pct = (bid_volume / total_depth * 100) if total_depth > 0 else 0
+            lines.append(f"  • Liquidity at Best Levels: {self.format_utils.fmt(bid_volume + ask_volume, precision=2)} ({bid_pct:.1f}% bid / {100-bid_pct:.1f}% ask)")
+        
+        # 24h Range
+        high = ticker_data.get("HIGH24HOUR")
+        low = ticker_data.get("LOW24HOUR")
+        if high and low and last:
+            range_size = high - low
+            range_pct = (range_size / low * 100) if low > 0 else 0
+            position_in_range = ((last - low) / range_size * 100) if range_size > 0 else 50
+            lines.append(f"  • 24h Range: ${self.format_utils.fmt(low, precision=2)} - ${self.format_utils.fmt(high, precision=2)} ({range_pct:.2f}% range)")
+            lines.append(f"  • Current Position in Range: {position_in_range:.1f}%")
+        
+        return "\n".join(lines)
+
+    
+    def format_order_book_depth(self, order_book: dict, symbol: str) -> str:
+        """
+        Format order book depth data.
+        Shows bid/ask imbalance, liquidity depth, and spread metrics.
+        
+        Args:
+            order_book: Order book dict from fetch_order_book_depth
+            symbol: Trading pair symbol
+        
+        Returns:
+            Formatted order book string
+        """
+        if not order_book or "error" in order_book:
+            return ""
+        
+        lines = [f"## {symbol} Order Book Depth:"]
+        
+        # Spread metrics
+        spread = order_book.get("spread")
+        spread_pct = order_book.get("spread_percent")
+        if spread is not None and spread_pct is not None:
+            lines.append(f"  • Spread: ${spread:.2f} ({spread_pct:.3f}%)")
+        
+        # Liquidity depth
+        bid_depth = order_book.get("bid_depth", 0)
+        ask_depth = order_book.get("ask_depth", 0)
+        total_depth = bid_depth + ask_depth
+        if total_depth > 0:
+            lines.append(f"  • Total Liquidity (Top 20 levels): ${self.format_utils.fmt(total_depth)}")
+            lines.append(f"    - Bid Depth: ${self.format_utils.fmt(bid_depth)}")
+            lines.append(f"    - Ask Depth: ${self.format_utils.fmt(ask_depth)}")
+        
+        # Imbalance (-1 to +1, positive = more bids)
+        imbalance = order_book.get("imbalance")
+        if imbalance is not None:
+            if imbalance > 0.3:
+                sentiment = "Strong Buy Pressure"
+            elif imbalance > 0.1:
+                sentiment = "Moderate Buy Pressure"
+            elif imbalance < -0.3:
+                sentiment = "Strong Sell Pressure"
+            elif imbalance < -0.1:
+                sentiment = "Moderate Sell Pressure"
+            else:
+                sentiment = "Balanced"
+            lines.append(f"  • Order Book Imbalance: {imbalance:+.3f} ({sentiment})")
+        
+        return "\n".join(lines)
+    
+    def format_trade_flow(self, trades: dict, symbol: str) -> str:
+        """
+        Format recent trade flow analysis.
+        Shows buy/sell pressure, trade velocity, and order flow metrics.
+        
+        Args:
+            trades: Trade flow dict from fetch_recent_trades
+            symbol: Trading pair symbol
+        
+        Returns:
+            Formatted trade flow string
+        """
+        if not trades or "error" in trades:
+            return ""
+        
+        lines = [f"## {symbol} Recent Trade Flow:"]
+        
+        # Trade count and velocity
+        total_trades = trades.get("total_trades", 0)
+        velocity = trades.get("trade_velocity")
+        if total_trades:
+            lines.append(f"  • Total Recent Trades: {total_trades}")
+        if velocity:
+            lines.append(f"  • Trade Velocity: {velocity:.2f} trades/minute")
+        
+        # Buy/Sell pressure
+        buy_volume = trades.get("buy_volume", 0)
+        sell_volume = trades.get("sell_volume", 0)
+        buy_sell_ratio = trades.get("buy_sell_ratio")
+        buy_pressure = trades.get("buy_pressure_percent")
+        
+        if buy_volume and sell_volume:
+            lines.append(f"  • Buy Volume: ${self.format_utils.fmt(buy_volume)}")
+            lines.append(f"  • Sell Volume: ${self.format_utils.fmt(sell_volume)}")
+        
+        if buy_sell_ratio:
+            lines.append(f"  • Buy/Sell Ratio: {buy_sell_ratio:.2f}")
+        
+        if buy_pressure is not None:
+            if buy_pressure > 60:
+                sentiment = "Strong Buying"
+            elif buy_pressure > 52:
+                sentiment = "Moderate Buying"
+            elif buy_pressure < 40:
+                sentiment = "Strong Selling"
+            elif buy_pressure < 48:
+                sentiment = "Moderate Selling"
+            else:
+                sentiment = "Balanced"
+            lines.append(f"  • Buy Pressure: {buy_pressure:.1f}% ({sentiment})")
+        
+        # Average trade size
+        avg_trade_size = trades.get("avg_trade_size")
+        if avg_trade_size:
+            lines.append(f"  • Average Trade Size: ${self.format_utils.fmt(avg_trade_size)}")
+        
+        return "\n".join(lines)
+    
+    def format_funding_rate(self, funding: dict, symbol: str) -> str:
+        """
+        Format funding rate data for futures/perpetual contracts.
+        Shows funding rate, annualized rate, and sentiment.
+        
+        Args:
+            funding: Funding rate dict from fetch_funding_rate
+            symbol: Trading pair symbol
+        
+        Returns:
+            Formatted funding rate string
+        """
+        if not funding or "error" in funding:
+            return ""
+        
+        lines = [f"## {symbol} Funding Rate (Futures):"]
+        
+        # Funding rate
+        rate = funding.get("funding_rate")
+        rate_pct = funding.get("funding_rate_percent")
+        if rate_pct is not None:
+            lines.append(f"  • Current Funding Rate: {rate_pct:.4f}%")
+        
+        # Annualized rate
+        annualized = funding.get("annualized_rate")
+        if annualized is not None:
+            lines.append(f"  • Annualized Rate: {annualized:.2f}%")
+        
+        # Sentiment interpretation
+        sentiment = funding.get("sentiment", "Unknown")
+        lines.append(f"  • Market Sentiment: {sentiment}")
+        
+        # Explanation
+        if rate_pct is not None:
+            if rate_pct > 0.01:
+                lines.append(f"  • Interpretation: Longs pay shorts (bullish positioning)")
+            elif rate_pct < -0.01:
+                lines.append(f"  • Interpretation: Shorts pay longs (bearish positioning)")
+            else:
+                lines.append(f"  • Interpretation: Neutral positioning")
+        
+        return "\n".join(lines)
+
