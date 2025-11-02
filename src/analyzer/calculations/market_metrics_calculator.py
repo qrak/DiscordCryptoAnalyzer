@@ -93,7 +93,7 @@ class MarketMetricsCalculator:
                 
     def _calculate_period_metrics(self, data: List, period_name: str, context) -> Dict:
         """Calculate metrics for a specific time period"""
-        # Calculate core metrics directly from data
+        # Calculate core metrics directly from data (do this FIRST to avoid redundant calculations)
         basic_metrics = self._calculate_basic_metrics(data, period_name)
         
         # Calculate indicator changes
@@ -128,20 +128,20 @@ class MarketMetricsCalculator:
                 # adv_resistance is already a scalar value
                 pass
             
-            # Use valid values or fallback
+            # Use valid values or fallback to already-calculated values from basic_metrics
             if not np.isnan(adv_support):
                 support_level = adv_support
             else:
-                support_level = min(candle["low"] for candle in data)
+                support_level = basic_metrics["lowest_price"]
                 
             if not np.isnan(adv_resistance):
                 resistance_level = adv_resistance
             else:
-                resistance_level = max(candle["high"] for candle in data)
+                resistance_level = basic_metrics["highest_price"]
         else:
-            # Fallback to simple min/max
-            support_level = min(candle["low"] for candle in data)
-            resistance_level = max(candle["high"] for candle in data)
+            # Fallback to already-calculated values from basic_metrics
+            support_level = basic_metrics["lowest_price"]
+            resistance_level = basic_metrics["highest_price"]
         
         levels = {
             "support": support_level,
@@ -184,7 +184,6 @@ class MarketMetricsCalculator:
             
         history = context.technical_history
         self.logger.debug(f"Calculating indicator changes from index {start_idx} to {end_idx}")
-        self.logger.debug(f"Available indicators in technical_history: {list(history.keys())}")
         
         # Signal interpretations are scalar values, not arrays - skip them
         signal_indicators = {'ichimoku_signal', 'bb_signal'}

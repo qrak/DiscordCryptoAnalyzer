@@ -65,7 +65,8 @@ class AnalysisEngine:
         self.prompt_builder = PromptBuilder(
             timeframe=self.timeframe, 
             logger=logger,
-            technical_calculator=self.technical_calculator
+            technical_calculator=self.technical_calculator,
+            config=config
         )
         self.html_generator = AnalysisHtmlGenerator(logger=logger)
         self.chart_generator = ChartGenerator(logger=logger, config=config)

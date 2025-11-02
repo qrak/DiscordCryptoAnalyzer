@@ -234,8 +234,8 @@ class TechnicalCalculator:
 
         daily_indicators = self._compute_daily_indicators(ti_lt, available_days)
         
-        # Add macro trend analysis based on SMA relationships
-        macro_trend_analysis = self._compute_macro_trend_analysis(ti_lt, available_days, sma_values)
+        # Add macro trend analysis based on SMA relationships (pass already-calculated price_change_pct)
+        macro_trend_analysis = self._compute_macro_trend_analysis(ti_lt, available_days, sma_values, price_change_pct)
 
         result = {
             'sma_values': sma_values,
@@ -275,9 +275,9 @@ class TechnicalCalculator:
         weekly_price_change, weekly_volume_change = self._compute_change_metrics(ti_weekly, available_weeks)
         weekly_volatility = self._compute_volatility(ti_weekly, available_weeks)
 
-        # NEW: Weekly-specific macro analysis
+        # NEW: Weekly-specific macro analysis (pass already-calculated weekly_price_change)
         weekly_macro_analysis = self._compute_weekly_macro_trend_analysis(
-            ti_weekly, available_weeks, weekly_sma_values, weekly_ohlcv_data
+            ti_weekly, available_weeks, weekly_sma_values, weekly_ohlcv_data, weekly_price_change
         )
 
         result = {
@@ -306,9 +306,13 @@ class TechnicalCalculator:
 
     def _compute_weekly_macro_trend_analysis(
         self, ti: TechnicalIndicators, available_weeks: int, 
-        weekly_sma_values: Dict[int, float], ohlcv_data: np.ndarray
+        weekly_sma_values: Dict[int, float], ohlcv_data: np.ndarray, price_change_pct: float
     ) -> Dict[str, Any]:
-        """Weekly macro trend using 200W SMA methodology with timestamps."""
+        """Weekly macro trend using 200W SMA methodology with timestamps.
+        
+        Args:
+            price_change_pct: Already-calculated price change percentage from _compute_change_metrics
+        """
         from src.utils.format_utils import FormatUtils
         
         analysis = {
@@ -333,17 +337,16 @@ class TechnicalCalculator:
         current_price = float(ti.close[-1])
         formatter = FormatUtils()
         
-        # Multi-year trend with timestamps
+        # Multi-year trend with timestamps (use already-calculated price_change_pct)
         if available_weeks >= 2:
             years = available_weeks / 52.0
-            price_change = float((ti.close[-1] / ti.close[0] - 1) * 100)
             start_ts = ohlcv_data[0, 0] / 1000
             end_ts = ohlcv_data[-1, 0] / 1000
             
             analysis['multi_year_trend'] = {
                 'weeks_analyzed': available_weeks,
                 'years_analyzed': round(years, 1),
-                'price_change_pct': price_change,
+                'price_change_pct': price_change_pct,
                 'start_date': formatter.format_date_from_timestamp(start_ts),
                 'end_date': formatter.format_date_from_timestamp(end_ts)
             }
@@ -477,8 +480,12 @@ class TechnicalCalculator:
             return float(np.std(daily_returns) * 100)
         return None
     
-    def _compute_macro_trend_analysis(self, ti: TechnicalIndicators, available_days: int, sma_values: Dict[int, float]) -> Dict[str, Any]:
-        """Analyze macro trend using SMA relationships and 365-day context."""
+    def _compute_macro_trend_analysis(self, ti: TechnicalIndicators, available_days: int, sma_values: Dict[int, float], price_change_pct: float) -> Dict[str, Any]:
+        """Analyze macro trend using SMA relationships and 365-day context.
+        
+        Args:
+            price_change_pct: Already-calculated price change percentage from _compute_change_metrics
+        """
         analysis = {
             'trend_direction': 'Neutral',
             'sma_alignment': 'Mixed',
@@ -496,12 +503,10 @@ class TechnicalCalculator:
         
         current_price = float(ti.close[-1])
         
-        # Calculate long-term price change percentage
-        if available_days >= 2:
-            price_change_pct = float((ti.close[-1] / ti.close[0] - 1) * 100)
-            analysis['long_term_price_change_pct'] = price_change_pct
-            if self.logger:
-                self.logger.debug(f"Macro trend: {available_days}-day price change = {price_change_pct:.2f}%")
+        # Use already-calculated price change percentage (no redundant calculation)
+        analysis['long_term_price_change_pct'] = price_change_pct
+        if self.logger:
+            self.logger.debug(f"Macro trend: {available_days}-day price change = {price_change_pct:.2f}%")
         
         # Check price position relative to key SMAs
         if 200 in sma_values:

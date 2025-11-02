@@ -1,5 +1,5 @@
 import numpy as np
-from typing import Optional
+from typing import Optional, Any
 
 from src.logger.logger import Logger
 from ..core.analysis_context import AnalysisContext
@@ -11,7 +11,7 @@ from .context_builder import ContextBuilder
 
 
 class PromptBuilder:
-    def __init__(self, timeframe: str = "1h", logger: Optional[Logger] = None, technical_calculator: Optional[TechnicalCalculator] = None) -> None:
+    def __init__(self, timeframe: str = "1h", logger: Optional[Logger] = None, technical_calculator: Optional[TechnicalCalculator] = None, config: Any = None) -> None:
         """Initialize the PromptBuilder
         
         Args:
@@ -25,12 +25,13 @@ class PromptBuilder:
         self.language: Optional[str] = None
         self.context: Optional[AnalysisContext] = None
         self.technical_calculator = technical_calculator or TechnicalCalculator(logger)
+        self.config = config
         
         # Access indicator thresholds from the calculator
         self.INDICATOR_THRESHOLDS = self.technical_calculator.INDICATOR_THRESHOLDS
         
         # Initialize component managers
-        self.template_manager = TemplateManager(logger)
+        self.template_manager = TemplateManager(config=self.config, logger=logger)
         self.market_formatter = MarketFormatter(logger)
         self.technical_analysis_formatter = TechnicalFormatter(self.technical_calculator, logger)
         self.context_builder = ContextBuilder(timeframe, logger)
