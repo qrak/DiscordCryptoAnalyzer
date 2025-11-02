@@ -34,8 +34,8 @@ class CommandValidator:
         self.ongoing_analyses: set[str] = set()
     
     def validate_symbol_format(self, symbol: str) -> bool:
-        """Validate that symbol follows the correct format."""
-        return bool(re.match(r'^[A-Za-z0-9]+/USD[TC]?$', symbol))
+        """Validate that symbol follows the correct format (e.g., BTC/USDT, XRP/BTC, ETH/EUR)."""
+        return bool(re.match(r'^[A-Za-z0-9]+/[A-Za-z0-9]+$', symbol))
     
     def validate_language(self, language: str) -> Tuple[bool, Optional[str]]:
         """
@@ -156,15 +156,15 @@ class CommandValidator:
             "**Basic Usage**:\n"
             "`!analyze <SYMBOL> [TIMEFRAME] [LANGUAGE]`\n\n"
             "**Parameters**:\n"
-            "• **SYMBOL** (required): Trading pair in format `BTC/USDT`, `ETH/USDC`, etc.\n"
+            "• **SYMBOL** (required): Trading pair in format `BTC/USDT`, `ETH/BTC`, `SOL/USDC`, etc.\n"
             "• **TIMEFRAME** (optional): Analysis timeframe - `1h`, `2h`, `4h`, `6h`, `8h`, `12h`, `1d`\n"
             "• **LANGUAGE** (optional): Output language - English, Polish, etc.\n\n"
             "**Examples**:\n"
             "```\n"
-            "!analyze BTC/USDT           → Default timeframe, English\n"
-            "!analyze BTC/USDT 4h        → 4-hour timeframe analysis\n"
-            "!analyze ETH/USDT Polish    → Analysis in Polish language\n"
-            "!analyze SOL/USDT 1d Polish → Daily analysis in Polish\n"
+            "!analyze BTC/USDT           → Bitcoin/USD, default timeframe\n"
+            "!analyze XRP/BTC 4h         → Ripple/Bitcoin, 4-hour timeframe\n"
+            "!analyze ETH/USDT Polish    → Ethereum/USD, Polish language\n"
+            "!analyze SOL/ETH 1d English → Solana/Ethereum, daily analysis\n"
             "```\n\n"
             "**What You Get**:\n"
             "✅ Technical indicator analysis (RSI, MACD, Bollinger Bands, etc.)\n"
@@ -173,8 +173,10 @@ class CommandValidator:
             "✅ Market sentiment analysis (Fear & Greed Index)\n"
             "✅ Interactive HTML report with detailed charts\n\n"
             "**Supported Trading Pairs**:\n"
-            "Thousands of cryptocurrencies from Binance, KuCoin, Gate.io, MEXC, and Hyperliquid\n"
-            "Examples: BTC/USDT, ETH/USDC, XRP/BTC, SOL/USDT, ADA/USDT, DOGE/USDT, LINK/USDT\n\n"
+            "Thousands of cryptocurrency pairs from Binance, KuCoin, Gate.io, MEXC, and Hyperliquid\n"
+            "• **Stablecoin pairs**: BTC/USDT, ETH/USDC, SOL/USD\n"
+            "• **Crypto-to-crypto pairs**: XRP/BTC, ETH/BTC, ADA/ETH, DOGE/BTC, LINK/ETH, SOL/ETH\n"
+            "Any pair supported by the exchanges above\n\n"
             "**Notes**:\n"
             "• Analysis typically takes 30-60 seconds\n"
             "• Results are automatically deleted after expiry time\n"

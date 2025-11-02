@@ -9,11 +9,9 @@ Tests the complete analysis pipeline with different timeframes to ensure:
 """
 
 import pytest
-import asyncio
 from unittest.mock import Mock, AsyncMock, patch
 import numpy as np
 
-from src.analyzer.core.analysis_engine import AnalysisEngine
 from src.analyzer.prompts.context_builder import ContextBuilder
 from src.utils.timeframe_validator import TimeframeValidator
 

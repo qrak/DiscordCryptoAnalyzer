@@ -2,7 +2,7 @@
 News-based category operations for analyzing article content.
 """
 import re
-from typing import List, Dict, Any, Set, Optional
+from typing import List, Dict, Any, Optional
 from src.logger.logger import Logger
 from src.parsing.unified_parser import UnifiedParser
 

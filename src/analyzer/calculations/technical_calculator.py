@@ -3,22 +3,16 @@ import numpy as np
 
 from src.indicators.base.technical_indicators import TechnicalIndicators
 from src.logger.logger import Logger
-from src.utils.data_utils import hash_data
 
 
 class TechnicalCalculator:
-    """Core calculator for technical indicators with caching capability"""
+    """Core calculator for technical indicators"""
     
     def __init__(self, logger: Optional[Logger] = None, format_utils=None):
         """Initialize the technical indicator calculator"""
         self.logger = logger
         self.format_utils = format_utils
         self.ti = TechnicalIndicators()
-        
-        # Cache storage
-        self._cache = {}
-        self._ohlcv_hash = None
-        self._excluded_cache_prefixes = ("long_term_", "weekly_macro_")
         
         # Define indicator thresholds as instance variable so it's available to all methods
         self.INDICATOR_THRESHOLDS = {
@@ -32,24 +26,7 @@ class TechnicalCalculator:
         }
         
     def get_indicators(self, ohlcv_data: np.ndarray) -> Dict[str, np.ndarray]:
-        """Calculate all technical indicators with caching based on data hash"""
-        data_hash = hash_data(ohlcv_data)
-        
-        # Return cached results if data hasn't changed
-        if data_hash == self._ohlcv_hash and self._cache:
-            if self.logger:
-                self.logger.debug("Using cached technical indicators")
-            # Ensure cache contains all expected keys before returning
-            required_keys = {"ichimoku_conversion", "ichimoku_base", "ichimoku_span_a", "ichimoku_span_b"}
-            if required_keys.issubset(self._cache.keys()):
-                filtered_cache = self._filter_indicator_cache(self._cache)
-                return filtered_cache
-            else:
-                if self.logger:
-                    self.logger.debug("Cache miss due to missing keys, recalculating.")
-
-        # Calculate new indicators if data changed or cache is empty
-        self._ohlcv_hash = data_hash
+        """Calculate all technical indicators - no caching, always fresh"""
         self.ti.get_data(ohlcv_data)
         
         # Calculate all indicators
@@ -202,29 +179,20 @@ class TechnicalCalculator:
         indicators["chandelier_long"] = long_exit
         indicators["chandelier_short"] = short_exit
         
-        # Store in cache
-        self._cache = indicators
+        # Calculate SMA arrays for MA crossover pattern detection
+        # These arrays enable detection of golden/death crosses and short-term crossovers
+        indicators["sma_20"] = self.ti.overlap.sma(self.ti.close, 20)
+        indicators["sma_50"] = self.ti.overlap.sma(self.ti.close, 50)
+        indicators["sma_100"] = self.ti.overlap.sma(self.ti.close, 100)
+        indicators["sma_200"] = self.ti.overlap.sma(self.ti.close, 200)
         
         if self.logger:
-            self.logger.debug("Calculated new technical indicators")
+            self.logger.debug("Calculated technical indicators")
         
-        # Filter out long-term cache keys before returning (same as cached path)
-        filtered_indicators = self._filter_indicator_cache(indicators)
-        return filtered_indicators
+        return indicators
         
     def get_long_term_indicators(self, ohlcv_data: np.ndarray) -> Dict[str, Any]:
-        """Calculate long-term indicators for historical data.
-
-        Refactor note: Logic split into helper methods for clarity & reduced cyclomatic complexity.
-        """
-        data_hash = hash_data(ohlcv_data)
-        cache_key = f"long_term_{data_hash}"
-
-        if cache_key in self._cache:
-            if self.logger:
-                self.logger.debug("Using cached long-term indicators")
-            return self._cache[cache_key]
-
+        """Calculate long-term indicators for historical data - no caching, always fresh"""
         # Create new TI instance for long-term calculations (avoid interference with regular timeframe indicators)
         ti_lt = TechnicalIndicators()
         ti_lt.get_data(ohlcv_data)
@@ -254,20 +222,10 @@ class TechnicalCalculator:
         result = {k: float(v) if isinstance(v, (np.floating, float)) and not np.isnan(v) else v
                   for k, v in result.items() if k not in ('sma_values', 'volume_sma_values')}
 
-        # Store in cache
-        self._cache[cache_key] = result
         return result
 
     def get_weekly_macro_indicators(self, weekly_ohlcv_data: np.ndarray) -> Dict[str, Any]:
-        """Calculate macro indicators using weekly data (200W SMA methodology)."""
-        data_hash = hash_data(weekly_ohlcv_data)
-        cache_key = f"weekly_macro_{data_hash}"
-
-        if cache_key in self._cache:
-            if self.logger:
-                self.logger.debug("Using cached weekly macro indicators")
-            return self._cache[cache_key]
-
+        """Calculate macro indicators using weekly data (200W SMA methodology) - no caching, always fresh"""
         ti_weekly = TechnicalIndicators()
         ti_weekly.get_data(weekly_ohlcv_data)
         available_weeks = len(weekly_ohlcv_data)
@@ -277,9 +235,16 @@ class TechnicalCalculator:
         weekly_price_change, weekly_volume_change = self._compute_change_metrics(ti_weekly, available_weeks)
         weekly_volatility = self._compute_volatility(ti_weekly, available_weeks)
 
-        # NEW: Weekly-specific macro analysis (pass already-calculated weekly_price_change)
+        # Pre-calculate SMA arrays for crossover detection (avoid redundant calculation in macro analysis)
+        sma_arrays = {}
+        if available_weeks >= 50:
+            sma_arrays['sma_50'] = ti_weekly.overlap.sma(ti_weekly.close, 50)
+        if available_weeks >= 200:
+            sma_arrays['sma_200'] = ti_weekly.overlap.sma(ti_weekly.close, 200)
+
+        # NEW: Weekly-specific macro analysis (pass SMA arrays to avoid recalculation)
         weekly_macro_analysis = self._compute_weekly_macro_trend_analysis(
-            ti_weekly, available_weeks, weekly_sma_values, weekly_ohlcv_data, weekly_price_change
+            ti_weekly, available_weeks, weekly_sma_values, weekly_ohlcv_data, weekly_price_change, sma_arrays
         )
 
         result = {
@@ -295,25 +260,22 @@ class TechnicalCalculator:
         result = {k: float(v) if isinstance(v, (np.floating, float)) and not np.isnan(v) else v
                   for k, v in result.items() if k not in ('weekly_sma_values', 'weekly_volume_sma_values')}
 
-        self._cache[cache_key] = result
         return result
-
-    def _filter_indicator_cache(self, cache: Dict[str, Any]) -> Dict[str, Any]:
-        """Remove cached entries that are not part of standard indicator output."""
-        return {
-            key: value
-            for key, value in cache.items()
-            if not any(key.startswith(prefix) for prefix in self._excluded_cache_prefixes)
-        }
 
     def _compute_weekly_macro_trend_analysis(
         self, ti: TechnicalIndicators, available_weeks: int, 
-        weekly_sma_values: Dict[int, float], ohlcv_data: np.ndarray, price_change_pct: float
+        weekly_sma_values: Dict[int, float], ohlcv_data: np.ndarray, price_change_pct: float,
+        sma_arrays: Dict[str, np.ndarray] = None
     ) -> Dict[str, Any]:
         """Weekly macro trend using 200W SMA methodology with timestamps.
         
         Args:
+            ti: TechnicalIndicators instance with weekly data
+            available_weeks: Number of weeks available
+            weekly_sma_values: Dict of current SMA values
+            ohlcv_data: Weekly OHLCV array for timestamp extraction
             price_change_pct: Already-calculated price change percentage from _compute_change_metrics
+            sma_arrays: Pre-calculated SMA arrays to avoid redundant computation
         """
         formatter = self.format_utils
         analysis = {
@@ -372,10 +334,15 @@ class TechnicalCalculator:
             else:
                 analysis['cycle_phase'] = 'Extreme Bull Market'
         
-        # Golden/Death Cross with timestamps (REUSE existing pattern detection)
+        # Golden/Death Cross with timestamps (use pre-calculated arrays if available)
         if 50 in weekly_sma_values and 200 in weekly_sma_values:
-            sma_50w_array = ti.overlap.sma(ti.close, 50)
-            sma_200w_array = ti.overlap.sma(ti.close, 200)
+            # Use passed arrays or calculate if not provided (backward compatibility)
+            if sma_arrays and 'sma_50' in sma_arrays and 'sma_200' in sma_arrays:
+                sma_50w_array = sma_arrays['sma_50']
+                sma_200w_array = sma_arrays['sma_200']
+            else:
+                sma_50w_array = ti.overlap.sma(ti.close, 50)
+                sma_200w_array = ti.overlap.sma(ti.close, 200)
             
             from src.analyzer.pattern_engine.indicator_patterns.ma_crossover_patterns import (
                 detect_golden_cross_numba, detect_death_cross_numba

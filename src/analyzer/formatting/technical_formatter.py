@@ -147,16 +147,44 @@ class TechnicalFormatter:
         if context.technical_patterns:
             try:
                 pattern_summaries = []
+                last_candle_index = len(context.ohlcv_candles) - 1 if context.ohlcv_candles is not None else None
+                
                 for category, patterns_list in context.technical_patterns.items():
                     if patterns_list:  # Only process non-empty pattern lists
                         for pattern_dict in patterns_list:
-                            description = pattern_dict.get('description', f'Unknown {category} pattern')
-                            pattern_summaries.append(f"- {description}")
+                            # Filter patterns based on recency relative to total candles analyzed
+                            # Strategy: Show patterns from most recent 20% of data (e.g., last 200 of 999 candles)
+                            # This makes filtering adaptive to different timeframes and candle counts
+                            pattern_index = pattern_dict.get('index', None)
+                            periods_ago = pattern_dict.get('details', {}).get('periods_ago', 0)
+                            
+                            # Determine recency threshold based on pattern type and data size
+                            if last_candle_index is not None and pattern_index is not None:
+                                total_candles = last_candle_index + 1
+                                
+                                # For long-term signals (MA crossovers), use wider window (50% of data)
+                                if category == 'ma_crossover':
+                                    recency_threshold = int(total_candles * 0.5)  # Last 50% of candles
+                                # For persistent patterns (volatility, volume), use narrow window (5% of data)
+                                elif category in ['volatility', 'volume']:
+                                    recency_threshold = max(10, int(total_candles * 0.05))  # Last 5% or min 10 candles
+                                # For other patterns (divergences, crossovers, etc.), use moderate window (20% of data)
+                                else:
+                                    recency_threshold = max(20, int(total_candles * 0.2))  # Last 20% or min 20 candles
+                                
+                                is_recent = pattern_index >= (last_candle_index - recency_threshold)
+                            else:
+                                # If no index info, include the pattern
+                                is_recent = True
+                            
+                            if is_recent:
+                                description = pattern_dict.get('description', f'Unknown {category} pattern')
+                                pattern_summaries.append(f"- {description}")
                 
                 if pattern_summaries:
                     if self.logger:
-                        self.logger.debug(f"Including {len(pattern_summaries)} detected patterns in technical analysis")
-                    return "\n\n## Detected Patterns:\n" + "\n".join(pattern_summaries[-10:])  # Show last 10 patterns
+                        self.logger.debug(f"Including {len(pattern_summaries)} recent patterns in technical analysis (adaptive recency filter)")
+                    return "\n\n## Detected Patterns:\n" + "\n".join(pattern_summaries[-20:])  # Show last 20 recent patterns
             except Exception as e:
                 if self.logger:
                     self.logger.debug(f"Error using stored technical_patterns: {e}")

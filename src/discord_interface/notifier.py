@@ -1,6 +1,5 @@
 import asyncio
 import io
-from datetime import datetime
 from typing import Optional, Any, Dict
 
 import discord

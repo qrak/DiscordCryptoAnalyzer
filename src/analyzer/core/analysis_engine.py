@@ -1,5 +1,4 @@
 from typing import Dict, Any, Optional
-import io
 
 from src.utils.loader import config
 from src.utils.timeframe_validator import TimeframeValidator

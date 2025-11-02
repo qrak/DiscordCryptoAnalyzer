@@ -13,8 +13,6 @@ class DataFetcher:
     def __init__(self, exchange, logger: Logger):
         self.exchange = exchange
         self.logger: Logger = logger
-        self.ticker_cache = {}
-        self.cache_ttl = 3600  # Cache data for 1 hour
 
     @retry_async()
     async def fetch_candlestick_data(self,
@@ -193,13 +191,6 @@ class DataFetcher:
         Returns:
             Dictionary with processed ticker data in a format similar to CryptoCompare API
         """
-        cache_key = self._get_cache_key(symbols)
-        
-        # Try cache first
-        cached_data = self._get_cached_tickers(cache_key)
-        if cached_data is not None:
-            return cached_data
-        
         self.logger.debug(f"Fetching multiple tickers: {symbols if symbols else 'all'}")
         
         try:
@@ -213,35 +204,11 @@ class DataFetcher:
                 self.logger.warning("No ticker data returned from exchange")
                 return {}
             
-            result = self._process_ticker_data(tickers)
-            self._cache_ticker_data(cache_key, result)
-            
-            return result
+            return self._process_ticker_data(tickers)
             
         except Exception as e:
             self.logger.error(f"Error fetching multiple tickers: {e}")
             return {}
-
-    def _get_cache_key(self, symbols: List[str] = None) -> str:
-        """Generate cache key for ticker data."""
-        return 'all' if symbols is None else ','.join(sorted(symbols))
-
-    def _get_cached_tickers(self, cache_key: str) -> Optional[Dict[str, Any]]:
-        """Get cached ticker data if available and valid."""
-        current_time = time.time()
-        
-        if cache_key not in self.ticker_cache:
-            return None
-            
-        cache_entry = self.ticker_cache[cache_key]
-        if current_time - cache_entry['timestamp'] >= self.cache_ttl:
-            return None
-            
-        self.logger.debug(
-            f"Using cached ticker data for {cache_key} "
-            f"(age: {int(current_time - cache_entry['timestamp'])}s)"
-        )
-        return cache_entry['data']
 
     def _validate_exchange_support(self) -> bool:
         """Validate that the exchange supports the required operations."""
@@ -356,13 +323,6 @@ class DataFetcher:
             "VWAP": format_price(ticker.get('vwap', 0)),
             "BID": format_price(ticker.get('bid', 0)),
             "ASK": format_price(ticker.get('ask', 0)),
-        }
-
-    def _cache_ticker_data(self, cache_key: str, data: Dict[str, Any]) -> None:
-        """Store ticker data in cache."""
-        self.ticker_cache[cache_key] = {
-            'timestamp': time.time(),
-            'data': data
         }
 
     @retry_async()

@@ -6,7 +6,6 @@ import asyncio
 import json
 import os
 import sys
-from datetime import datetime
 
 # Change to script directory
 os.chdir(os.path.dirname(os.path.abspath(__file__)))

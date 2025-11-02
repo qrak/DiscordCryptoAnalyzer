@@ -3,7 +3,6 @@ Configuration loader for DiscordCryptoAnalyzer.
 Loads private keys from keys.env and public configuration from config.ini.
 """
 
-import os
 import configparser
 import logging
 from pathlib import Path

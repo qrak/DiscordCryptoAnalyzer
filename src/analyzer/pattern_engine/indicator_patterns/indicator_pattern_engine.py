@@ -183,9 +183,13 @@ class IndicatorPatternEngine:
             )
             patterns['stochastic'].extend(stoch_patterns)
         
-        # MA Crossover Patterns (requires long-term SMA values)
-        if long_term_sma_values is not None:
-            ma_patterns = self._detect_ma_crossover_patterns(long_term_sma_values)
+        # MA Crossover Patterns (uses SMA arrays from technical_history if available)
+        if long_term_sma_values is not None or any(k in technical_history for k in ['sma_20', 'sma_50', 'sma_200']):
+            ma_patterns = self._detect_ma_crossover_patterns(
+                long_term_sma_values if long_term_sma_values is not None else {},
+                technical_history,
+                timestamps
+            )
             patterns['ma_crossover'].extend(ma_patterns)
         
         # Volume Patterns
@@ -634,16 +638,72 @@ class IndicatorPatternEngine:
     
     def _detect_ma_crossover_patterns(
         self,
-        sma_values: Dict[int, float]
+        sma_values: Dict[int, float],
+        technical_history: Dict[str, np.ndarray],
+        timestamps: Optional[List]
     ) -> List[Dict[str, Any]]:
-        """Detect Moving Average crossover patterns"""
+        """Detect Moving Average crossover patterns using arrays from technical_history"""
         patterns = []
         
-        # NOTE: SMA values from long_term_data are single floats, not arrays
-        # We need SMA arrays for crossover detection
-        # This is a limitation - we'll detect based on current relationship only
+        # Try to use SMA arrays from technical_history first (preferred for crossover detection)
+        sma_20_array = technical_history.get('sma_20')
+        sma_50_array = technical_history.get('sma_50')
+        sma_200_array = technical_history.get('sma_200')
         
-        # For now, we'll detect alignment but not crossovers (need historical SMA arrays)
+        # Detect actual crossovers if we have arrays
+        if sma_50_array is not None and sma_200_array is not None:
+            # Golden Cross (50 SMA crosses above 200 SMA)
+            found, periods_ago, sma_50_val, sma_200_val = detect_golden_cross_numba(sma_50_array, sma_200_array)
+            if found:
+                pattern_index = len(sma_50_array) - 1 - periods_ago
+                timestamp_str = self._format_pattern_time(periods_ago, pattern_index, timestamps)
+                patterns.append({
+                    'type': 'golden_cross',
+                    'description': f'Golden Cross: 50 SMA crossed above 200 SMA {timestamp_str} (bullish long-term signal)',
+                    'index': pattern_index,
+                    'details': {
+                        'sma_50': float(sma_50_val),
+                        'sma_200': float(sma_200_val),
+                        'periods_ago': int(periods_ago)
+                    }
+                })
+            
+            # Death Cross (50 SMA crosses below 200 SMA)
+            found, periods_ago, sma_50_val, sma_200_val = detect_death_cross_numba(sma_50_array, sma_200_array)
+            if found:
+                pattern_index = len(sma_50_array) - 1 - periods_ago
+                timestamp_str = self._format_pattern_time(periods_ago, pattern_index, timestamps)
+                patterns.append({
+                    'type': 'death_cross',
+                    'description': f'Death Cross: 50 SMA crossed below 200 SMA {timestamp_str} (bearish long-term signal)',
+                    'index': pattern_index,
+                    'details': {
+                        'sma_50': float(sma_50_val),
+                        'sma_200': float(sma_200_val),
+                        'periods_ago': int(periods_ago)
+                    }
+                })
+        
+        # Short-term crossover (20 SMA vs 50 SMA)
+        if sma_20_array is not None and sma_50_array is not None:
+            found, is_bullish, periods_ago, sma_20_val, sma_50_val = detect_short_term_crossover_numba(sma_20_array, sma_50_array)
+            if found:
+                cross_type = 'bullish' if is_bullish else 'bearish'
+                pattern_index = len(sma_20_array) - 1 - periods_ago
+                timestamp_str = self._format_pattern_time(periods_ago, pattern_index, timestamps)
+                patterns.append({
+                    'type': f'ma_short_term_{cross_type}_crossover',
+                    'description': f'20 SMA crossed {"above" if is_bullish else "below"} 50 SMA {timestamp_str} ({cross_type} short-term signal)',
+                    'index': pattern_index,
+                    'details': {
+                        'is_bullish': is_bullish,
+                        'sma_20': float(sma_20_val),
+                        'sma_50': float(sma_50_val),
+                        'periods_ago': int(periods_ago)
+                    }
+                })
+        
+        # MA alignment detection (uses current values or falls back to arrays)
         if 20 in sma_values and 50 in sma_values and 200 in sma_values:
             sma_20 = sma_values[20]
             sma_50 = sma_values[50]

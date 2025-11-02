@@ -5,7 +5,6 @@ from datetime import datetime
 from src.analyzer.pattern_engine import PatternEngine
 from src.analyzer.pattern_engine.indicator_patterns import IndicatorPatternEngine
 from src.logger.logger import Logger
-from src.utils.data_utils import hash_data
 
 
 class PatternAnalyzer:
@@ -15,8 +14,6 @@ class PatternAnalyzer:
         self.format_utils = format_utils
         self.pattern_engine = PatternEngine(lookback=5, lookahead=5, format_utils=format_utils)
         self.indicator_pattern_engine = IndicatorPatternEngine(format_utils=format_utils)
-        
-        self._pattern_cache = {}
     
     def detect_patterns(
         self,
@@ -25,14 +22,11 @@ class PatternAnalyzer:
         long_term_data: Optional[Dict] = None,
         timestamps: Optional[List] = None
     ) -> Dict[str, Any]:
-        data_hash = hash_data(ohlcv_data)
-        cache_key = f"patterns_{data_hash}"
+        """
+        Detect all chart and indicator patterns from current market data.
         
-        if cache_key in self._pattern_cache:
-            if self.logger:
-                self.logger.debug("Using cached pattern detection results")
-            return self._pattern_cache[cache_key]
-        
+        Note: No caching - always runs fresh detection for real-time analysis.
+        """
         if self.logger:
             self.logger.debug(f"Running pattern detection on {len(ohlcv_data)} candles")
         
@@ -70,8 +64,6 @@ class PatternAnalyzer:
             **chart_patterns,  # candlestick, trend, reversal patterns
             **indicator_patterns  # RSI, MACD, divergence, volatility, stochastic, MA, volume patterns
         }
-        
-        self._pattern_cache[cache_key] = patterns
         
         if self.logger:
             total_patterns = sum(len(p) for p in patterns.values())

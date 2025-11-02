@@ -2,7 +2,7 @@
 Market Data Processing Utilities
 Handles data normalization and processing operations.
 """
-from typing import Dict, Any, Optional, List
+from typing import Dict, Optional, List
 
 from src.logger.logger import Logger
 from src.parsing.unified_parser import UnifiedParser

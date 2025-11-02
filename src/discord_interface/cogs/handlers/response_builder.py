@@ -2,7 +2,6 @@
 Response building utilities for Discord bot commands.
 Handles creating embeds, messages, and formatting responses.
 """
-from datetime import datetime
 from typing import Optional
 import discord
 

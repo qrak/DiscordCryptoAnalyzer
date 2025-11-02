@@ -2,7 +2,7 @@
 Market Data Fetcher
 Handles fetching market data from various sources like CoinGecko and exchanges.
 """
-from typing import Dict, Any, Optional, List
+from typing import Dict, Optional, List
 
 from src.logger.logger import Logger
 
