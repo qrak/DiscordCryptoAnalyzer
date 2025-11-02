@@ -35,8 +35,7 @@ ENV/
 *.swo
 .devcontainer/
 
-# PowerShell scripts
-*.ps1
+
 
 # Testing
 .pytest_cache/
