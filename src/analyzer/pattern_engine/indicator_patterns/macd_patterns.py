@@ -23,10 +23,13 @@ def detect_macd_crossover_numba(
     """
     Detect MACD line crossing signal line.
     
+    Scans ENTIRE array for the most recent crossover event.
+    Note: lookback parameter kept for backward compatibility but ignored.
+    
     Args:
         macd_line: MACD line values (most recent last)
         signal_line: Signal line values (most recent last)
-        lookback: Periods to look back for crossover (default 5)
+        lookback: Deprecated - scans entire array
         
     Returns:
         (crossover_found, is_bullish, periods_ago, macd_value, signal_value)
@@ -39,10 +42,10 @@ def detect_macd_crossover_numba(
     if len(macd_line) < 2 or len(signal_line) < 2:
         return (False, False, -1, 0.0, 0.0)
     
-    # Limit lookback to available data
-    actual_lookback = min(lookback, len(macd_line) - 1)
+    # Scan ENTIRE array for most recent crossover (starting from most recent)
+    actual_lookback = len(macd_line) - 1
     
-    # Check recent periods for crossover
+    # Check all periods for crossover
     for i in range(actual_lookback):
         current_idx = len(macd_line) - 1 - i
         prev_idx = current_idx - 1
@@ -74,13 +77,16 @@ def detect_macd_zero_cross_numba(
     """
     Detect MACD line crossing zero line.
     
+    Scans ENTIRE array for the most recent zero-line crossover.
+    Note: lookback parameter kept for backward compatibility but ignored.
+    
     Zero-line cross indicates momentum shift:
     - Crossing above zero = bullish momentum
     - Crossing below zero = bearish momentum
     
     Args:
         macd_line: MACD line values (most recent last)
-        lookback: Periods to look back for crossover (default 5)
+        lookback: Deprecated - scans entire array
         
     Returns:
         (crossover_found, is_bullish, periods_ago, macd_value)
@@ -92,10 +98,10 @@ def detect_macd_zero_cross_numba(
     if len(macd_line) < 2:
         return (False, False, -1, 0.0)
     
-    # Limit lookback to available data
-    actual_lookback = min(lookback, len(macd_line) - 1)
+    # Scan ENTIRE array for most recent zero-line crossover
+    actual_lookback = len(macd_line) - 1
     
-    # Check recent periods for zero-line crossover
+    # Check all periods for zero-line crossover
     for i in range(actual_lookback):
         current_idx = len(macd_line) - 1 - i
         prev_idx = current_idx - 1

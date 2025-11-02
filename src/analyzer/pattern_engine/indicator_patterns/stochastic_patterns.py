@@ -85,6 +85,8 @@ def _detect_stochastic_crossover_numba(stoch_k: np.ndarray, stoch_d: np.ndarray,
     """
     Generic stochastic crossover detection (helper function).
     
+    Scans ENTIRE array for the most recent crossover event.
+    
     Args:
         stoch_k: Stochastic %K array (fast line)
         stoch_d: Stochastic %D array (slow line)
@@ -97,10 +99,8 @@ def _detect_stochastic_crossover_numba(stoch_k: np.ndarray, stoch_d: np.ndarray,
     if len(stoch_k) < 2 or len(stoch_d) < 2:
         return False, 0, 0.0, 0.0, False
     
-    # Check last 5 periods for crossover
-    lookback = min(5, len(stoch_k))
-    
-    for i in range(1, lookback):
+    # Scan ENTIRE array for most recent crossover (starting from most recent)
+    for i in range(1, len(stoch_k)):
         idx = len(stoch_k) - i - 1
         
         # Skip if any values are NaN

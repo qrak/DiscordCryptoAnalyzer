@@ -14,6 +14,8 @@ def _detect_ma_crossover_numba(sma_50: np.ndarray, sma_200: np.ndarray, is_bulli
     """
     Generic MA crossover detection (helper function).
     
+    Scans ENTIRE array for the most recent crossover event.
+    
     Args:
         sma_50: 50-period SMA array
         sma_200: 200-period SMA array
@@ -25,10 +27,8 @@ def _detect_ma_crossover_numba(sma_50: np.ndarray, sma_200: np.ndarray, is_bulli
     if len(sma_50) < 2 or len(sma_200) < 2:
         return False, 0, 0.0, 0.0
     
-    # Check last 5 periods for crossover
-    lookback = min(5, len(sma_50))
-    
-    for i in range(1, lookback):
+    # Scan ENTIRE array for most recent crossover (starting from most recent)
+    for i in range(1, len(sma_50)):
         idx = len(sma_50) - i - 1
         
         # Skip if any values are NaN
@@ -95,6 +95,7 @@ def detect_short_term_crossover_numba(sma_20: np.ndarray, sma_50: np.ndarray) ->
     """
     Detect short-term MA crossover: 20 SMA crosses 50 SMA.
     
+    Scans ENTIRE array for the most recent crossover event.
     Medium-term trend signal for swing trading.
     
     Args:
@@ -107,10 +108,8 @@ def detect_short_term_crossover_numba(sma_20: np.ndarray, sma_50: np.ndarray) ->
     if len(sma_20) < 2 or len(sma_50) < 2:
         return False, False, 0, 0.0, 0.0
     
-    # Check last 5 periods for crossover
-    lookback = min(5, len(sma_20))
-    
-    for i in range(1, lookback):
+    # Scan ENTIRE array for most recent crossover (starting from most recent)
+    for i in range(1, len(sma_20)):
         idx = len(sma_20) - i - 1
         
         # Skip if any values are NaN

@@ -117,29 +117,30 @@ def detect_bullish_divergence_numba(
     Bullish divergence = Price making lower low, indicator making higher low
     This suggests weakening bearish momentum and potential reversal up.
     
+    Scans ENTIRE array for the most recent divergence pattern.
+    Note: lookback parameter kept for backward compatibility but now scans full array.
+    
     Args:
         prices: Price values (most recent last)
         indicator: Indicator values (RSI, MACD, Stoch, etc.)
-        lookback: Periods to look back for divergence
+        lookback: (Ignored - kept for backward compatibility, now scans entire array)
         min_spacing: Minimum periods between the two lows
         
     Returns:
         (divergence_found, first_idx, second_idx, 
          first_price, second_price, first_indicator, second_indicator)
     """
-    if len(prices) < lookback or len(indicator) < lookback:
+    if len(prices) < 10 or len(indicator) < 10:
         return (False, -1, -1, 0.0, 0.0, 0.0, 0.0)
     
-    # Use recent data
-    recent_prices = prices[-lookback:]
-    recent_indicator = indicator[-lookback:]
-    
+    # FIXED: Scan ENTIRE array instead of limiting to last 'lookback' periods
+    # This ensures divergences anywhere in the dataset are detected
     # Find local minima in both price and indicator
     price_low_indices, price_low_values = _find_local_extrema_numba(
-        recent_prices, lookback=2, find_maxima=False
+        prices, lookback=2, find_maxima=False
     )
     indicator_low_indices, indicator_low_values = _find_local_extrema_numba(
-        recent_indicator, lookback=2, find_maxima=False
+        indicator, lookback=2, find_maxima=False
     )
     
     if len(price_low_indices) < 2 or len(indicator_low_indices) < 2:
@@ -206,29 +207,30 @@ def detect_bearish_divergence_numba(
     Bearish divergence = Price making higher high, indicator making lower high
     This suggests weakening bullish momentum and potential reversal down.
     
+    Scans ENTIRE array for the most recent divergence pattern.
+    Note: lookback parameter kept for backward compatibility but now scans full array.
+    
     Args:
         prices: Price values (most recent last)
         indicator: Indicator values (RSI, MACD, Stoch, etc.)
-        lookback: Periods to look back for divergence
+        lookback: (Ignored - kept for backward compatibility, now scans entire array)
         min_spacing: Minimum periods between the two highs
         
     Returns:
         (divergence_found, first_idx, second_idx, 
          first_price, second_price, first_indicator, second_indicator)
     """
-    if len(prices) < lookback or len(indicator) < lookback:
+    if len(prices) < 10 or len(indicator) < 10:
         return (False, -1, -1, 0.0, 0.0, 0.0, 0.0)
     
-    # Use recent data
-    recent_prices = prices[-lookback:]
-    recent_indicator = indicator[-lookback:]
-    
+    # FIXED: Scan ENTIRE array instead of limiting to last 'lookback' periods
+    # This ensures divergences anywhere in the dataset are detected
     # Find local maxima in both price and indicator
     price_high_indices, price_high_values = _find_local_extrema_numba(
-        recent_prices, lookback=2, find_maxima=True
+        prices, lookback=2, find_maxima=True
     )
     indicator_high_indices, indicator_high_values = _find_local_extrema_numba(
-        recent_indicator, lookback=2, find_maxima=True
+        indicator, lookback=2, find_maxima=True
     )
     
     if len(price_high_indices) < 2 or len(indicator_high_indices) < 2:

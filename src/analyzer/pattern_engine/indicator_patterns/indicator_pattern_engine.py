@@ -650,6 +650,16 @@ class IndicatorPatternEngine:
         sma_50_array = technical_history.get('sma_50')
         sma_200_array = technical_history.get('sma_200')
         
+        # If sma_values not provided but we have arrays, populate from current array values
+        if (sma_values is None or len(sma_values) == 0) and (sma_50_array is not None or sma_200_array is not None):
+            sma_values = {}
+            if sma_20_array is not None and len(sma_20_array) > 0:
+                sma_values[20] = float(sma_20_array[-1])
+            if sma_50_array is not None and len(sma_50_array) > 0:
+                sma_values[50] = float(sma_50_array[-1])
+            if sma_200_array is not None and len(sma_200_array) > 0:
+                sma_values[200] = float(sma_200_array[-1])
+        
         # Detect actual crossovers if we have arrays
         if sma_50_array is not None and sma_200_array is not None:
             # Golden Cross (50 SMA crosses above 200 SMA)
@@ -704,7 +714,7 @@ class IndicatorPatternEngine:
                 })
         
         # MA alignment detection (uses current values or falls back to arrays)
-        if 20 in sma_values and 50 in sma_values and 200 in sma_values:
+        if sma_values is not None and 20 in sma_values and 50 in sma_values and 200 in sma_values:
             sma_20 = sma_values[20]
             sma_50 = sma_values[50]
             sma_200 = sma_values[200]
@@ -738,7 +748,7 @@ class IndicatorPatternEngine:
                 })
         
         # Detect Golden/Death Cross potential (50 vs 200 relationship)
-        if 50 in sma_values and 200 in sma_values:
+        if sma_values is not None and 50 in sma_values and 200 in sma_values:
             sma_50 = sma_values[50]
             sma_200 = sma_values[200]
             
