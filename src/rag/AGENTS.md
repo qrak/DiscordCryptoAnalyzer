@@ -596,9 +596,29 @@ rag_engine = RagEngine(
     symbol_manager=symbol_manager,
     format_utils=format_utils
 )
-
 await rag_engine.initialize()
 ```
+
+### Edge Cases & Configuration
+
+- **Ticker collisions**: Coin detection trusts the `known_tickers` set managed by `CategoryManager`/`TickerManager`. When two assets share a symbol (e.g., SOL vs. SoLend), manually curate `data/known_tickers.json` or adjust `category_processor.category_word_map` to avoid false positives.
+- **Article length**: Only the first 10,000 characters of an article body are scanned for tickers (`ArticleProcessor.detect_coins_in_article`). Long-form research pieces should surface key tickers near the top or via the `categories` metadata.
+- **Category word map**: `CategoryManager` maps keywords to categories but does not attempt disambiguation. If a word spans multiple sectors, add project-specific keywords or tighten regex rules in `category_processor` to prevent broad matches.
+- **Symbol extraction**: Base-coin extraction for context queries relies on `UnifiedParser.extract_base_coin`; provide trading pairs in standard `BASE/QUOTE` format to keep lookups accurate.
+
+### Scalability Considerations
+
+- **Index rebuild cost**: `IndexManager.build_indices` runs in O(n) over the current news database (default 50 articles). Even at 500 articles, rebuilds remain sub-100 ms, but keep `news_fetch_limit` aligned with available memory if you expect sustained growth.
+- **Background updates**: `RagEngine.start_periodic_updates` spawns an async loop keyed off `config.RAG_UPDATE_INTERVAL_HOURS`. For high-throughput deployments ensure only a single instance runs periodic refreshes to avoid duplicated API calls.
+- **Token budgeting**: `TokenCounter` defaults to the `cl100k_base` tokenizer. When switching to models with different tokenization, instantiate `TokenCounter(encoding_name=...)` and pass it into `RagEngine` so context trimming respects the new limits.
+
+### Data Integrity & Recovery
+
+- **Atomic file writes**: `RagFileHandler.save_json_file` writes via temporary files and `os.replace`, minimizing risk of half-written caches if the process terminates mid-write.
+- **Corrupted cache files**: `RagFileHandler.load_json_file` logs the failure and returns `None`, allowing `NewsManager`/`CategoryManager` to rebuild fresh state from live API calls without crashing the update loop.
+- **Fallback articles**: `RagFileHandler.load_fallback_articles` keeps up to 72 h of news for outages. After a failure the next successful fetch repopulates indices automatically through `RagEngine._build_indices()`.
+- **Known ticker drift**: Run `await category_manager.update_known_tickers(news_database)` whenever integrating new exchanges so ticker validation stays in sync.
+- **Manual resets**: Delete `data/crypto_news.json`, `data/categories.json`, or `data/known_tickers.json` to force clean rebuilds. The initial `RagEngine.initialize()` call recreates directories and downloads fresh content on startup.
 
 ### Update News Manually
 

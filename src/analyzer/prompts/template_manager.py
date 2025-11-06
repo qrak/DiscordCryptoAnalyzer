@@ -113,14 +113,14 @@ class TemplateManager:
         
         **IMPORTANT: Begin your analysis with a clear disclaimer that this is educational content only and not financial advice.**
         
-        **IMPORTANT: Include a note that technical indicators are calculated using only completed candles, and the current candle (if incomplete) is not included in calculations.**
+        **IMPORTANT: Include a note that technical indicators are calculated including the current incomplete candle for real-time analysis.**
         
         **INTERPRETIVE GUIDANCE: After presenting raw numerical data in each section, provide a brief 4-8 sentence interpretation explaining what these numbers mean for traders. Use phrases like "What this means:", "Interpretation:", or "Key takeaway:" to clearly separate data from analysis.**
         
         Organize the Markdown analysis into these sections:
         
         - Disclaimer (emphasize this is for educational purposes only, not financial advice)
-        - Technical Analysis Overview (objective description of what the indicators show, quantified) - INCLUDE NOTE: "All technical indicators in this analysis are calculated using only completed {timeframe} candles. The current incomplete candle is not included in indicator calculations."
+        - Technical Analysis Overview (objective description of what the indicators show, quantified) - INCLUDE NOTE: "All technical indicators in this analysis are calculated including the current incomplete {timeframe} candle for real-time market assessment. Values will update as the candle progresses."
           * After the quantified metrics, add: "**What this means:** [brief interpretation of the overall technical picture]"
         - Multi-Timeframe Assessment (describe short, medium, long-term patterns with quantified changes)
           * After each timeframe subsection, add: "**Interpretation:** [what this timeframe suggests for traders]"
@@ -312,8 +312,9 @@ class TemplateManager:
             - Offer context about typical behavior of similar assets in comparable market conditions
         
         TECHNICAL INDICATORS NOTE:
-            - Current candle is incomplete and not included in indicator calculations
-            - Technical indicators calculated using only completed candles"""
+            - Current incomplete candle is included in all technical indicator calculations
+            - This provides real-time market assessment as the candle progresses
+            - Indicator values will update as price action continues within the current timeframe"""
         
         if has_advanced_support_resistance:
             analysis_steps += """

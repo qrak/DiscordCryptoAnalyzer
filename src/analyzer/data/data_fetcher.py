@@ -49,18 +49,19 @@ class DataFetcher:
         self.logger.debug(f"Received {len(ohlcv)} raw candles from exchange for {pair}")
         
         ohlcv_array = np.array(ohlcv)
-        closed_candles = ohlcv_array[:-1]
+        # Include all candles (including the incomplete current candle)
+        all_candles = ohlcv_array
         latest_close = float(ohlcv_array[-1, 4])
         
-        self.logger.debug(f"Processed {len(closed_candles)} closed candles, latest close: {latest_close}")
+        self.logger.debug(f"Processed {len(all_candles)} candles (including current incomplete candle), latest close: {latest_close}")
         
         # Verify we have enough data
-        if len(closed_candles) < min(720, limit - 1):
-            self.logger.warning(f"Received fewer candles ({len(closed_candles)}) than expected ({min(720, limit - 1)})")
-            self.logger.debug(f"First candle timestamp: {closed_candles[0][0] if len(closed_candles) > 0 else 'N/A'}")
-            self.logger.debug(f"Last candle timestamp: {closed_candles[-1][0] if len(closed_candles) > 0 else 'N/A'}")
+        if len(all_candles) < min(720, limit):
+            self.logger.warning(f"Received fewer candles ({len(all_candles)}) than expected ({min(720, limit)})")
+            self.logger.debug(f"First candle timestamp: {all_candles[0][0] if len(all_candles) > 0 else 'N/A'}")
+            self.logger.debug(f"Last candle timestamp: {all_candles[-1][0] if len(all_candles) > 0 else 'N/A'}")
 
-        return closed_candles, latest_close
+        return all_candles, latest_close
 
     @retry_async()
     async def fetch_daily_historical_data(self,
@@ -102,7 +103,7 @@ class DataFetcher:
                 
             ohlcv_data, latest_close = result
             available_days = len(ohlcv_data)
-            is_complete = (available_days >= days - 1)  # Account for the +1 in fetch_candlestick_data
+            is_complete = (available_days >= days)  # All candles now included
             
             if not is_complete:
                 self.logger.info(f"Limited historical data for {pair}: requested {days} days, got {available_days} days")

@@ -290,6 +290,15 @@ Specialized message lifecycle management:
 
 **Integration**: All bot messages are automatically tracked via `DiscordNotifier.send_message()`
 
+### Patterns & best-practices (moved from top-level instructions)
+
+- Message tracking: Prefer `DiscordNotifier.send_message(...)` (central entrypoint) so that the FileHandler always records messages for automatic cleanup.
+- When creating embeds or uploading HTML reports, call `DiscordNotifier.upload_analysis_content(...)` then `DiscordNotifier.send_message(...)` to ensure tracking metadata is attached.
+- Cog registration: use `await self.bot.add_cog(MyCog(...))` in `DiscordNotifier.setup_bot()` with explicit dependency injection rather than importing globals.
+- File handler: `DiscordFileHandler.track_message(...)` should be used for all attachments; background cleanup cadence is configured via `FILE_MESSAGE_EXPIRY` in `config.ini`.
+
+Putting these usage notes in this AGENTS.md keeps the integration guidance local to the Discord subsystem and avoids duplication in top-level instructions.
+
 ## DiscordNotifier (Main Orchestrator)
 
 **Location**: `src/discord_interface/notifier.py`
@@ -461,6 +470,30 @@ class MyNewCog(commands.Cog):
     
     # Commands and event listeners go here
 ```
+
+## Permission Requirements
+
+- **Gateway Intents**: Enable `guilds`, `members`, `messages`, `message_content`, and `reactions` in the Discord Developer Portal to align with command parsing and reaction tracking used by the cogs.
+- **Channel Permissions**: Grant the bot `Send Messages`, `Embed Links`, `Attach Files`, and `Add Reactions` in target channels; analysis uploads rely on these to deliver embeds plus HTML attachments.
+- **Manage Messages**: Required for `MessageDeleter` to remove expired analysis posts. Without it, cleanup gracefully warns and leaves the message tracked for manual removal.
+- **Read Message History**: Needed so the bot can fetch prior messages when deleting tracked IDs via `channel.fetch_message`.
+- **Optional: Manage Roles**: Only necessary if AntiSpam cog is configured to assign roles to muted users.
+
+## Message Lifecycle Failure Scenarios
+
+- **Message Already Deleted**: `discord.NotFound` is treated as success—`MessageDeleter` logs a debug entry and removes the tracking record so repeated cleanup loops do not retry.
+- **Missing Permissions**: `discord.Forbidden` triggers a warning and returns `False`. The tracking entry remains, allowing administrators to adjust permissions and rerun cleanup.
+- **HTTP Exceptions**: Transient API errors bubble up through `_delete_from_channel`; retries are handled by `@retry_async` (max 3 attempts with exponential backoff). Failures are logged with full context for later investigation.
+- **Bot Not Ready**: `DiscordFileHandler.track_message` waits up to 10 s for `discord_notifier.wait_until_ready()`. If the bot never becomes ready the message is not tracked, preventing inconsistent state.
+- **Scheduler Cancellation**: `CleanupScheduler` guards all awaits with `asyncio.CancelledError` handling so shutdowns during redeploys do not leave dangling tasks.
+
+## FileHandler Component Details
+
+- **TrackingPersistence** (`tracking_persistence.py`): Stores tracking metadata in `data/tracked_messages.json`. Corrupted JSON triggers a warning and resets the file, protecting cleanup from malformed entries.
+- **MessageTracker** (`message_tracker.py`): Wraps persistence with an asyncio lock, calculates expiry (`expires_at`), and exposes `get_tracking_stats()` for diagnostics.
+- **CleanupScheduler** (`cleanup_scheduler.py`): Spawns a named background task (`MessageCleanupTask`) that waits 10 s on startup, then invokes the provided callback at configurable intervals (`cleanup_interval`, default 7200 s).
+- **MessageDeleter** (`message_deleter.py`): Performs deletions with retry logic (`retry_async` decorator). Handles channel lookup failures by logging and returning success so stale entries do not clog the tracker.
+- **DiscordFileHandler** (`filehandler.py`): Orchestrates the components—initializes the scheduler, funnels stats to admin commands, and exposes `shutdown()` for graceful teardown.
 
 ## Configuration
 

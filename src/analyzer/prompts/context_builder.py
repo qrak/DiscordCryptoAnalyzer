@@ -53,7 +53,7 @@ class ContextBuilder:
                 f"\n- Current Candle: {minutes_into_candle}/{timeframe_minutes} minutes "
                 f"({candle_progress:.1f}% complete)"
             )
-            candle_status += f"\n- Analysis Note: Technical indicators calculated using only completed candles"
+            candle_status += f"\n- Analysis Note: Technical indicators calculated including the current incomplete candle"
         
         # Get analysis timeframes description
         analysis_timeframes = f"{self.timeframe.upper()}, 1D, 7D, 30D, 365D, and WEEKLY timeframes"
@@ -153,8 +153,8 @@ class ContextBuilder:
 
             data += f"\nMulti-Timeframe Price Summary (Based on {self.timeframe} candles):\n"
             for period_name, candle_count in periods.items():
-                if candle_count < available_candles:
-                    period_start = float(ohlcv_candles[-candle_count, 4])
+                if (candle_count + 1) <= available_candles:
+                    period_start = float(ohlcv_candles[-(candle_count + 1), 4])
                     change_pct = ((last_close / period_start) - 1) * 100
                     high = max([float(candle[2]) for candle in ohlcv_candles[-candle_count:]])
                     low = min([float(candle[3]) for candle in ohlcv_candles[-candle_count:]])

@@ -89,6 +89,34 @@ self.ai_colors = {
 - `_image_export_with_timeout()`: Safe image export with timeout protection
 - `_retry_image_export()`: Resilient export with exponential backoff
 
+#### Chart Configuration Reference
+
+- **Color Themes**: Switch between `default_colors` and `ai_colors` by passing `for_ai=True` into chart helpers. Override colors by subclassing `ChartGenerator` or updating `self.default_colors` at runtime before calling `create_ohlcv_chart`.
+- **Candle Limits**: `self.ai_candle_limit` is sourced from `config.AI_CHART_CANDLE_LIMIT` (defaults to 200). Supply `limit_candles` to `create_ohlcv_chart`/`generate_chart_html` to clamp history for faster plots.
+- **Line Thickness & Fonts**: The generator automatically widens candles, grid lines, and fonts when `for_ai=True`. For custom styling set `increasing_line_width`/`decreasing_line_width` on the returned Plotly traces before exporting.
+- **Formatter Hooks**: Provide a custom `formatter` callable (e.g., `format_utils.fmt`) via the constructor to control price formatting in tooltips and axes.
+- **Timestamps**: Pass explicit `timestamps` arrays to avoid relying on millisecond epochs embedded in OHLCV data—useful when candles come from preprocessed pandas frames.
+
+#### HTML Generation Workflows
+
+1. **Full Analysis Report**
+    - Collect analysis output (markdown, article URLs, OHLCV payload) from the analyzer pipeline.
+    - Call `AnalysisHtmlGenerator.generate_html_content(...)` with the same dictionary shape used by `AnalysisPublisher` (`ohlcv` ndarray, `technical_history`, `patterns`).
+    - Persist the returned HTML string to disk or upload directly to Discord via `DiscordNotifier.upload_analysis_content`.
+2. **Chart-Only Preview**
+    - Build a minimal `ohlcv_data` dict containing `ohlcv`, `symbol`, `timeframe`, and optional `technical_history` (RSI array) and feed into `ChartSectionGenerator.generate_chart_html`.
+    - Embed the returned `<div>` fragment inside existing dashboards without running the full template pipeline.
+3. **Mock Reports for Testing**
+    - Use `src/html/mock.py` utilities (e.g., `get_mock_markdown_content`) to generate deterministic markdown/indicator data.
+    - Pass mock data through `AnalysisHtmlGenerator` to validate CSS/JS changes without hitting external services.
+
+#### Embedded Asset Pipeline
+
+- **TemplateProcessor**: `generate_styled_html` pulls the rendered markdown, chart sections, and Discord summary into the modular HTML scaffold while stamping generation/expiry timestamps.
+- **Template Engine**: `html_templates.ModularTemplateEngine` base64-encodes CSS assets (`base_styles.css`, `component_styles.css`, `ui_responsive.css`, etc.) so Discord uploads remain self-contained—no external CDNs required.
+- **JavaScript Bundling**: Scripts (`theme-manager.js`, `collapsible-manager.js`, `back-to-top.js`, `app.js`) are injected inline to keep embeds interactive even when viewed from static hosting environments.
+- **Cache Busting**: Call `html_templates.reload_templates()` during development to force re-read of updated CSS/JS without restarting the bot.
+
 ## Report Generation Agents
 
 ### HTMLGenerator

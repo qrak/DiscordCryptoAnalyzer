@@ -231,15 +231,40 @@ if result["success"]:
 **Purpose**: Low-level exchange data fetching with robust error handling and retry logic.
 
 **Responsibilities**:
-- Fetch candlestick data from exchanges
+- Fetch candlestick data from exchanges (including current incomplete candle)
 - Handle exchange-specific quirks and rate limits
 - Implement exponential backoff retry logic
 - Convert exchange timestamps to consistent format
 - Extract current price from latest candle
 
+**Important Behavioral Note**:
+- **ALL CANDLES INCLUDED**: Returns complete dataset including the current incomplete candle
+- This enables real-time indicator calculations that reflect ongoing price action
+- Indicator values update as the current candle progresses
+- Previous behavior (excluding last candle) was changed to provide more timely analysis
+
 **Key Methods**:
-- **`fetch_candlestick_data(pair, timeframe, limit)`**: Fetch OHLCV with retries
-- **`_convert_to_numpy(ohlcv_list)`**: Convert to numpy array for calculations
+- **`fetch_candlestick_data(pair, timeframe, limit)`**: Fetch OHLCV with retries (includes incomplete candle)
+- **`fetch_daily_historical_data(pair, days)`**: Fetch daily data for long-term analysis
+- **`fetch_weekly_historical_data(pair, target_weeks)`**: Fetch weekly data for macro trends
+- **`fetch_multiple_tickers(symbols)`**: Fetch price data for multiple pairs
+- **`fetch_order_book_depth(pair, limit)`**: Get order book for liquidity analysis
+- **`fetch_recent_trades(pair, limit)`**: Get recent trades for order flow
+- **`fetch_funding_rate(pair)`**: Get funding rate for perpetual futures
+- **`fetch_market_microstructure(pair)`**: Comprehensive market snapshot
+
+**Candle Data Flow**:
+```python
+# fetch_candlestick_data implementation
+ohlcv = await self.exchange.fetch_ohlcv(pair, timeframe, since=start_time, limit=limit + 1)
+ohlcv_array = np.array(ohlcv)
+
+# ALL CANDLES INCLUDED (including incomplete current candle)
+all_candles = ohlcv_array  # Changed from: closed_candles = ohlcv_array[:-1]
+latest_close = float(ohlcv_array[-1, 4])
+
+return all_candles, latest_close
+```
 
 **Error Handling**:
 - Retries up to 3 times with exponential backoff
@@ -272,6 +297,13 @@ if result["success"]:
 - **Timeframe-adaptive**: Indicator periods scale with timeframe
 - **Vectorized**: Uses numpy/numba for performance
 - **Complete coverage**: Momentum, trend, volatility, volume, statistical indicators
+- **Real-time analysis**: Indicators calculated including current incomplete candle for timely market assessment
+
+**Important Note on Incomplete Candles**:
+- **ALL INDICATORS INCLUDE CURRENT INCOMPLETE CANDLE**: Calculations use the full dataset including the ongoing candle
+- This provides real-time indicator values that update as price action progresses
+- Enables more timely analysis and reflects current market conditions
+- Previous behavior excluded the incomplete candle, but this was changed for real-time responsiveness
 
 **Indicator Categories**:
 
@@ -536,9 +568,37 @@ response = await self.model_manager.send_prompt(prompt)
 - **`build_trading_context(context)`**: Basic trading information
 - **`build_sentiment_section(sentiment_data)`**: Fear & Greed formatting
 - **`build_coin_details_section(coin_details)`**: Coin-specific information
-- **`build_market_data_section(ohlcv_candles)`**: OHLCV summary
+- **`build_market_data_section(ohlcv_candles)`**: Multi-timeframe price summary with period-based performance metrics
 - **`build_market_period_metrics_section(market_metrics)`**: Multi-period metrics
 - **`build_long_term_analysis_section(long_term_data, current_price)`**: Macro trends
+
+**Multi-Timeframe Price Calculation** (`build_market_data_section`):
+
+Builds multi-timeframe performance summary by comparing current closing price to historical prices across periods (4h, 12h, 24h, 3d, 7d):
+
+```python
+# For each period, calculate: (current_close / period_start_close) - 1
+last_close = ohlcv_candles[-1, 4]  # Most recent completed candle's close
+period_start = ohlcv_candles[-(candle_count + 1), 4]  # Close from lookback period
+change_pct = ((last_close / period_start) - 1) * 100
+```
+
+**Critical Implementation Detail - Off-By-One Index Correction**:
+
+The calculation uses `ohlcv_candles[-(candle_count + 1), 4]` (not `-candle_count`) to correctly index the lookback period:
+
+- **For 1d timeframe with 24h lookback**: Needs 1 candle → `ohlcv_candles[-2, 4]` (previous day's close)
+- **For 4h timeframe with 4h lookback**: Needs 1 candle → `ohlcv_candles[-2, 4]` (4 hours ago close)
+- **For 1h timeframe with 24h lookback**: Needs 24 candles → `ohlcv_candles[-25, 4]` (24 hours ago close)
+
+**Bug History**: Prior to fix, used `ohlcv_candles[-candle_count, 4]` which caused:
+- 1d timeframe: 24h showed 0.00% (compared same candle to itself: `ohlcv_candles[-1]` vs `ohlcv_candles[-1]`)
+- 4h timeframe: 4h showed 0.00% (same issue when candle_count = 1)
+- 1h timeframe: Worked correctly due to larger index separation
+
+The `+ 1` offset ensures we always compare against the candle *from* the lookback period, not *to* the lookback period.
+
+**Bounds Checking**: Uses `(candle_count + 1) <= available_candles` to ensure sufficient history for lookback calculations.
 
 ## Publishing Layer
 

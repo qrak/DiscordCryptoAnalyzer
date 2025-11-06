@@ -379,6 +379,18 @@ async with GoogleAIClient(api_key, "gemini-2.5-flash", logger) as client:
 - `_handle_exception`: Catches SDK exceptions, logs errors
 - Auto-retry via `@retry_api_call` decorator (3 retries, exponential backoff)
 
+### Provider configuration & fallback (top-level -> platforms)
+
+- Respect `config.ini` `[ai_providers]` section:
+    - `provider = "local"`: LM Studio only (streaming supported)
+    - `provider = "googleai"`: Google AI Studio only (official SDK)
+    - `provider = "openrouter"`: OpenRouter only
+    - `provider = "all"`: Fallback chain (Google AI → LM Studio → OpenRouter)
+
+- Google paid tier fallback: If `GOOGLE_STUDIO_PAID_API_KEY` is present in `keys.env`, `ModelManager` will prefer paid Google models and auto-fallback on 503 errors (see `ModelManager._invoke_provider()` for implementation reference).
+
+Add any per-provider SDK notes (timeouts, streaming, multimodal) here so this file is authoritative for provider integration and fallback behavior.
+
 ### LMStudioClient
 
 **Location**: `src/platforms/ai_providers/lmstudio.py`
