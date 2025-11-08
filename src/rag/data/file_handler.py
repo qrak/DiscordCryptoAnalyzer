@@ -3,11 +3,13 @@ import os
 import sys
 import time
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, TYPE_CHECKING
 
-from src.utils.loader import config
 from src.logger.logger import Logger
 from src.parsing.unified_parser import UnifiedParser
+
+if TYPE_CHECKING:
+    from src.contracts.config import ConfigProtocol
 
 
 class RagFileHandler:
@@ -15,8 +17,15 @@ class RagFileHandler:
     MARKET_DATA_DIR = "market_data"
     COINGECKO_CACHE_FILE = "coingecko_global.json"
     
-    def __init__(self, logger: Logger):
+    def __init__(self, logger: Logger, config: "ConfigProtocol"):
+        """Initialize RagFileHandler with logger and config.
+        
+        Args:
+            logger: Logger instance
+            config: ConfigProtocol instance for data directory path
+        """
         self.logger = logger
+        self.config = config
         self.base_dir = self._resolve_base_dir()
         self.data_dir = os.path.join(self.base_dir, config.DATA_DIR)
         self.market_data_dir = os.path.join(self.data_dir, self.MARKET_DATA_DIR)

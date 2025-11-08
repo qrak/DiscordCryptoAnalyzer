@@ -5,7 +5,10 @@ from typing import Dict, List, Any, Optional
 
 import aiohttp
 
-from src.utils.loader import config
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from src.contracts.config import ConfigProtocol
 from src.logger.logger import Logger
 from src.utils.decorators import retry_api_call
 from src.utils.collision_resolver import CategoryCollisionResolver
@@ -20,10 +23,12 @@ class CryptoCompareCategoriesAPI:
     def __init__(
         self,
         logger: Logger,
+        config: "ConfigProtocol",
         data_dir: str = 'data',
         categories_update_interval_hours: int = 24
     ) -> None:
         self.logger = logger
+        self.config = config
         self.data_dir = data_dir
         self.categories_update_interval = timedelta(hours=categories_update_interval_hours)
         self.categories_last_update: Optional[datetime] = None
@@ -91,10 +96,10 @@ class CryptoCompareCategoriesAPI:
            current_time - self.categories_last_update < self.categories_update_interval:
             return self.api_categories
             
-        self.logger.debug(f"Fetching categories from CryptoCompare API: {config.RAG_CATEGORIES_API_URL}")
+        self.logger.debug(f"Fetching categories from CryptoCompare API: {self.config.RAG_CATEGORIES_API_URL}")
         async with aiohttp.ClientSession() as session:
             try:
-                async with session.get(config.RAG_CATEGORIES_API_URL, timeout=30) as resp:
+                async with session.get(self.config.RAG_CATEGORIES_API_URL, timeout=30) as resp:
                     self.logger.debug(f"Categories API response status: {resp.status}")
                     if resp.status == 200:
                         data = await resp.json()

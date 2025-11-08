@@ -4,24 +4,33 @@ Handles the core logic for tracking messages and determining expired messages.
 """
 import asyncio
 from datetime import datetime
-from typing import List, Tuple, Optional, Dict, Any
+from typing import List, Tuple, Optional, Dict, Any, TYPE_CHECKING
 
-from src.utils.loader import config
+if TYPE_CHECKING:
+    from src.contracts.config import ConfigProtocol
 
 
 class MessageTracker:
     """Handles message tracking logic and expiration management."""
     
-    def __init__(self, persistence_handler, logger):
+    def __init__(self, persistence_handler, logger, config: "ConfigProtocol"):
+        """Initialize MessageTracker with persistence handler, logger, and config.
+        
+        Args:
+            persistence_handler: TrackingPersistence instance
+            logger: Logger instance
+            config: ConfigProtocol instance for message expiry settings
+        """
         self.persistence = persistence_handler
         self.logger = logger
+        self.config = config
         self._tracking_lock = asyncio.Lock()
     
     async def track_message(self, message_id: int, channel_id: int, user_id: int, 
                           message_type: str = "general", expire_after: Optional[int] = None) -> bool:
         """Track a message for automatic deletion."""
         if expire_after is None:
-            expire_after = config.FILE_MESSAGE_EXPIRY
+            expire_after = self.config.FILE_MESSAGE_EXPIRY
         
         message_data = self._create_message_data(channel_id, user_id, message_type, expire_after)
         

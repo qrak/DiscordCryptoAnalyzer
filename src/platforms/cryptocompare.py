@@ -1,5 +1,5 @@
 import os
-from typing import Dict, List, Any, Set
+from typing import Dict, List, Any, Set, TYPE_CHECKING
 
 import aiohttp
 
@@ -9,6 +9,9 @@ from .utils.cryptocompare_news_api import CryptoCompareNewsAPI
 from .utils.cryptocompare_categories_api import CryptoCompareCategoriesAPI
 from .utils.cryptocompare_market_api import CryptoCompareMarketAPI
 from .utils.cryptocompare_data_processor import CryptoCompareDataProcessor
+
+if TYPE_CHECKING:
+    from src.contracts.config import ConfigProtocol
 
 
 class CryptoCompareAPI:
@@ -22,20 +25,32 @@ class CryptoCompareAPI:
     def __init__(
         self,
         logger: Logger,
+        config: "ConfigProtocol",
         data_dir: str = 'data',
         cache_dir: str = 'data/news_cache',
         update_interval_hours: int = 1,
         categories_update_interval_hours: int = 24
     ) -> None:
+        """Initialize CryptoCompareAPI with logger and config.
+        
+        Args:
+            logger: Logger instance
+            config: ConfigProtocol instance for API keys and URLs
+            data_dir: Data directory path
+            cache_dir: Cache directory path
+            update_interval_hours: News update interval
+            categories_update_interval_hours: Categories update interval
+        """
         # Initialize specialized components
         self.logger = logger
+        self.config = config
         self.data_dir = data_dir
         self.cache_dir = cache_dir
         
         # Initialize specialized API components
-        self.news_api = CryptoCompareNewsAPI(logger, cache_dir, update_interval_hours)
-        self.categories_api = CryptoCompareCategoriesAPI(logger, data_dir, categories_update_interval_hours)
-        self.market_api = CryptoCompareMarketAPI(logger)
+        self.news_api = CryptoCompareNewsAPI(logger, config, cache_dir, update_interval_hours)
+        self.categories_api = CryptoCompareCategoriesAPI(logger, config, data_dir, categories_update_interval_hours)
+        self.market_api = CryptoCompareMarketAPI(logger, config)
         self.data_processor = CryptoCompareDataProcessor(logger)
         
         # Ensure directories exist

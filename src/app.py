@@ -13,6 +13,7 @@ from src.utils.keyboard_handler import KeyboardHandler
 from src.utils.loader import config
 from src.utils.format_utils import FormatUtils
 from src.analyzer.data.data_processor import DataProcessor
+from src.models.manager import ModelManager
 
 
 class DiscordCryptoBot:
@@ -29,6 +30,7 @@ class DiscordCryptoBot:
         self.keyboard_handler = None
         self.format_utils = None
         self.data_processor = None
+        self.model_manager = None
         self.tasks = []
         self.running = False
         self._active_tasks = set()
@@ -45,7 +47,7 @@ class DiscordCryptoBot:
         self.format_utils = FormatUtils(self.data_processor)
         self.logger.debug("DataProcessor and FormatUtils initialized")
 
-        self.symbol_manager = ExchangeManager(self.logger)
+        self.symbol_manager = ExchangeManager(self.logger, config)
         await self.symbol_manager.initialize()
         self.logger.debug("SymbolManager initialized")
 
@@ -54,7 +56,7 @@ class DiscordCryptoBot:
         await self.coingecko_api.initialize()
         self.logger.debug("CoinGeckoAPI initialized")
         
-        self.cryptocompare_api = CryptoCompareAPI(logger=self.logger)
+        self.cryptocompare_api = CryptoCompareAPI(logger=self.logger, config=config)
         await self.cryptocompare_api.initialize()
         self.logger.debug("CryptoCompareAPI initialized")
         
@@ -66,6 +68,7 @@ class DiscordCryptoBot:
         self.rag_engine = RagEngine(
             self.logger, 
             self.token_counter,
+            config,
             coingecko_api=self.coingecko_api,
             cryptocompare_api=self.cryptocompare_api,
             format_utils=self.format_utils
@@ -76,14 +79,20 @@ class DiscordCryptoBot:
         self.rag_engine.set_symbol_manager(self.symbol_manager)
         self.logger.debug("Passed SymbolManager to RagEngine")
 
+        # Initialize ModelManager before AnalysisEngine (required dependency)
+        self.model_manager = ModelManager(self.logger, config)
+        self.logger.debug("ModelManager initialized")
+
         self.market_analyzer = AnalysisEngine(
             logger=self.logger,
             rag_engine=self.rag_engine,
             coingecko_api=self.coingecko_api,
+            model_manager=self.model_manager,
             alternative_me_api=self.alternative_me_api,
             cryptocompare_api=self.cryptocompare_api,
             format_utils=self.format_utils,
-            data_processor=self.data_processor
+            data_processor=self.data_processor,
+            config=config
         )
 
         self.logger.debug("AnalysisEngine initialized")
@@ -92,6 +101,7 @@ class DiscordCryptoBot:
             logger=self.logger,
             symbol_manager=self.symbol_manager,
             market_analyzer=self.market_analyzer,
+            config=config,
             format_utils=self.format_utils
         )
         discord_task = asyncio.create_task(
@@ -254,7 +264,19 @@ class DiscordCryptoBot:
             self.logger.warning(f"Error closing Discord notifier: {e}")
 
     async def _shutdown_market_analyzer(self):
-        """Close market analyzer safely."""
+        """Close market analyzer and model manager safely."""
+        # Close model_manager first (part of market_analyzer dependencies)
+        if hasattr(self, 'model_manager') and self.model_manager:
+            try:
+                self.logger.info("Closing ModelManager...")
+                await asyncio.wait_for(self.model_manager.close(), timeout=3.0)
+                self.model_manager = None
+            except asyncio.TimeoutError:
+                self.logger.warning("ModelManager shutdown timed out")
+            except Exception as e:
+                self.logger.warning(f"Error closing ModelManager: {e}")
+        
+        # Then close market analyzer
         if not self.market_analyzer:
             return
             

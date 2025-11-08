@@ -5,6 +5,7 @@ Handles all market analysis formatting in a single comprehensive class.
 from typing import Dict, List, Optional, Any
 from src.logger.logger import Logger
 from src.utils.token_counter import TokenCounter
+from src.indicators.constants import INDICATOR_THRESHOLDS
 
 
 class MarketFormatter:
@@ -15,13 +16,8 @@ class MarketFormatter:
         self.logger = logger
         self.token_counter = TokenCounter()
         self.format_utils = format_utils
-        # Define indicator thresholds locally since we don't have indicator_calculator here
-        self.INDICATOR_THRESHOLDS = {
-            'rsi': {'oversold': 30, 'overbought': 70},
-            'stoch_k': {'oversold': 20, 'overbought': 80},
-            'adx': {'weak': 25, 'strong': 50, 'very_strong': 75},
-            'bb_percent_b': {'oversold': 0.2, 'overbought': 0.8}
-        }
+        # Reference the global indicator thresholds constant
+        self.INDICATOR_THRESHOLDS = INDICATOR_THRESHOLDS
     
     def format_market_period_metrics(self, market_metrics: dict) -> str:
         """Format market metrics for different periods."""

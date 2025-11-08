@@ -1,17 +1,25 @@
 from datetime import datetime
-from typing import Optional, Set
+from typing import Optional, Set, TYPE_CHECKING
 
 import discord
 from discord.ext import commands
 
-from src.utils.loader import config
+if TYPE_CHECKING:
+    from src.contracts.config import ConfigProtocol
 
 
 class AntiSpam(commands.Cog):
     """Provides basic anti-spam measures based on message frequency."""
-    def __init__(self, bot: commands.Bot, spam_allowed_channels: Set[int]) -> None:
-        """Initializes the AntiSpam cog."""
+    def __init__(self, bot: commands.Bot, spam_allowed_channels: Set[int], config: "ConfigProtocol") -> None:
+        """Initializes the AntiSpam cog.
+        
+        Args:
+            bot: Discord bot instance
+            spam_allowed_channels: Set of channel IDs where spam is allowed
+            config: ConfigProtocol instance for guild settings
+        """
         self.bot = bot
+        self.config = config
         self.spam_allowed_channels = spam_allowed_channels
         self.spam_cd = commands.CooldownMapping.from_cooldown(5, 60.0, commands.BucketType.user)
         self.mute_role: Optional[discord.Role] = None
@@ -20,7 +28,7 @@ class AntiSpam(commands.Cog):
 
     async def initialize_role(self) -> None:
         """Initializes the mute role after the bot is ready."""
-        guild = self.bot.get_guild(config.GUILD_ID_DISCORD)
+        guild = self.bot.get_guild(self.config.GUILD_ID_DISCORD)
         if guild:
             self.mute_role = discord.utils.get(guild.roles, name="Muted")
             if self.mute_role:
@@ -28,9 +36,9 @@ class AntiSpam(commands.Cog):
                     self.logger.info(f"AntiSpam: Found Muted role (ID: {self.mute_role.id})")
             else:
                 if self.logger:
-                    self.logger.warning(f"AntiSpam: Mute role 'Muted' not found in guild {config.GUILD_ID_DISCORD}.")
+                    self.logger.warning(f"AntiSpam: Mute role 'Muted' not found in guild {self.config.GUILD_ID_DISCORD}.")
         elif self.logger:
-            self.logger.warning(f"AntiSpam: Could not find guild {config.GUILD_ID_DISCORD} during role initialization. Cache might still be populating.")
+            self.logger.warning(f"AntiSpam: Could not find guild {self.config.GUILD_ID_DISCORD} during role initialization. Cache might still be populating.")
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message) -> None:

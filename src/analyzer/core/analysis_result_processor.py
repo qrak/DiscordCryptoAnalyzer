@@ -1,60 +1,24 @@
 import json
 import io
 import re
-from typing import Dict, Any, Optional, Union
+from typing import Dict, Any, Optional, Union, TYPE_CHECKING
 
 from src.logger.logger import Logger
-from src.models.manager import ModelManager
 from src.parsing.unified_parser import UnifiedParser
+from src.utils.serialize import serialize_for_json, safe_tolist
+
+if TYPE_CHECKING:
+    from src.contracts.model_manager import ModelManagerProtocol
 
 
 class AnalysisResultProcessor:
     """Processes and formats market analysis results from AI models"""
     
-    def __init__(self, model_manager: ModelManager, logger: Logger):
+    def __init__(self, model_manager: "ModelManagerProtocol", logger: Logger):
         """Initialize the processor"""
         self.model_manager = model_manager
         self.logger = logger
         self.unified_parser = UnifiedParser(logger)
-
-    def _serialize_for_json(self, obj):
-        """Recursively convert numpy arrays/scalars and other non-JSON types to JSON-serializable types."""
-        try:
-            import numpy as _np
-        except Exception:
-            _np = None
-
-        # Dict
-        if isinstance(obj, dict):
-            return {k: self._serialize_for_json(v) for k, v in obj.items()}
-
-        # List/Tuple
-        if isinstance(obj, (list, tuple)):
-            return [self._serialize_for_json(v) for v in obj]
-
-        # Numpy array
-        if _np is not None and isinstance(obj, _np.ndarray):
-            try:
-                return obj.tolist()
-            except Exception:
-                return [self._serialize_for_json(v) for v in obj]
-
-        # Numpy scalar
-        if _np is not None and isinstance(obj, _np.generic):
-            try:
-                return obj.item()
-            except Exception:
-                return str(obj)
-
-        # Primitive types
-        if isinstance(obj, (str, int, float, bool)) or obj is None:
-            return obj
-
-        # Fallback to string representation
-        try:
-            return str(obj)
-        except Exception:
-            return None
         
     async def process_analysis(self, system_prompt: str, prompt: str, language: Optional[str] = None, 
                               chart_image: Optional[Union[io.BytesIO, bytes, str]] = None,
@@ -95,8 +59,7 @@ class AnalysisResultProcessor:
                     model=model
                 )
             except ValueError as e:
-                # Chart analysis failed, re-raise to let analysis engine handle fallback
-                self.logger.warning(f"Chart analysis failed: {e}")
+                # Chart analysis failed, re-raise to let analysis engine handle logging and fallback
                 raise
         else:
             # Use the standard send_prompt_streaming method
@@ -144,7 +107,7 @@ class AnalysisResultProcessor:
             # convert numpy arrays to lists for JSON serialization where applicable
             for k, v in technical_history.items():
                 try:
-                    analysis_obj["technical_history"][k] = v.tolist() if hasattr(v, 'tolist') else v
+                    analysis_obj["technical_history"][k] = safe_tolist(v)
                 except Exception:
                     analysis_obj["technical_history"][k] = str(type(v))
 
@@ -152,7 +115,7 @@ class AnalysisResultProcessor:
             analysis_obj["technical_data"] = technical_data
 
         # Create a JSON-serializable copy for the raw_response
-        serializable_analysis = self._serialize_for_json(analysis_obj)
+        serializable_analysis = serialize_for_json(analysis_obj)
         mock_json_string = json.dumps({"analysis": serializable_analysis}, indent=2)
 
         # Use the generated Markdown content and append indicators if available
@@ -170,8 +133,11 @@ class AnalysisResultProcessor:
                 indicators_section += "\n### Indicator Series (last 5 values each)\n"
                 for k, series in list(technical_history.items())[:20]:
                     try:
-                        vals = series.tolist() if hasattr(series, 'tolist') else list(series)
-                        sample = vals[-5:]
+                        vals = safe_tolist(series)
+                        if isinstance(vals, list):
+                            sample = vals[-5:]
+                        else:
+                            sample = list(vals)[-5:] if hasattr(vals, '__iter__') else [vals]
                         indicators_section += f"- **{k}** (last 5): {sample}\n"
                     except Exception:
                         indicators_section += f"- **{k}**: [unserializable]\n"

@@ -3,25 +3,38 @@ Simplified Discord File Handler using specialized components.
 Orchestrates message tracking, cleanup scheduling, and deletion operations.
 """
 import asyncio
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
 from .filehandler_components.tracking_persistence import TrackingPersistence
 from .filehandler_components.message_tracker import MessageTracker
 from .filehandler_components.cleanup_scheduler import CleanupScheduler
 from .filehandler_components.message_deleter import MessageDeleter
 
+if TYPE_CHECKING:
+    from src.contracts.config import ConfigProtocol
+
 
 class DiscordFileHandler:
     """Simplified handler for message tracking and automatic deletion with specialized components."""
     
-    def __init__(self, bot, logger, tracking_file="data/tracked_messages.json", cleanup_interval=7200):
+    def __init__(self, bot, logger, config: "ConfigProtocol", tracking_file="data/tracked_messages.json", cleanup_interval=7200):
+        """Initialize DiscordFileHandler with bot, logger, and config.
+        
+        Args:
+            bot: Discord bot instance
+            logger: Logger instance
+            config: ConfigProtocol instance for message expiry settings
+            tracking_file: Path to tracking persistence file
+            cleanup_interval: Cleanup interval in seconds
+        """
         self.bot = bot
         self.logger = logger
+        self.config = config
         self.is_initialized = False
         
         # Initialize specialized components
         self.persistence = TrackingPersistence(tracking_file, logger)
-        self.tracker = MessageTracker(self.persistence, logger)
+        self.tracker = MessageTracker(self.persistence, logger, config)
         self.scheduler = CleanupScheduler(cleanup_interval, logger)
         self.deleter = MessageDeleter(bot, logger)
     

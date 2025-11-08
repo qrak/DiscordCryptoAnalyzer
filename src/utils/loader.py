@@ -6,8 +6,11 @@ Loads private keys from keys.env and public configuration from config.ini.
 import configparser
 import logging
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, TYPE_CHECKING
 from dotenv import dotenv_values
+
+if TYPE_CHECKING:
+    from src.contracts.config import ConfigProtocol
 
 # Get the root directory (where keys.env is located) and config directory (where config.ini is located)
 ROOT_DIR = Path(__file__).parent.parent.parent.resolve()
@@ -16,7 +19,10 @@ KEYS_ENV_PATH = ROOT_DIR / "keys.env"
 CONFIG_INI_PATH = CONFIG_DIR / "config.ini"
 
 class Config:
-    """Configuration class that loads settings from environment and INI files."""
+    """Configuration class that loads settings from environment and INI files.
+    
+    Implements ConfigProtocol for type safety and dependency injection.
+    """
     
     def __init__(self):
         self._env_vars = {}

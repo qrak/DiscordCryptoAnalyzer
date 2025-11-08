@@ -1,11 +1,13 @@
 import json
 import re
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, TYPE_CHECKING
 
-from src.utils.loader import config
 from src.platforms.coingecko import CoinGeckoAPI
 from src.html.html_generator import AnalysisHtmlGenerator
 from src.logger.logger import Logger
+
+if TYPE_CHECKING:
+    from src.contracts.config import ConfigProtocol
 
 
 class AnalysisPublisher:
@@ -15,9 +17,19 @@ class AnalysisPublisher:
                 logger: Logger,
                 html_generator: AnalysisHtmlGenerator,
                 coingecko_api: CoinGeckoAPI,
+                config: "ConfigProtocol",
                 discord_notifier=None):
-        """Initialize the publisher"""
+        """Initialize the publisher.
+        
+        Args:
+            logger: Logger instance
+            html_generator: HTML generator for analysis reports
+            coingecko_api: CoinGecko API client
+            config: ConfigProtocol instance for Discord channel IDs
+            discord_notifier: Discord notifier (optional, can be set later)
+        """
         self.logger = logger
+        self.config = config
         self.html_generator = html_generator
         self.coingecko_api = coingecko_api
         self.discord_notifier = discord_notifier
@@ -27,7 +39,7 @@ class AnalysisPublisher:
         """Set Discord notifier after initialization (prevents circular dependencies)"""
         self.discord_notifier = discord_notifier
         
-    async def publish_analysis(self, 
+    async def publish_analysis(self,
                               symbol: str,
                               timeframe: str,
                               analysis_result: Dict[str, Any], 
@@ -83,7 +95,7 @@ class AnalysisPublisher:
                     self.analysis_file_url = await self.discord_notifier.upload_analysis_content(
                         html_content,
                         symbol,
-                        config.TEMPORARY_CHANNEL_ID_DISCORD,
+                        self.config.TEMPORARY_CHANNEL_ID_DISCORD,
                         provider=analysis_result.get("provider"),
                         model=analysis_result.get("model")
                     )
@@ -131,7 +143,7 @@ class AnalysisPublisher:
         
         await self.discord_notifier.send_message(
             message="",
-            channel_id=config.MAIN_CHANNEL_ID,
+            channel_id=self.config.MAIN_CHANNEL_ID,
             embed=embed
         )
     

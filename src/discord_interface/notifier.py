@@ -1,12 +1,14 @@
 import asyncio
 import io
-from typing import Optional, Any, Dict
+from typing import Optional, Any, Dict, TYPE_CHECKING
 
 import discord
 from aiohttp import ClientSession
 from discord.ext import commands
 
-from src.utils.loader import config
+if TYPE_CHECKING:
+    from src.contracts.config import ConfigProtocol
+
 from src.discord_interface.cogs.anti_spam import AntiSpam
 from src.discord_interface.cogs.command_handler import CommandHandler
 from src.discord_interface.cogs.reaction_handler import ReactionHandler
@@ -21,13 +23,30 @@ class DiscordNotifier:
                  logger,
                  symbol_manager,
                  market_analyzer,
+                 config: "ConfigProtocol",
                  format_utils=None) -> None:
+        """Initialize DiscordNotifier with dependencies.
+        
+        Args:
+            logger: Logger instance
+            symbol_manager: ExchangeManager instance
+            market_analyzer: AnalysisEngine instance
+            config: ConfigProtocol instance for Discord settings
+            format_utils: FormatUtils instance (optional)
+            
+        Raises:
+            ValueError: If config is None
+        """
+        if config is None:
+            raise ValueError("config is a required parameter and cannot be None")
+        
         self.logger = logger
+        self.config = config
         self.format_utils = format_utils
         self.symbol_manager = symbol_manager
         self.market_analyzer = market_analyzer
         self.session: Optional[ClientSession] = None
-        self.spam_allowed_channels = {config.TEMPORARY_CHANNEL_ID_DISCORD}
+        self.spam_allowed_channels = {self.config.TEMPORARY_CHANNEL_ID_DISCORD}
         self.is_initialized = False
         self._ready_event = asyncio.Event()  # New event to properly track ready state
 
@@ -47,7 +66,7 @@ class DiscordNotifier:
         self.bot.add_listener(self.on_command_error)
 
         # Initialize the file handler
-        self.file_handler = DiscordFileHandler(self.bot, self.logger)
+        self.file_handler = DiscordFileHandler(self.bot, self.logger, self.config)
 
         # Register setup_hook correctly
         self.bot.setup_hook = self.setup_bot
@@ -56,7 +75,7 @@ class DiscordNotifier:
         """Runs before the bot logs in, loads cogs."""
         try:
             self.logger.debug("Adding AntiSpam cog...")
-            await self.bot.add_cog(AntiSpam(self.bot, self.spam_allowed_channels))
+            await self.bot.add_cog(AntiSpam(self.bot, self.spam_allowed_channels, self.config))
             self.logger.debug("AntiSpam cog added.")
 
             self.logger.debug("Adding ReactionHandler cog...")
@@ -68,7 +87,8 @@ class DiscordNotifier:
                 self.bot,
                 self.logger,
                 symbol_manager=self.symbol_manager,
-                market_analyzer=self.market_analyzer
+                market_analyzer=self.market_analyzer,
+                config=self.config
             ))
             self.logger.debug("CommandHandler cog added.")
         except Exception as e:
@@ -141,7 +161,7 @@ class DiscordNotifier:
             
             help_embed.add_field(
                 name="Available Languages",
-                value=", ".join(sorted(config.SUPPORTED_LANGUAGES.keys())),
+                value=", ".join(sorted(self.config.SUPPORTED_LANGUAGES.keys())),
                 inline=False
             )
             
@@ -206,7 +226,7 @@ class DiscordNotifier:
             self.logger.error("Discord bot is not initialized.")
             return
         try:
-            await self.bot.start(config.BOT_TOKEN_DISCORD)
+            await self.bot.start(self.config.BOT_TOKEN_DISCORD)
         except discord.LoginFailure as e:
             self.logger.error(f"Discord Login Failure: {e}. Check your BOT_TOKEN_DISCORD.", exc_info=True)
         except discord.PrivilegedIntentsRequired as e:
@@ -228,8 +248,21 @@ class DiscordNotifier:
             file: Optional[discord.File] = None,
             embed: Optional[discord.Embed] = None,
             user_id: Optional[int] = None,
-            expire_after: Optional[int] = config.FILE_MESSAGE_EXPIRY
+            expire_after: Optional[int] = None
     ):
+        """Send a message to Discord with optional file tracking.
+        
+        Args:
+            message: Message text
+            channel_id: Discord channel ID
+            file: Optional file attachment
+            embed: Optional embed
+            user_id: Optional user ID for tracking
+            expire_after: Message expiry time in seconds (defaults to FILE_MESSAGE_EXPIRY from config)
+        """
+        if expire_after is None:
+            expire_after = self.config.FILE_MESSAGE_EXPIRY
+        
         await self.wait_until_ready()
         channel = self.bot.get_channel(channel_id)
         if not channel:
@@ -426,8 +459,19 @@ class DiscordNotifier:
             message: str,
             file: Optional[discord.File] = None,
             embed: Optional[discord.Embed] = None,
-            expire_after: Optional[int] = config.FILE_MESSAGE_EXPIRY
+            expire_after: Optional[int] = None
     ):
+        """Send a message in response to a command context with optional file tracking.
+        
+        Args:
+            ctx: Discord command context
+            message: Message text
+            file: Optional file attachment
+            embed: Optional embed
+            expire_after: Message expiry time in seconds (defaults to FILE_MESSAGE_EXPIRY from config)
+        """
+        if expire_after is None:
+            expire_after = self.config.FILE_MESSAGE_EXPIRY
         user_id = ctx.author.id if ctx and hasattr(ctx, 'author') else None
         return await self.send_message(
             message=message,

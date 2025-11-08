@@ -4,12 +4,14 @@ Handles input validation, permission checks, and cooldown management.
 """
 import re
 from datetime import datetime, timedelta
-from typing import Dict, Optional, Tuple, Union
+from typing import Dict, Optional, Tuple, Union, TYPE_CHECKING
 from dataclasses import dataclass
 from discord.ext import commands
 
-from src.utils.loader import config
 from src.utils.timeframe_validator import TimeframeValidator
+
+if TYPE_CHECKING:
+    from src.contracts.config import ConfigProtocol
 
 
 @dataclass
@@ -27,8 +29,15 @@ class ValidationResult:
 class CommandValidator:
     """Handles validation of commands and user permissions."""
     
-    def __init__(self, logger):
+    def __init__(self, logger, config: "ConfigProtocol"):
+        """Initialize CommandValidator with logger and self.config.
+        
+        Args:
+            logger: Logger instance
+            config: ConfigProtocol instance for cooldown and language settings
+        """
         self.logger = logger
+        self.config = config
         self.coin_cooldowns: Dict[str, datetime] = {}
         self.user_cooldowns: Dict[int, datetime] = {}
         self.ongoing_analyses: set[str] = set()
@@ -48,13 +57,13 @@ class CommandValidator:
             return True, None
             
         requested_lang = language.capitalize()
-        if requested_lang in config.SUPPORTED_LANGUAGES:
+        if requested_lang in self.config.SUPPORTED_LANGUAGES:
             return True, requested_lang
         return False, None
     
     def validate_channel(self, channel_id: int) -> bool:
         """Validate that command is used in correct channel."""
-        return channel_id == config.MAIN_CHANNEL_ID
+        return channel_id == self.config.MAIN_CHANNEL_ID
     
     def _is_valid_timeframe(self, arg: str) -> bool:
         """
@@ -129,7 +138,7 @@ class CommandValidator:
             # Validate language
             is_valid_lang, validated_lang = self.validate_language(language_arg)
             if not is_valid_lang:
-                supported_langs = ", ".join(config.SUPPORTED_LANGUAGES.keys())
+                supported_langs = ", ".join(self.config.SUPPORTED_LANGUAGES.keys())
                 return False, f"Unsupported language '{language_arg}'. Available: {supported_langs}", None, (None, None, None)
             language = validated_lang
         
@@ -311,7 +320,7 @@ class CommandValidator:
     def is_admin(self, ctx: commands.Context) -> bool:
         """Check if user has admin permissions."""
         # Check if user ID is in admin list
-        admin_ids = config.ADMIN_USER_IDS
+        admin_ids = self.config.ADMIN_USER_IDS
         if ctx.author.id in admin_ids:
             return True
         # Fallback to Discord guild permissions

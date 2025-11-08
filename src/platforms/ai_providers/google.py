@@ -77,6 +77,48 @@ class GoogleAIClient:
         
         return "\n\n".join(text_parts)
     
+    def _extract_text_from_response(self, response) -> str:
+        """
+        Extract text content from Google AI response, handling non-text parts gracefully.
+        
+        Some models (like Gemini with thinking mode) return additional parts like 'thought_signature'
+        that are not text. We extract only text parts and log info about non-text parts.
+        
+        Args:
+            response: Response object from Google AI SDK
+            
+        Returns:
+            Concatenated text content from all text parts
+        """
+        try:
+            # Try to use response.text first (simplest case)
+            return response.text
+        except Exception:
+            # If response.text fails or logs warnings, manually extract text parts
+            try:
+                text_parts = []
+                non_text_parts = []
+                
+                for candidate in response.candidates:
+                    for part in candidate.content.parts:
+                        if hasattr(part, 'text') and part.text:
+                            text_parts.append(part.text)
+                        else:
+                            # Track non-text part types
+                            part_type = type(part).__name__
+                            non_text_parts.append(part_type)
+                
+                if non_text_parts:
+                    self.logger.debug(
+                        f"Google AI response contains non-text parts: {non_text_parts}. "
+                        f"Extracting text content only."
+                    )
+                
+                return "\n".join(text_parts)
+            except Exception as e:
+                self.logger.error(f"Failed to extract text from Google AI response: {e}")
+                return ""
+    
     def _create_generation_config(self, model_config: Dict[str, Any]) -> types.GenerateContentConfig:
         """
         Create a generation config from model configuration dictionary.
@@ -126,8 +168,8 @@ class GoogleAIClient:
                 config=generation_config
             )
             
-            # Extract content directly - the SDK guarantees response structure
-            content_text = response.text
+            # Extract content safely, handling non-text parts
+            content_text = self._extract_text_from_response(response)
             
             self.logger.debug("Received successful response from Google AI")
             
@@ -204,8 +246,8 @@ class GoogleAIClient:
                 config=generation_config
             )
             
-            # Extract content directly
-            content_text = response.text
+            # Extract content safely, handling non-text parts
+            content_text = self._extract_text_from_response(response)
             
             self.logger.debug("Received successful chart analysis response from Google AI")
             
@@ -292,8 +334,8 @@ class GoogleAIClient:
                 config=generation_config
             )
             
-            # Extract content directly
-            content_text = response.text
+            # Extract content safely, handling non-text parts
+            content_text = self._extract_text_from_response(response)
             
             self.logger.debug("Received successful multimodal response from Google AI")
             

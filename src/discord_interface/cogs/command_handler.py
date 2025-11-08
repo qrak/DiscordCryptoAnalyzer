@@ -4,7 +4,6 @@ from typing import Optional, Any, TYPE_CHECKING
 import discord
 from discord.ext import commands
 
-from src.utils.loader import config
 from src.utils.decorators import retry_async
 from src.discord_interface.cogs.handlers.command_validator import CommandValidator, ValidationResult
 from src.discord_interface.cogs.handlers.response_builder import ResponseBuilder
@@ -15,19 +14,29 @@ if TYPE_CHECKING:
     from logging import Logger
     from src.analyzer.core.analysis_engine import AnalysisEngine
     from src.platforms.exchange_manager import ExchangeManager
+    from src.contracts.config import ConfigProtocol
 
 
 class CommandHandler(commands.Cog):
     """Handles bot commands like market analysis using specialized components."""
     
-    def __init__(self, bot: commands.Bot, logger: 'Logger', symbol_manager: 'ExchangeManager', market_analyzer: 'AnalysisEngine') -> None:
-        """Initialize the CommandHandler with specialized components."""
+    def __init__(self, bot: commands.Bot, logger: 'Logger', symbol_manager: 'ExchangeManager', market_analyzer: 'AnalysisEngine', config: 'ConfigProtocol') -> None:
+        """Initialize the CommandHandler with specialized components.
+        
+        Args:
+            bot: Discord bot instance
+            logger: Logger instance
+            symbol_manager: ExchangeManager instance
+            market_analyzer: AnalysisEngine instance
+            config: ConfigProtocol instance for file expiry settings
+        """
         self.bot = bot
         self.logger = logger
+        self.config = config
         self._command_lock = asyncio.Lock()
         
         # Initialize specialized components
-        self.validator = CommandValidator(logger)
+        self.validator = CommandValidator(logger, config)
         self.response_builder = ResponseBuilder(logger)
         self.error_handler = ErrorHandler(logger)
         self.analysis_handler = AnalysisHandler(logger, symbol_manager, market_analyzer)
@@ -41,8 +50,16 @@ class CommandHandler(commands.Cog):
         except Exception as e:
             return await self.error_handler.handle_message_deletion_error(message, e)
 
-    async def track_user_command(self, ctx: commands.Context, expire_after: Optional[int] = config.FILE_MESSAGE_EXPIRY) -> None:
-        """Track user command message for deletion via notifier."""
+    async def track_user_command(self, ctx: commands.Context, expire_after: Optional[int] = None) -> None:
+        """Track user command message for deletion via notifier.
+        
+        Args:
+            ctx: Discord command context
+            expire_after: Message expiry time in seconds (defaults to FILE_MESSAGE_EXPIRY from config)
+        """
+        if expire_after is None:
+            expire_after = self.config.FILE_MESSAGE_EXPIRY
+        
         if hasattr(self.bot, 'discord_notifier') and hasattr(self.bot.discord_notifier, 'file_handler'):
             notifier = self.bot.discord_notifier
             await notifier.file_handler.track_message(
@@ -98,14 +115,14 @@ class CommandHandler(commands.Cog):
 
             # Use default provider and model from config if not specified
             if provider is None:
-                provider = config.PROVIDER
+                provider = self.config.PROVIDER
             if model is None:
                 if provider == 'googleai':
-                    model = config.GOOGLE_STUDIO_MODEL
+                    model = self.config.GOOGLE_STUDIO_MODEL
                 elif provider == 'openrouter':
-                    model = config.OPENROUTER_BASE_MODEL
+                    model = self.config.OPENROUTER_BASE_MODEL
                 elif provider == 'local':
-                    model = config.LM_STUDIO_MODEL
+                    model = self.config.LM_STUDIO_MODEL
 
             self.validator.add_ongoing_analysis(symbol)
             self.analysis_handler.add_user_in_progress(ctx.author.id)
@@ -136,11 +153,11 @@ class CommandHandler(commands.Cog):
 
         # Validate channel
         if not self.validator.validate_channel(ctx.channel.id):
-            return ValidationResult(is_valid=False, error_message=self.response_builder.build_wrong_channel_message(config.MAIN_CHANNEL_ID))
+            return ValidationResult(is_valid=False, error_message=self.response_builder.build_wrong_channel_message(self.config.MAIN_CHANNEL_ID))
 
         # Parse arguments and perform comprehensive validation
         args = ctx.message.content.split()[1:]
-        return self.validator.validate_full_analysis_request(ctx, args, config.ANALYSIS_COOLDOWN_COIN, config.ANALYSIS_COOLDOWN_USER)
+        return self.validator.validate_full_analysis_request(ctx, args, self.config.ANALYSIS_COOLDOWN_COIN, self.config.ANALYSIS_COOLDOWN_USER)
 
     async def _perform_analysis_workflow(self, symbol: str, ctx: commands.Context, language: Optional[str], 
                                          timeframe: Optional[str] = None, provider: Optional[str] = None, 

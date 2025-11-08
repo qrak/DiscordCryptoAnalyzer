@@ -5,6 +5,7 @@ Simplified orchestrator using the new consolidated formatting components.
 from typing import Optional
 
 from src.logger.logger import Logger
+from src.indicators.constants import INDICATOR_THRESHOLDS
 from .market_formatter import MarketFormatter
 
 
@@ -22,15 +23,8 @@ class IndicatorFormatter:
         
         # Initialize consolidated formatter
         self.market_formatter = MarketFormatter(logger, format_utils)
-        # Default thresholds for indicator analysis
-        self.INDICATOR_THRESHOLDS = {
-            'rsi': {'oversold': 30, 'overbought': 70},
-            'stoch_k': {'oversold': 20, 'overbought': 80},
-            'stoch_d': {'oversold': 20, 'overbought': 80},
-            'adx': {'weak': 25, 'strong': 50, 'very_strong': 75},
-            'mfi': {'oversold': 20, 'overbought': 80},
-            'williams_r': {'oversold': -80, 'overbought': -20}
-        }
+        # Reference the global indicator thresholds constant
+        self.INDICATOR_THRESHOLDS = INDICATOR_THRESHOLDS
         
     def format_timestamp(self, timestamp_ms) -> str:
         """Format a timestamp from milliseconds since epoch to a human-readable string."""

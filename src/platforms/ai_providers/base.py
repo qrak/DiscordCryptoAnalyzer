@@ -48,21 +48,23 @@ class BaseApiClient:
         if error_text is None:
             error_text = "No error details available"
             
-        self.logger.error(f"API Error for model {model}: Status {response.status} - {error_text}")
+        # Log as debug - higher level will log with proper context
+        self.logger.debug(f"API Error for model {model}: Status {response.status} - {error_text}")
         
         error_details = {
             401: "Authentication error with API key. Check your API key.",
             403: "Permission denied. Your API key may not have access to this model.",
-            404: f"Model {model} not found.",
+            404: f"Model {model} not found or doesn't support this operation.",
             408: "Request timeout. The server took too long to respond.",
             429: "Rate limit exceeded. Consider upgrading your plan." if "Rate limit exceeded" in error_text else "Too many requests. Temporary rate limit."
         }
         
+        # Log detailed error info as debug - higher level decides what to show user
         if response.status in error_details:
-            self.logger.error(error_details[response.status])
+            self.logger.debug(error_details[response.status])
             
         if response.status >= 500:
-            self.logger.error(f"Server error. The service may be experiencing issues.")
+            self.logger.debug(f"Server error. The service may be experiencing issues.")
             
         if "Rate limit exceeded" in error_text:
             return {"error": "rate_limit", "details": error_text}

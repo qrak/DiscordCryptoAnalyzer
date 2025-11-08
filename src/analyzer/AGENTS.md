@@ -49,6 +49,54 @@ See **`pattern_engine/AGENTS.md`** for comprehensive pattern detection documenta
 
 **Purpose**: Main orchestrator that coordinates the entire analysis pipeline from data collection to publication.
 
+**Constructor (Dependency Injection)**:
+```python
+def __init__(
+    self,
+    logger: Logger,
+    rag_engine: RagEngine,
+    coingecko_api: CoinGeckoAPI,
+    model_manager: ModelManagerProtocol,
+    alternative_me_api: AlternativeMeAPI,
+    cryptocompare_api,
+    format_utils,
+    data_processor,
+    config: ConfigProtocol,
+    discord_notifier=None
+) -> None:
+```
+
+**Dependency Injection Pattern**:
+- **Required parameters**: `logger`, `rag_engine`, `coingecko_api`, `model_manager`, `alternative_me_api`, `cryptocompare_api`, `format_utils`, `data_processor`, `config`
+- **Optional parameters**: `discord_notifier` (can be set later via `set_discord_notifier()` to avoid circular dependencies)
+- **`model_manager`**: Accepts `ModelManagerProtocol` (defined in `src/contracts/model_manager.py`)
+- **`config`**: Accepts `ConfigProtocol` (defined in `src/contracts/config.py`) for timeframe, candle limits, debug settings
+- **No Optional fallbacks**: All required parameters validated on initialization, raises `ValueError` if `None`
+- **Initialized in `app.py`**: All dependencies created and injected in `DiscordCryptoBot.initialize()`
+
+**Required Parameter Validation**:
+```python
+# All required dependencies validated on initialization
+if config is None:
+    raise ValueError("config is a required parameter and cannot be None")
+if model_manager is None:
+    raise ValueError("model_manager is a required parameter and cannot be None")
+if alternative_me_api is None:
+    raise ValueError("alternative_me_api is a required parameter and cannot be None")
+if cryptocompare_api is None:
+    raise ValueError("cryptocompare_api is a required parameter and cannot be None")
+if format_utils is None:
+    raise ValueError("format_utils is a required parameter and cannot be None")
+if data_processor is None:
+    raise ValueError("data_processor is a required parameter and cannot be None")
+```
+
+**Configuration Usage**:
+- `config.TIMEFRAME`: Default analysis timeframe (e.g., '1h', '4h')
+- `config.CANDLE_LIMIT`: Maximum candles to fetch for analysis
+- `config.DEBUG_SAVE_CHARTS`: Whether to save chart images for debugging
+- `config.TEST_ENVIRONMENT`: Enable test mode features
+
 **Key Responsibilities**:
 - Initialize all analysis components with proper dependency injection
 - Coordinate multi-timeframe data collection (1h, 2h, 4h, 6h, 8h, 12h, 1d)
@@ -62,10 +110,9 @@ See **`pattern_engine/AGENTS.md`** for comprehensive pattern detection documenta
 - **`_execute_analysis_pipeline()`**: Internal pipeline orchestration
 - **`set_discord_notifier(discord_notifier)`**: Set Discord integration (avoids circular dependencies)
 
-**Component Initialization**:
+**Component Initialization** (internal, not injected):
 ```python
-# Specialized components
-self.model_manager = ModelManager(logger)
+# These components are created internally by AnalysisEngine
 self.technical_calculator = TechnicalCalculator(logger, format_utils)
 self.pattern_analyzer = PatternAnalyzer(logger, format_utils)
 self.prompt_builder = PromptBuilder(timeframe, logger, technical_calculator, config, format_utils)
@@ -145,9 +192,41 @@ context.indicators = indicators
 
 **Purpose**: Transforms raw AI model responses into structured, validated analysis results.
 
+**Dependencies**:
+- `model_manager`: ModelManagerProtocol for AI communication
+- `logger`: Logger instance
+- **Serialization**: Uses `src/utils/serialize.py` for numpy/JSON conversion
+
 **Responsibilities**:
 - Parse JSON from AI responses (handles markdown fences, formatting issues)
 - Validate required fields in analysis results
+- Format final responses with metadata
+- Generate mock analysis data for testing
+- **Serialize complex Python objects** (NumPy arrays, scalars) to JSON-compatible formats
+
+**Key Methods**:
+- **`process_analysis()`**: Main processing pipeline - sends prompt to AI and formats response
+- **`process_mock_analysis()`**: Generate mock analysis for testing (no AI call)
+
+**Serialization Utilities** (from `src/utils/serialize.py`):
+- **`serialize_for_json(obj)`**: Recursively converts NumPy arrays/scalars to JSON-serializable types
+  - Handles dicts, lists, tuples, NumPy arrays (→ list), NumPy scalars (→ primitives)
+  - Fallback to string representation for unknown types
+- **`safe_tolist(obj)`**: Safely converts objects with `.tolist()` method, returns original if not available
+
+**Usage Example**:
+```python
+from src.utils.serialize import serialize_for_json
+
+# Serialize complex data with NumPy objects
+data = {
+    "prices": np.array([100, 101, 102]),
+    "average": np.float64(101.0),
+    "count": np.int32(3)
+}
+json_data = serialize_for_json(data)
+# Returns: {"prices": [100, 101, 102], "average": 101.0, "count": 3}
+```
 - Extract structured data (trend, strength, price targets, confidence)
 - Handle parsing failures gracefully with error details
 - Preserve raw response for HTML generation
@@ -837,6 +916,24 @@ rsi_patterns = patterns["indicator_patterns"]["rsi"]
 - **Modular sections**: Only includes available data
 
 ## Error Handling
+
+### Chart Analysis Fallback
+
+When chart analysis fails (model doesn't support images, API error, etc.), the system automatically falls back to text-only analysis:
+
+1. `AnalysisEngine` attempts chart analysis if `chart_image` is available and provider supports it
+2. If `ValueError` is raised by `AnalysisResultProcessor`, engine catches it and logs WARNING with full context
+3. Engine rebuilds prompts without chart analysis flag (`has_chart_analysis = False`)
+4. Retries with `chart_image=None` (text-only analysis)
+5. Logs INFO on successful fallback
+
+**Log output example**:
+```
+WARNING: Chart analysis failed for BTC/USDT via OPENROUTER (kimi-k2-thinking): Model not found or doesn't support this operation. Retrying with text-only analysis...
+INFO: Text-only analysis completed successfully for BTC/USDT
+```
+
+See **`src/platforms/AGENTS.md`** for detailed error handling philosophy and logging strategy across all layers.
 
 ### Data Collection Failures
 - Graceful degradation if news/sentiment unavailable

@@ -495,11 +495,139 @@ response = await client.chat_completion_with_images(
 - System messages converted to user messages with "System instructions:" prefix
 - Multimodal content: `[{"type": "text", "text": "..."}, {"type": "image_url", "image_url": {...}}]`
 
-## Provider Fallback System
+## Provider Fallback System & ModelManager
 
-**Location**: `src/analyzer/prompts/manager.py` (ModelManager)
+**Location**: `src/models/manager.py` (Note: AGENTS.md previously referenced `src/analyzer/prompts/manager.py` - this is outdated)
 
 **Purpose**: Automatic fallback chain across AI providers to ensure analysis resilience.
+
+**Architecture**:
+- **Protocol-based**: ModelManager implements `ModelManagerProtocol` from `src/contracts/model_manager.py`
+- **Config injection**: ModelManager receives `ConfigProtocol` instance for provider settings, API keys, model names
+- **Dependency injection**: ModelManager is created in `app.py` and injected into AnalysisEngine
+- **Factory pattern**: Uses `ProviderFactory` to centralize AI client creation logic
+- **No Optional fallbacks**: ModelManager is a required parameter (follows project DI guidelines)
+
+### ProviderFactory
+
+**Location**: `src/factories/provider_factory.py`
+
+**Purpose**: Centralized factory for creating AI provider client instances based on configuration.
+
+**Design Benefits**:
+- **Single responsibility**: Encapsulates all provider instantiation logic
+- **Testable**: Can inject mock factory for testing
+- **Maintainable**: Provider creation logic in one place, not scattered across ModelManager
+- **Explicit dependencies**: Clear what each provider needs (API keys, URLs, models)
+
+**Key Methods**:
+
+#### `create_google_clients() -> Tuple[Optional[GoogleAIClient], Optional[GoogleAIClient]]`
+Create Google AI clients (free tier and optional paid tier):
+```python
+factory = ProviderFactory(logger, config)
+google_client, google_paid_client = factory.create_google_clients()
+# Returns: (GoogleAIClient, GoogleAIClient) or (GoogleAIClient, None) or (None, None)
+```
+
+#### `create_openrouter_client() -> Optional[OpenRouterClient]`
+Create OpenRouter client if API key configured:
+```python
+openrouter_client = factory.create_openrouter_client()
+# Returns: OpenRouterClient or None
+```
+
+#### `create_lmstudio_client() -> Optional[LMStudioClient]`
+Create LM Studio client for local inference:
+```python
+lmstudio_client = factory.create_lmstudio_client()
+# Returns: LMStudioClient or None
+```
+
+#### `create_all_clients() -> dict`
+Create all available clients in one call:
+```python
+clients = factory.create_all_clients()
+# Returns: {
+#     'google': GoogleAIClient or None,
+#     'google_paid': GoogleAIClient or None,
+#     'openrouter': OpenRouterClient or None,
+#     'lmstudio': LMStudioClient or None
+# }
+```
+
+**Usage in ModelManager**:
+```python
+from src.factories import ProviderFactory
+
+class ModelManager(ModelManagerProtocol):
+    def __init__(self, logger: Logger, config: "ConfigProtocol") -> None:
+        self.logger = logger
+        self.config = config
+        
+        # Use factory to create all clients
+        factory = ProviderFactory(logger, config)
+        clients = factory.create_all_clients()
+        
+        self.openrouter_client = clients['openrouter']
+        self.google_client = clients['google']
+        self.google_paid_client = clients['google_paid']
+        self.lm_studio_client = clients['lmstudio']
+```
+
+**Constructor**:
+```python
+def __init__(self, logger: Logger, config: ConfigProtocol) -> None:
+    """Initialize ModelManager with logger and config.
+    
+    Args:
+        logger: Logger instance
+        config: ConfigProtocol instance for accessing provider settings
+    
+    Raises:
+        ValueError: If config is None
+    """
+```
+
+**Initialization**:
+```python
+# In app.py (DiscordCryptoBot.initialize())
+from src.utils.loader import config
+
+self.model_manager = ModelManager(self.logger, config)
+self.market_analyzer = AnalysisEngine(
+    logger=self.logger,
+    rag_engine=self.rag_engine,
+    coingecko_api=self.coingecko_api,
+    model_manager=self.model_manager,  # Required parameter
+    config=config,                      # Required parameter
+    # ... other dependencies
+)
+```
+
+**Configuration Usage**:
+- `config.PROVIDER`: Primary AI provider ('googleai', 'local', 'openrouter')
+- `config.GOOGLE_STUDIO_API_KEY`, `config.GOOGLE_STUDIO_PAID_API_KEY`: Google AI credentials
+- `config.OPENROUTER_API_KEY`, `config.OPENROUTER_BASE_URL`: OpenRouter settings
+- `config.LM_STUDIO_BASE_URL`, `config.LM_STUDIO_MODEL`: Local LM Studio settings
+- `config.get_model_config(model_name)`: Retrieve model-specific configuration (temperature, top_p, max_tokens)
+
+**Protocol Contract** (`src/contracts/model_manager.py`):
+```python
+class ModelManagerProtocol(Protocol):
+    token_counter: TokenCounter  # Regular attribute for token tracking
+    
+    async def send_prompt_streaming(...) -> str: ...
+    async def send_prompt_with_chart_analysis(...) -> str: ...
+    def supports_image_analysis(...) -> bool: ...
+    def describe_provider_and_model(...) -> Tuple[str, str]: ...
+    async def close() -> None: ...
+```
+
+**Benefits of Protocol-based Design**:
+- Enables dependency injection and testing with mock implementations
+- Type-safe without circular import issues (uses TYPE_CHECKING)
+- Clear contract definition for what AnalysisEngine requires from AI providers
 
 **Fallback Order** (configured in `config.ini`):
 1. **Google AI** (primary, fast and cheap)
@@ -538,15 +666,30 @@ except RateLimitError:
 
 **Location**: `src/analyzer/core/analysis_engine.py`
 
+**Constructor Signature** (updated with DI):
 ```python
 class AnalysisEngine:
-    def __init__(self, ..., exchange_manager, coingecko, cryptocompare, alternative_me, model_manager):
-        self.exchange_manager = exchange_manager
-        self.coingecko = coingecko
-        self.cryptocompare = cryptocompare
-        self.alternative_me = alternative_me
+    def __init__(
+        self,
+        logger: Logger,
+        rag_engine: RagEngine,
+        coingecko_api: CoinGeckoAPI,
+        model_manager: ModelManagerProtocol,  # Required parameter (Protocol type)
+        alternative_me_api: AlternativeMeAPI = None,
+        cryptocompare_api = None,
+        discord_notifier = None,
+        format_utils = None,
+        data_processor = None
+    ) -> None:
+        # model_manager is required - raises ValueError if None
+        if model_manager is None:
+            raise ValueError("model_manager is a required parameter and cannot be None")
         self.model_manager = model_manager
-    
+        # ...
+```
+
+**Usage Example**:
+```python
     async def analyze_market(self, symbol: str) -> Dict[str, Any]:
         # 1. Find exchange supporting symbol
         exchange, exchange_id = await self.exchange_manager.find_symbol_exchange(symbol)
@@ -703,6 +846,35 @@ analysis = await model_manager.get_analysis(
 
 ## Error Handling
 
+### Logging Philosophy
+
+**Layered Error Logging**:
+The system uses a layered approach to error logging to avoid duplication and provide clear context:
+
+1. **Low-level (base.py)**: Logs at DEBUG level - implementation details only
+   - HTTP status codes, raw error responses
+   - Network errors, timeouts, connection failures
+   - These are diagnostic details, not user-facing errors
+
+2. **Mid-level (provider clients)**: Logs provider-specific errors at ERROR level
+   - Google AI, OpenRouter, LM Studio failures
+   - Includes model name and operation context
+   - Example: `"OpenRouter chart analysis failed: model=kimi-k2-thinking, error=404"`
+
+3. **Top-level (analysis_engine.py)**: Logs user-facing warnings/errors
+   - Clear context about what failed and what fallback is happening
+   - Example: `"Chart analysis failed for BTC/USDT via OPENROUTER (kimi-k2-thinking): Model not found. Retrying with text-only analysis..."`
+   - Success confirmation after fallback: `"Text-only analysis completed successfully for BTC/USDT"`
+
+**Error Flow Example** (Chart Analysis Failure):
+```
+1. OpenRouter API returns 404 → base.py logs DEBUG: "API Error for model X: Status 404"
+2. OpenRouterClient returns error dict → manager.py logs ERROR: "OpenRouter chart analysis failed: model=X, error=404"
+3. ModelManager raises ValueError → analysis_result_processor.py re-raises (no log)
+4. AnalysisEngine catches ValueError → logs WARNING with full context + retries text-only
+5. If text-only succeeds → logs INFO: "Text-only analysis completed successfully"
+```
+
 ### Network Errors
 
 All API clients use `@retry_api_call` decorator:
@@ -712,6 +884,32 @@ async def get_data(...):
     # Automatically retries on network errors
     # Exponential backoff: 1s, 2s, 4s
 ```
+
+### Chart Analysis Fallback
+
+**Chart Analysis → Text-only Fallback**:
+When chart analysis fails (model doesn't support images, API error, etc.):
+1. `ModelManager.send_prompt_with_chart_analysis()` raises `ValueError`
+2. `AnalysisResultProcessor` re-raises without logging (avoids duplicate)
+3. `AnalysisEngine` catches, logs WARNING with full context, rebuilds prompts without chart flag
+4. Retries with `chart_image=None` (text-only analysis)
+5. Logs INFO on success
+
+**Why this approach?**:
+- Single clear warning to user with all context (symbol, provider, model, error)
+- No duplicate "Chart analysis failed" messages at multiple levels
+- Success confirmation so user knows fallback worked
+
+### Google AI SDK Warnings
+
+**Non-text Response Parts**:
+Some Google AI models (e.g., Gemini with thinking mode) return additional response parts like `thought_signature` that are not text content. The Google GenAI SDK logs a warning when accessing `response.text` if non-text parts exist.
+
+**Our handling**:
+- `GoogleAIClient._extract_text_from_response()` manually extracts text parts
+- Logs DEBUG message about non-text parts (informational, not an error)
+- Returns concatenated text content only
+- User sees: `"Google AI response contains non-text parts: ['ThoughtSignature']. Extracting text content only."`
 
 ### Rate Limits
 

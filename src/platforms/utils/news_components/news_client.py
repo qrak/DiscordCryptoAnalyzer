@@ -7,7 +7,10 @@ from typing import Dict, List, Any, Optional
 
 import aiohttp
 
-from src.utils.loader import config
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from src.contracts.config import ConfigProtocol
 from src.logger.logger import Logger
 from src.utils.decorators import retry_api_call
 
@@ -15,8 +18,9 @@ from src.utils.decorators import retry_api_call
 class CryptoCompareNewsClient:
     """Handles direct API communication with CryptoCompare news service."""
     
-    def __init__(self, logger: Logger):
+    def __init__(self, logger: Logger, config: "ConfigProtocol"):
         self.logger = logger
+        self.config = config
     
     @retry_api_call(max_retries=3)
     async def fetch_news(
@@ -35,7 +39,7 @@ class CryptoCompareNewsClient:
             if important_cats:
                 categories_param = f"&categories={','.join(important_cats[:5])}"
                 
-        url = f"{config.RAG_NEWS_API_URL}{categories_param}"
+        url = f"{self.config.RAG_NEWS_API_URL}{categories_param}"
         
         # Use provided session if available, otherwise create temporary one
         session_to_use = session or aiohttp.ClientSession()

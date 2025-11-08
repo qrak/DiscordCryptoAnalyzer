@@ -2,6 +2,7 @@ from typing import Dict, Any, Optional
 import numpy as np
 
 from src.indicators.base.technical_indicators import TechnicalIndicators
+from src.indicators.constants import INDICATOR_THRESHOLDS
 from src.logger.logger import Logger
 
 
@@ -14,16 +15,8 @@ class TechnicalCalculator:
         self.format_utils = format_utils
         self.ti = TechnicalIndicators()
         
-        # Define indicator thresholds as instance variable so it's available to all methods
-        self.INDICATOR_THRESHOLDS = {
-            'rsi': {'oversold': 30, 'overbought': 70},
-            'stoch_k': {'oversold': 20, 'overbought': 80},
-            'stoch_d': {'oversold': 20, 'overbought': 80},
-            'williams_r': {'oversold': -80, 'overbought': -20},
-            'adx': {'weak': 25, 'strong': 50, 'very_strong': 75},
-            'mfi': {'oversold': 20, 'overbought': 80},
-            'bb_width': {'tight': 2, 'wide': 10}
-        }
+        # Reference the global indicator thresholds constant
+        self.INDICATOR_THRESHOLDS = INDICATOR_THRESHOLDS
         
     def get_indicators(self, ohlcv_data: np.ndarray) -> Dict[str, np.ndarray]:
         """Calculate all technical indicators - no caching, always fresh"""

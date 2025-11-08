@@ -1,18 +1,33 @@
 import asyncio
 from datetime import datetime
-from typing import Dict, List, Optional, Set, Tuple, Any
+from typing import Dict, List, Optional, Set, Tuple, Any, TYPE_CHECKING
 
 import ccxt.async_support as ccxt
 import aiohttp
 
 from src.logger.logger import Logger
 from src.utils.decorators import retry_async
-from src.utils.loader import config
+
+if TYPE_CHECKING:
+    from src.contracts.config import ConfigProtocol
 
 
 class ExchangeManager:
-    def __init__(self, logger: Logger):
+    def __init__(self, logger: Logger, config: "ConfigProtocol"):
+        """Initialize ExchangeManager with logger and self.config.
+        
+        Args:
+            logger: Logger instance
+            config: ConfigProtocol instance for exchange settings
+            
+        Raises:
+            ValueError: If config is None
+        """
+        if config is None:
+            raise ValueError("config is a required parameter and cannot be None")
+        
         self.logger = logger
+        self.config = config
         self.exchanges: Dict[str, ccxt.Exchange] = {}
         self.symbols_by_exchange: Dict[str, Set[str]] = {}
         self.exchange_last_loaded: Dict[str, datetime] = {}
@@ -22,7 +37,7 @@ class ExchangeManager:
             'enableRateLimit': True,
             'options': {'defaultType': 'spot'}
         }
-        self.exchange_names = config.SUPPORTED_EXCHANGES
+        self.exchange_names = self.config.SUPPORTED_EXCHANGES
         self.session: Optional[aiohttp.ClientSession] = None
     
     async def initialize(self) -> None:
@@ -117,7 +132,7 @@ class ExchangeManager:
             last_loaded = self.exchange_last_loaded.get(exchange_id)
             
             # Check if refresh is needed (based on MARKET_REFRESH_HOURS)
-            if last_loaded and (now - last_loaded).total_seconds() < config.MARKET_REFRESH_HOURS * 3600:
+            if last_loaded and (now - last_loaded).total_seconds() < self.config.MARKET_REFRESH_HOURS * 3600:
                 self.logger.debug(f"Using cached {exchange_id} markets")
                 return self.exchanges[exchange_id]
             else:
@@ -179,7 +194,7 @@ class ExchangeManager:
                     self.logger.debug("No exchanges loaded yet, skipping periodic refresh")
                 
                 # Wait for next update cycle
-                sleep_hours = config.MARKET_REFRESH_HOURS
+                sleep_hours = self.config.MARKET_REFRESH_HOURS
                 self.logger.info(f"Next periodic update in {sleep_hours} hours")
                 await asyncio.sleep(sleep_hours * 3600)
                 

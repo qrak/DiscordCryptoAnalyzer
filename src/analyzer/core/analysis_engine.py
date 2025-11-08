@@ -1,6 +1,5 @@
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, TYPE_CHECKING
 
-from src.utils.loader import config
 from src.utils.timeframe_validator import TimeframeValidator
 from src.platforms.alternative_me import AlternativeMeAPI
 from src.platforms.coingecko import CoinGeckoAPI
@@ -15,24 +14,52 @@ from ..prompts.prompt_builder import PromptBuilder
 from src.html.html_generator import AnalysisHtmlGenerator
 from src.html.chart_generator import ChartGenerator
 from src.logger.logger import Logger
-from src.models.manager import ModelManager
 from src.rag import RagEngine
 
 import numpy as np
+
+if TYPE_CHECKING:
+    from src.contracts.model_manager import ModelManagerProtocol
+    from src.contracts.config import ConfigProtocol
 
 
 class AnalysisEngine:
     """Orchestrates market data collection, analysis, and publication"""
     
-    def __init__(self, logger: Logger,
-             rag_engine: RagEngine,
-             coingecko_api: CoinGeckoAPI,
-             alternative_me_api: AlternativeMeAPI = None,
-             cryptocompare_api=None,
-             discord_notifier=None,
-             format_utils=None,
-             data_processor=None) -> None:
+    def __init__(
+        self,
+        logger: Logger,
+        rag_engine: RagEngine,
+        coingecko_api: CoinGeckoAPI,
+        model_manager: "ModelManagerProtocol",
+        alternative_me_api: AlternativeMeAPI,
+        cryptocompare_api,
+        format_utils,
+        data_processor,
+        config: "ConfigProtocol",
+        discord_notifier=None
+    ) -> None:
+        """
+        Initialize AnalysisEngine with all required dependencies.
+        
+        Args:
+            logger: Logger instance
+            rag_engine: RAG engine for news and context
+            coingecko_api: CoinGecko API client
+            model_manager: AI model manager (Protocol-based)
+            alternative_me_api: Alternative.me API for Fear & Greed Index
+            cryptocompare_api: CryptoCompare API client
+            format_utils: Formatting utilities
+            data_processor: Data processing utilities
+            config: Configuration instance (Protocol-based)
+            discord_notifier: Discord notifier (optional, can be set later via set_discord_notifier)
+        """
         self.logger = logger
+        
+        # Validate required config dependency
+        if config is None:
+            raise ValueError("config is a required parameter and cannot be None")
+        self.config = config
 
         # Basic properties
         self.exchange = None
@@ -45,8 +72,8 @@ class AnalysisEngine:
 
         # Load configuration
         try:
-            self.timeframe = config.TIMEFRAME
-            self.limit = config.CANDLE_LIMIT
+            self.timeframe = self.config.TIMEFRAME
+            self.limit = self.config.CANDLE_LIMIT
             
             # Validate timeframe
             if not TimeframeValidator.validate(self.timeframe):
@@ -59,8 +86,20 @@ class AnalysisEngine:
             self.logger.exception(f"Error loading configuration values: {e}.")
             raise
 
+        # Validate required dependencies
+        if model_manager is None:
+            raise ValueError("model_manager is a required parameter and cannot be None")
+        if alternative_me_api is None:
+            raise ValueError("alternative_me_api is a required parameter and cannot be None")
+        if cryptocompare_api is None:
+            raise ValueError("cryptocompare_api is a required parameter and cannot be None")
+        if format_utils is None:
+            raise ValueError("format_utils is a required parameter and cannot be None")
+        if data_processor is None:
+            raise ValueError("data_processor is a required parameter and cannot be None")
+
         # Initialize specialized components
-        self.model_manager = ModelManager(logger)
+        self.model_manager = model_manager
         self.technical_calculator = TechnicalCalculator(logger=logger, format_utils=format_utils)
         self.pattern_analyzer = PatternAnalyzer(logger=logger, format_utils=format_utils)
         self.prompt_builder = PromptBuilder(
@@ -95,6 +134,7 @@ class AnalysisEngine:
             logger=logger,
             html_generator=self.html_generator,
             coingecko_api=coingecko_api,
+            config=config,
             discord_notifier=discord_notifier
         )
 
@@ -280,7 +320,7 @@ class AnalysisEngine:
                         technical_history=self.context.technical_history,
                         pair_symbol=self.symbol,
                         timeframe=self.context.timeframe,
-                        save_to_disk=config.DEBUG_SAVE_CHARTS,
+                        save_to_disk=self.config.DEBUG_SAVE_CHARTS,
                         timestamps=self.context.timestamps
                     )
                     
@@ -293,7 +333,7 @@ class AnalysisEngine:
             prompt = self.prompt_builder.build_prompt(self.context, has_chart_analysis)
             
             # Step 9: Process analysis through appropriate processor
-            if config.TEST_ENVIRONMENT:
+            if self.config.TEST_ENVIRONMENT:
                 self.logger.debug(f"TEST_ENVIRONMENT is True - using mock analysis")
                 analysis_result = self.result_processor.process_mock_analysis(
                     self.symbol,
@@ -326,9 +366,12 @@ class AnalysisEngine:
                             provider=provider,
                             model=model
                         )
-                    except ValueError:
-                        # Chart analysis failed, rebuild prompts without chart analysis and try again
-                        self.logger.warning("Chart analysis failed, rebuilding prompts for text-only analysis")
+                    except ValueError as e:
+                        # Chart analysis failed, rebuild prompts without chart analysis and retry with text-only
+                        self.logger.warning(
+                            f"Chart analysis failed for {self.symbol} via {prov_label} ({model_name}): {e}. "
+                            f"Retrying with text-only analysis..."
+                        )
                         has_chart_analysis = False
                         system_prompt = self.prompt_builder.build_system_prompt(self.symbol, has_chart_analysis)
                         prompt = self.prompt_builder.build_prompt(self.context, has_chart_analysis)
@@ -341,6 +384,7 @@ class AnalysisEngine:
                             provider=provider,
                             model=model
                         )
+                        self.logger.info(f"Text-only analysis completed successfully for {self.symbol}")
                 else:
                     # No chart analysis available, use text-only
                     analysis_result = await self.result_processor.process_analysis(

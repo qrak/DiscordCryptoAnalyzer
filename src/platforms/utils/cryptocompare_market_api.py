@@ -1,11 +1,13 @@
-from typing import Dict, List, Any
+from typing import Dict, List, Any, TYPE_CHECKING
 
 import aiohttp
 
-from src.utils.loader import config
 from src.utils.timeframe_validator import TimeframeValidator
 from src.logger.logger import Logger
 from src.utils.decorators import retry_api_call
+
+if TYPE_CHECKING:
+    from src.contracts.config import ConfigProtocol
 
 
 class CryptoCompareMarketAPI:
@@ -13,10 +15,17 @@ class CryptoCompareMarketAPI:
     Handles CryptoCompare market data API operations including price data and OHLCV data
     """
     
-    OHLCV_API_URL_TEMPLATE = f"https://min-api.cryptocompare.com/data/v2/histo{{timeframe}}?fsym={{base}}&tsym={{quote}}&limit={{limit}}&api_key={config.CRYPTOCOMPARE_API_KEY}"
-    
-    def __init__(self, logger: Logger) -> None:
+    def __init__(self, logger: Logger, config: "ConfigProtocol") -> None:
+        """Initialize CryptoCompareMarketAPI with logger and self.config.
+        
+        Args:
+            logger: Logger instance
+            config: ConfigProtocol instance for API key
+        """
         self.logger = logger
+        self.config = config
+        # Build URL template with API key
+        self.OHLCV_API_URL_TEMPLATE = f"https://min-api.cryptocompare.com/data/v2/histo{{timeframe}}?fsym={{base}}&tsym={{quote}}&limit={{limit}}&api_key={self.config.CRYPTOCOMPARE_API_KEY}"
     
     @retry_api_call(max_retries=3)
     async def get_multi_price_data(
@@ -45,7 +54,7 @@ class CryptoCompareMarketAPI:
         if coins is None and vs_currencies is None:
             url = RAG_PRICE_API_URL
         else:
-            url = f"https://min-api.cryptocompare.com/data/pricemultifull?fsyms={','.join(fsyms)}&tsyms={','.join(tsyms)}&api_key={config.CRYPTOCOMPARE_API_KEY}"
+            url = f"https://min-api.cryptocompare.com/data/pricemultifull?fsyms={','.join(fsyms)}&tsyms={','.join(tsyms)}&api_key={self.config.CRYPTOCOMPARE_API_KEY}"
         
         async with aiohttp.ClientSession() as session:
             try:
@@ -81,7 +90,7 @@ class CryptoCompareMarketAPI:
             - Taxonomy: Regulatory classifications (Access, FCA, FINMA, Industry, etc.)
             - Rating: Weiss ratings including overall, technology adoption, and market performance
         """
-        url = f"https://min-api.cryptocompare.com/data/all/coinlist?fsym={symbol}&api_key={config.CRYPTOCOMPARE_API_KEY}"
+        url = f"https://min-api.cryptocompare.com/data/all/coinlist?fsym={symbol}&api_key={self.config.CRYPTOCOMPARE_API_KEY}"
         
         async with aiohttp.ClientSession() as session:
             try:
@@ -155,7 +164,7 @@ class CryptoCompareMarketAPI:
         url = (
             f"https://min-api.cryptocompare.com/data/v2/histo{endpoint_type}"
             f"?fsym={base}&tsym={quote}&limit={limit}"
-            f"{aggregate_param}&api_key={config.CRYPTOCOMPARE_API_KEY}"
+            f"{aggregate_param}&api_key={self.config.CRYPTOCOMPARE_API_KEY}"
         )
         
         self.logger.debug(

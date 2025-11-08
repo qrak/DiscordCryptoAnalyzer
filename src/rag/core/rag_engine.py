@@ -1,8 +1,7 @@
 import asyncio
 from datetime import datetime, timedelta
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, TYPE_CHECKING
 
-from src.utils.loader import config
 from src.platforms.coingecko import CoinGeckoAPI
 from src.platforms.cryptocompare import CryptoCompareAPI
 from src.logger.logger import Logger
@@ -14,20 +13,36 @@ from ..management.category_manager import CategoryManager
 from ..search.index_manager import IndexManager
 from .context_builder import ContextBuilder
 
+if TYPE_CHECKING:
+    from src.contracts.config import ConfigProtocol
+
 
 class RagEngine:
     def __init__(
         self,
         logger: Logger,
         token_counter: TokenCounter,
+        config: "ConfigProtocol",
         coingecko_api: Optional[CoinGeckoAPI] = None,
         cryptocompare_api: Optional[CryptoCompareAPI] = None,
         symbol_manager=None,
         format_utils=None
     ):
+        """Initialize RagEngine with dependencies.
+        
+        Args:
+            logger: Logger instance
+            token_counter: TokenCounter instance
+            config: ConfigProtocol instance for RAG update intervals
+            coingecko_api: CoinGecko API client (optional)
+            cryptocompare_api: CryptoCompare API client (optional)
+            symbol_manager: Exchange manager (optional)
+            format_utils: Format utilities (optional)
+        """
         self.logger = logger
+        self.config = config
         self.token_counter = token_counter
-        self.file_handler = RagFileHandler(logger=self.logger)
+        self.file_handler = RagFileHandler(logger=self.logger, config=config)
         
         # Initialize component managers
         self.news_manager = NewsManager(logger, self.file_handler, cryptocompare_api, format_utils)
