@@ -291,20 +291,6 @@ The bot will process the request and provide:
 2. A detailed embed with the analysis results including trend direction, strength.
 3. An HTML file with the complete in-depth analysis
 
-## Developer documentation (AGENTS.md)
-
-The repository contains several subsystem-level AGENTS.md files that document components in more technical detail. Below are the primary AGENTS.md files and a one-line summary you can consult when working on that area:
-
-- `src/analyzer/AGENTS.md` — Market analysis engine: data collection, indicator calculations, pattern detection, prompt building, and publication pipeline.
-- `src/analyzer/pattern_engine/AGENTS.md` — Chart & indicator pattern detection: swing detection, numba matchers, and pattern classification.
-- `src/indicators/AGENTS.md` — Technical indicators system: 50+ numba-optimized indicators organized by category (momentum, trend, volatility, volume, overlap, statistical).
-- `src/platforms/AGENTS.md` — External integrations: CCXT exchange manager, CoinGecko, CryptoCompare, Alternative.me, and AI provider clients (Google, OpenRouter, LM Studio).
-- `src/discord_interface/AGENTS.md` — Discord layer: cogs, command handlers, file handling, anti-spam, and message lifecycle management.
-- `src/html/AGENTS.md` — HTML & visualization: Plotly chart generation, HTML report templates, and chart-to-image export for AI analysis.
-- `src/rag/AGENTS.md` — RAG (Retrieval-Augmented Generation): news indexing, context building, and article search utilities.
-
-Refer to those files when you need implementation-level details or to update subsystem documentation.
-
 ## Architecture
 
 The bot is structured into a well-organized architecture with several key components:
