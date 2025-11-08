@@ -156,8 +156,7 @@ class TemplateManager:
         - Risk Considerations (discuss technical factors that may invalidate the analysis)
           * Add: "**Risk summary:** [key levels and scenarios that would invalidate the current thesis]"
         
-        End with another reminder that users must do their own research and that this analysis is purely educational.
-        
+      
         **FINAL SECTION - Add this at the very end after all educational content:**
         
         - **Final Thoughts & Synthesis**:

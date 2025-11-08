@@ -31,14 +31,15 @@ class KeyboardHandler:
         """Register a keyboard command
         
         Args:
-            key: Single character key that triggers the command
+            key: Single character key that triggers the command (case-sensitive for SHIFT detection)
             callback: Async function to call when key is pressed
             description: Description of what the command does
         """
         if len(key) != 1:
             raise ValueError("Key must be a single character")
         
-        self._commands[key.lower()] = (callback, description)
+        # Store command with its original case to support SHIFT+key detection
+        self._commands[key] = (callback, description)
         
     async def start_listening(self) -> None:
         """Start listening for keyboard input"""
@@ -63,13 +64,20 @@ class KeyboardHandler:
                 await self._handle_keyboard_error(e)
 
     async def _process_keyboard_input(self) -> None:
-        """Process keyboard input if available."""
-        if not self._has_input():
-            return
-            
-        key = self._read_key()
-        if key and key in self._commands:
-            await self._execute_command(key)
+        """Process keyboard input if available.
+        
+        Consumes ALL buffered input to prevent infinite loops from pasted/held keys.
+        """
+        while self._has_input():
+            key = self._read_key()
+            if key:
+                # Check for exact match first (supports SHIFT+R as uppercase 'R')
+                if key in self._commands:
+                    await self._execute_command(key)
+                # Also check lowercase version for regular keys
+                elif key.lower() in self._commands:
+                    await self._execute_command(key.lower())
+                # Silently ignore unrecognized keys (prevents log spam)
 
     def _has_input(self) -> bool:
         """Check if keyboard input is available."""
@@ -82,17 +90,14 @@ class KeyboardHandler:
     def _read_key(self) -> Optional[str]:
         """Read a single character from keyboard input.
         
-        Returns the key as lowercase, or 'R' for SHIFT+R combination.
+        Returns the actual key pressed (preserves case for SHIFT detection).
         """
         try:
             if sys.platform == "win32":
                 char = msvcrt.getch()
-                # Check for special characters
+                # Decode and return as-is (preserves uppercase/lowercase)
                 decoded = char.decode('utf-8', errors='ignore')
-                # SHIFT+R produces uppercase 'R' 
-                if decoded == 'R':
-                    return 'R'  # Keep uppercase for SHIFT+R detection
-                return decoded.lower()
+                return decoded if decoded else None
             else:
                 # Linux/Unix implementation
                 fd = sys.stdin.fileno()
@@ -100,10 +105,7 @@ class KeyboardHandler:
                 try:
                     tty.setraw(sys.stdin.fileno())
                     char = sys.stdin.read(1)
-                    # Keep uppercase for SHIFT detection
-                    if char and char.isupper():
-                        return char
-                    return char.lower() if char else None
+                    return char if char else None
                 finally:
                     termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
         except Exception:

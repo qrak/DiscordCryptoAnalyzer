@@ -9,9 +9,6 @@
   <img src="https://img.shields.io/badge/ccxt-4.5.3-blue.svg" />
 </p>
 
-> **⚠️ NOTICE: This repository is no longer public.**  
-> The source code has been moved to a private repository. This page remains for documentation and community access.
-
 A powerful Discord bot for real-time cryptocurrency market analysis using advanced AI models.
 
 ## Try It Live
@@ -66,9 +63,9 @@ Discord Crypto Analyzer provides real-time cryptocurrency analysis directly to y
 
 ### Steps
 
-> **Note:** The source code is now in a private repository. Installation instructions are for reference only.
+These installation instructions assume you have a local copy of the repository (clone or download). If you're using a fork or mirror, follow the same steps below to create a virtual environment and install dependencies.
 
-1. Obtain access to the private repository (contact via Discord for access)
+1. Clone or download the repository to your local machine (or use your fork).
 
 2. (Recommended) Create a Python virtual environment:
 
@@ -293,6 +290,20 @@ The bot will process the request and provide:
 1. A confirmation message that analysis is in progress
 2. A detailed embed with the analysis results including trend direction, strength.
 3. An HTML file with the complete in-depth analysis
+
+## Developer documentation (AGENTS.md)
+
+The repository contains several subsystem-level AGENTS.md files that document components in more technical detail. Below are the primary AGENTS.md files and a one-line summary you can consult when working on that area:
+
+- `src/analyzer/AGENTS.md` — Market analysis engine: data collection, indicator calculations, pattern detection, prompt building, and publication pipeline.
+- `src/analyzer/pattern_engine/AGENTS.md` — Chart & indicator pattern detection: swing detection, numba matchers, and pattern classification.
+- `src/indicators/AGENTS.md` — Technical indicators system: 50+ numba-optimized indicators organized by category (momentum, trend, volatility, volume, overlap, statistical).
+- `src/platforms/AGENTS.md` — External integrations: CCXT exchange manager, CoinGecko, CryptoCompare, Alternative.me, and AI provider clients (Google, OpenRouter, LM Studio).
+- `src/discord_interface/AGENTS.md` — Discord layer: cogs, command handlers, file handling, anti-spam, and message lifecycle management.
+- `src/html/AGENTS.md` — HTML & visualization: Plotly chart generation, HTML report templates, and chart-to-image export for AI analysis.
+- `src/rag/AGENTS.md` — RAG (Retrieval-Augmented Generation): news indexing, context building, and article search utilities.
+
+Refer to those files when you need implementation-level details or to update subsystem documentation.
 
 ## Architecture
 
