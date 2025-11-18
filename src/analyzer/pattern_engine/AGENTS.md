@@ -1,6 +1,10 @@
 # Pattern Engine Documentation
 
-This document describes the chart-pattern and indicator-pattern subsystems that feed the analyzer pipeline. It explains how swing-derived chart structures, momentum signals, and volume cues are detected, normalized, and returned to `PatternAnalyzer`.
+**Parent Instructions**: See `/AGENTS.md` for global project context and universal coding guidelines.
+
+**This document** contains pattern engine-specific implementation details that extend/override root instructions.
+
+---
 
 ## Overview
 

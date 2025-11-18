@@ -1,6 +1,10 @@
 # HTML & Visualization Agents Documentation
 
-This document describes the HTML report generation and chart visualization agents in the DiscordCryptoAnalyzer system.
+**Parent Instructions**: See `/AGENTS.md` for global project context and universal coding guidelines.
+
+**This document** contains HTML/visualization-specific implementation details that extend/override root instructions.
+
+---
 
 ## Overview
 

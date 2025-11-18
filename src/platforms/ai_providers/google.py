@@ -91,33 +91,35 @@ class GoogleAIClient:
             Concatenated text content from all text parts
         """
         try:
-            # Try to use response.text first (simplest case)
-            return response.text
-        except Exception:
-            # If response.text fails or logs warnings, manually extract text parts
-            try:
-                text_parts = []
-                non_text_parts = []
-                
+            text_parts = []
+            non_text_parts = []
+            
+            for candidate in response.candidates:
+                for part in candidate.content.parts:
+                    if hasattr(part, 'text') and part.text:
+                        text_parts.append(part.text)
+                    else:
+                        part_type = type(part).__name__
+                        non_text_parts.append(part_type)
+            
+            if non_text_parts:
+                details = []
                 for candidate in response.candidates:
                     for part in candidate.content.parts:
-                        if hasattr(part, 'text') and part.text:
-                            text_parts.append(part.text)
-                        else:
-                            # Track non-text part types
-                            part_type = type(part).__name__
-                            non_text_parts.append(part_type)
-                
-                if non_text_parts:
-                    self.logger.debug(
-                        f"Google AI response contains non-text parts: {non_text_parts}. "
-                        f"Extracting text content only."
-                    )
-                
-                return "\n".join(text_parts)
-            except Exception as e:
-                self.logger.error(f"Failed to extract text from Google AI response: {e}")
-                return ""
+                        try:
+                            details.append(repr(part))
+                        except Exception:
+                            details.append(type(part).__name__)
+
+                self.logger.debug(
+                    f"Google AI response contains non-text parts: {non_text_parts}. "
+                    f"Part details: {details}. Extracting text content only."
+                )
+            
+            return "\n".join(text_parts)
+        except Exception as e:
+            self.logger.error(f"Failed to extract text from Google AI response: {e}")
+            return ""
     
     def _create_generation_config(self, model_config: Dict[str, Any]) -> types.GenerateContentConfig:
         """
@@ -157,23 +159,19 @@ class GoogleAIClient:
             
             generation_config = self._create_generation_config(model_config)
             
-            # Use override model if provided, otherwise use default
             effective_model = model if model else self.model
             self.logger.debug(f"Sending request to Google AI with model: {effective_model}")
             
-            # Generate content using the async client
             response = await client.aio.models.generate_content(
                 model=effective_model,
                 contents=prompt,
                 config=generation_config
             )
             
-            # Extract content safely, handling non-text parts
             content_text = self._extract_text_from_response(response)
             
             self.logger.debug("Received successful response from Google AI")
             
-            # Format response to match OpenRouter format for compatibility
             return cast(ResponseDict, {
                 "choices": [{
                     "message": {
@@ -210,43 +208,34 @@ class GoogleAIClient:
             # Extract text prompt
             prompt = self._extract_text_from_messages(messages)
             
-            # Process chart image
             if isinstance(chart_image, io.BytesIO):
-                # Read from BytesIO
                 chart_image.seek(0)
                 img_data = chart_image.read()
-                chart_image.seek(0)  # Reset for potential reuse
+                chart_image.seek(0)
             elif isinstance(chart_image, str):
-                # File path - read the file
                 with open(chart_image, 'rb') as f:
                     img_data = f.read()
             else:
-                # Assume it's already bytes
                 img_data = chart_image
             
-            # Create image part for the API
             image_part = types.Part.from_bytes(
                 data=img_data,
                 mime_type='image/png'
             )
             
-            # Combine prompt and image
             contents = [prompt, image_part]
             
             generation_config = self._create_generation_config(model_config)
             
-            # Use override model if provided, otherwise use default
             effective_model = model if model else self.model
             self.logger.debug(f"Sending chart analysis request to Google AI with model: {effective_model} (chart image: {len(img_data)} bytes)")
             
-            # Generate content
             response = await client.aio.models.generate_content(
                 model=effective_model,
                 contents=contents,
                 config=generation_config
             )
             
-            # Extract content safely, handling non-text parts
             content_text = self._extract_text_from_response(response)
             
             self.logger.debug("Received successful chart analysis response from Google AI")
@@ -285,11 +274,9 @@ class GoogleAIClient:
             # Extract text prompt
             prompt = self._extract_text_from_messages(messages)
             
-            # Process images - handle different input types correctly
             image_parts = []
             for image in images:
                 if isinstance(image, Image.Image):
-                    # PIL Image - convert to bytes first
                     img_buffer = io.BytesIO()
                     image.save(img_buffer, format='PNG')
                     img_data = img_buffer.getvalue()
@@ -298,21 +285,17 @@ class GoogleAIClient:
                         mime_type='image/png'
                     ))
                 elif isinstance(image, bytes):
-                    # Raw bytes
                     image_parts.append(types.Part.from_bytes(
                         data=image,
                         mime_type='image/png'
                     ))
                 elif isinstance(image, str):
-                    # File path or URL
                     if image.startswith(('http://', 'https://', 'gs://')):
-                        # URL or Cloud Storage URI
                         image_parts.append(types.Part.from_uri(
                             file_uri=image,
                             mime_type='image/png'
                         ))
                     else:
-                        # Local file path - read the file content
                         with open(image, 'rb') as f:
                             img_data = f.read()
                         image_parts.append(types.Part.from_bytes(
@@ -320,21 +303,18 @@ class GoogleAIClient:
                             mime_type='image/png'
                         ))
             
-            # Combine prompt and images
             contents = [prompt] + image_parts
             
             generation_config = self._create_generation_config(model_config)
             
             self.logger.debug(f"Sending multimodal request to Google AI with {len(images)} images")
             
-            # Generate content
             response = await client.aio.models.generate_content(
                 model=self.model,
                 contents=contents,
                 config=generation_config
             )
             
-            # Extract content safely, handling non-text parts
             content_text = self._extract_text_from_response(response)
             
             self.logger.debug("Received successful multimodal response from Google AI")
@@ -364,7 +344,6 @@ class GoogleAIClient:
         """
         error_message = str(exception)
         
-        # Check for overloaded/503 errors first (should trigger paid API fallback)
         if "503" in error_message or "overloaded" in error_message.lower() or "unavailable" in error_message.lower():
             self.logger.error(f"Google AI API overloaded (503): {error_message}")
             return cast(ResponseDict, {"error": "overloaded", "details": error_message})

@@ -1,6 +1,10 @@
 # Discord Interface Agents Documentation
 
-This document describes all Discord bot agents (cogs) and command handlers available in the DiscordCryptoAnalyzer system.
+**Parent Instructions**: See `/AGENTS.md` for global project context and universal coding guidelines.
+
+**This document** contains Discord interface-specific implementation details that extend/override root instructions.
+
+---
 
 ## Overview
 

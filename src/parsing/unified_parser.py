@@ -39,59 +39,39 @@ class UnifiedParser:
         """
         try:
             cleaned_text = self._clean_tool_response_tags(raw_text)
-            parsing_errors = []
             
-            # Step 1: Try parsing entire response as JSON (pure JSON responses)
-            try:
-                result = json.loads(cleaned_text)
-                return self._normalize_numeric_fields(result)
-            except json.JSONDecodeError as e:
-                parsing_errors.append(f"Direct JSON parse failed at position {e.pos}: {e.msg}")
-
-            # Step 2: Extract from ```json``` blocks (Google AI format)
             if "```json" in cleaned_text:
                 json_start = cleaned_text.find("```json") + 7
                 json_end = cleaned_text.find("```", json_start)
                 if json_end > json_start:
-                    json_content = cleaned_text[json_start:json_end].strip()
                     try:
-                        result = json.loads(json_content)
+                        result = json.loads(cleaned_text[json_start:json_end].strip())
                         return self._normalize_numeric_fields(result)
-                    except json.JSONDecodeError as e:
-                        parsing_errors.append(f"JSON block parse failed at position {e.pos}: {e.msg}")
-                else:
-                    parsing_errors.append("Found ```json marker but couldn't locate closing ```")
-            else:
-                parsing_errors.append("No ```json``` code blocks found")
-
-            # Step 3: Extract JSON from start (OpenRouter format)
-            if cleaned_text.strip().startswith('{'):
-                brace_count = 0
-                for i, char in enumerate(cleaned_text):
-                    if char == '{':
-                        brace_count += 1
-                    elif char == '}':
-                        brace_count -= 1
-                        if brace_count == 0:
-                            json_content = cleaned_text[:i+1]
+                    except json.JSONDecodeError:
+                        pass
+            
+            first_brace = cleaned_text.find('{')
+            if first_brace != -1:
+                depth = 0
+                for i in range(first_brace, len(cleaned_text)):
+                    if cleaned_text[i] == '{':
+                        depth += 1
+                    elif cleaned_text[i] == '}':
+                        depth -= 1
+                        if depth == 0:
                             try:
-                                result = json.loads(json_content)
+                                result = json.loads(cleaned_text[first_brace:i+1])
                                 return self._normalize_numeric_fields(result)
-                            except json.JSONDecodeError as e:
-                                parsing_errors.append(f"Brace-balanced JSON parse failed at position {e.pos}: {e.msg}")
+                            except json.JSONDecodeError:
+                                pass
                             break
-                else:
-                    parsing_errors.append("Found opening brace but braces never balanced")
-            else:
-                parsing_errors.append(f"Response doesn't start with '{{' (starts with: {cleaned_text[:50]}...)")
-
-            # If all parsing methods fail, create fallback response with detailed diagnostics
-            response_preview = cleaned_text[:500] if len(cleaned_text) > 500 else cleaned_text
-            self.logger.warning(
-                f"Unable to parse AI response as JSON, creating fallback response. "
-                f"Parsing attempts failed: {' | '.join(parsing_errors)}. "
-                f"Response preview: {response_preview}"
-            )
+            
+            heuristic = self._heuristic_extract_analysis_from_text(cleaned_text)
+            if heuristic:
+                self.logger.debug("Extracted analysis from markdown text")
+                return self._normalize_numeric_fields(heuristic)
+            
+            self.logger.warning(f"Unable to parse AI response, using fallback. Preview: {cleaned_text[:200]}")
             return self._create_fallback_response(cleaned_text)
             
         except Exception as e:
@@ -160,57 +140,6 @@ class UnifiedParser:
         return categories
     
     # ============================================================================
-    # JSON DATA PARSING (consolidates API response parsing)
-    # ============================================================================
-    
-    def parse_api_response(self, api_data: Any) -> Optional[Dict[str, Any]]:
-        """
-        Parse API responses from various external services.
-        Consolidates logic from CryptoCompareDataProcessor and similar components.
-        """
-        # Handle string data - possible serialized JSON
-        if isinstance(api_data, str):
-            try:
-                api_data = json.loads(api_data)
-                self.logger.debug("Converted string to JSON object")
-            except json.JSONDecodeError:
-                self.logger.warning("Received string data that is not valid JSON")
-                return None
-        
-        # Handle dictionary data with nested structures
-        if isinstance(api_data, dict):
-            return self._extract_data_from_api_dict(api_data)
-        
-        # Handle list data directly
-        if isinstance(api_data, list):
-            self.logger.debug(f"Processing list with {len(api_data)} items")
-            return {"data": api_data}
-        
-        self.logger.warning(f"Unexpected data type for API response: {type(api_data)}")
-        return None
-    
-    def _extract_data_from_api_dict(self, data_dict: Dict) -> Optional[Dict[str, Any]]:
-        """Extract useful data from API dictionary structures."""
-        self.logger.debug(f"Processing dictionary with keys: {list(data_dict.keys())}")
-        
-        # Check standard API response format with Response, Message, Type, Data structure
-        if "Response" in data_dict and "Data" in data_dict:
-            if data_dict["Response"] in ("Success", "success"):
-                self.logger.debug(f"Using data from 'Data' key: {type(data_dict['Data'])}")
-                return {"data": data_dict["Data"], "metadata": {k: v for k, v in data_dict.items() if k != "Data"}}
-            else:
-                self.logger.warning(f"API response not successful: {data_dict.get('Message', 'Unknown error')}")
-                return None
-        
-        # Simple Data key structure
-        elif "Data" in data_dict:
-            self.logger.debug(f"Using data from 'Data' key: {type(data_dict['Data'])}")
-            return {"data": data_dict["Data"]}
-        
-        # Return the dictionary as-is if no standard structure detected
-        return data_dict
-    
-    # ============================================================================
     # SYMBOL AND COIN PARSING
     # ============================================================================
     
@@ -261,32 +190,6 @@ class UnifiedParser:
         return coins_mentioned
     
     # ============================================================================
-    # INDICATOR VALUE PARSING
-    # ============================================================================
-    
-    def extract_indicator_value(self, data: dict, key: str) -> Union[float, str]:
-        """Extract indicator value with proper type handling."""
-        try:
-            value = data[key]
-            if isinstance(value, (int, float)):
-                return float(value)
-            if isinstance(value, (list, tuple)) and len(value) >= 1:
-                return float(value[-1])  # Use last value
-            return 'N/A'
-        except (KeyError, TypeError, ValueError, IndexError):
-            return 'N/A'
-        
-    def extract_indicator_values(self, data: dict, key: str, expected_count: int = 2) -> List[float]:
-        """Extract multiple indicator values with proper type checking."""
-        try:
-            values = data[key]
-            if not isinstance(values, (list, tuple)) or len(values) != expected_count:
-                return []
-            return [float(val) for val in values]
-        except (KeyError, TypeError, ValueError):
-            return []
-    
-    # ============================================================================
     # PRIVATE HELPER METHODS
     # ============================================================================
     
@@ -297,6 +200,82 @@ class UnifiedParser:
             cleaned = re.sub(r'<tool_response>[\s\n]*</tool_response>|<tool_response>|</tool_response>', '', text)
             return re.sub(r'\n\s*\n', '\n', cleaned).strip()
         return text
+
+    def _heuristic_extract_analysis_from_text(self, text: str) -> Optional[Dict[str, Any]]:
+        """Attempt to extract a minimal `analysis` object from plain text.
+
+        This provides graceful degradation when the model returns a natural
+        language analysis instead of strict JSON. It only extracts a few key
+        fields (current_price, RSI, ADX, summary) and leaves the rest for
+        downstream fallback handling.
+        """
+        if not text or len(text) < 100:
+            return None
+
+        def _find_currency(label_patterns: List[str]) -> Optional[float]:
+            for pat in label_patterns:
+                m = re.search(pat + r"\s*\$?([0-9,]+(?:\.[0-9]+)?)", text, flags=re.IGNORECASE)
+                if m:
+                    try:
+                        return float(m.group(1).replace(',', ''))
+                    except Exception:
+                        return None
+            return None
+
+        def _find_number(label_patterns: List[str]) -> Optional[float]:
+            for pat in label_patterns:
+                m = re.search(pat + r"\s*([0-9]+(?:\.[0-9]+)?)", text, flags=re.IGNORECASE)
+                if m:
+                    try:
+                        return float(m.group(1))
+                    except Exception:
+                        return None
+            return None
+
+        analysis: Dict[str, Any] = {}
+
+        current_price = _find_currency([
+            r"\*\*Current Price:\*\*",  # Markdown bold
+            r"Current Price:",
+            r"Current price",
+            r"price is"
+        ])
+        if current_price is not None:
+            analysis['current_price'] = current_price
+
+        rsi = _find_number([
+            r"\*\*Momentum \(RSI\):\*\*",
+            r"RSI\(14\):",
+            r"RSI:",
+            r"rsi "
+        ])
+        if rsi is not None:
+            analysis['rsi'] = rsi
+
+        adx = _find_number([
+            r"\*\*Trend Strength \(ADX\):\*\*",
+            r"Trend Strength \(ADX\):",
+            r"ADX:",
+            r"trend strength \(adx\)"
+        ])
+        if adx is not None:
+            analysis['trend_strength'] = adx
+
+        summary = None
+        m = re.search(r"\*\*What this means:(.*?)\n\n", text)
+        if m:
+            summary = m.group(1).strip()
+        else:
+            m2 = re.split(r"\n\n|## |### ", text)
+            if m2 and len(m2[0]) > 20:
+                summary = m2[0].strip()
+
+        if summary:
+            analysis['summary'] = summary
+
+        if analysis:
+            return {"analysis": analysis}
+        return None
     
     def _normalize_numeric_fields(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Ensure numeric fields are properly typed at the data source."""

@@ -1,6 +1,10 @@
 # Platforms & External Integrations Documentation
 
-This document describes external platform integrations (exchanges, market data APIs, AI providers) in DiscordCryptoAnalyzer.
+**Parent Instructions**: See `/AGENTS.md` for global project context and universal coding guidelines.
+
+**This document** contains platform integration-specific implementation details that extend/override root instructions.
+
+---
 
 ## Overview
 

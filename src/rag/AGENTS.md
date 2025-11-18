@@ -1,6 +1,10 @@
 # RAG (Retrieval-Augmented Generation) System Documentation
 
-This document describes the RAG engine for context-aware cryptocurrency market analysis in DiscordCryptoAnalyzer.
+**Parent Instructions**: See `/AGENTS.md` for global project context and universal coding guidelines.
+
+**This document** contains RAG-specific implementation details that extend/override root instructions.
+
+---
 
 ## Overview
 
