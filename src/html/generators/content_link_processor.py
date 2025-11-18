@@ -136,8 +136,8 @@ class ContentLinkProcessor:
             
             # Market Psychology & Sentiment (NEW)
             "FOMO": "https://www.investopedia.com/deal-with-crypto-fomo-6455103",
-            "Fear": "https://alternative.me/crypto/fear-and-greed-index/",
-            "Greed": "https://alternative.me/crypto/fear-and-greed-index/",
+            "Extreme Fear": "https://alternative.me/crypto/fear-and-greed-index/",
+            "Extreme Greed": "https://alternative.me/crypto/fear-and-greed-index/",
             "Panic Selling": "https://www.investopedia.com/terms/p/panicselling.asp",
             "Capitulation": "https://www.investopedia.com/terms/c/capitulation.asp",
             
@@ -173,7 +173,30 @@ class ContentLinkProcessor:
             "Buy Pressure": "https://www.investopedia.com/terms/v/volume-price-trend-indicator.asp",
             "Sell Pressure": "https://www.investopedia.com/terms/v/volume-price-trend-indicator.asp",
             "Buying Pressure": "https://www.investopedia.com/terms/v/volume-price-trend-indicator.asp",
-            "Selling Pressure": "https://www.investopedia.com/terms/v/volume-price-trend-indicator.asp"
+            "Selling Pressure": "https://www.investopedia.com/terms/v/volume-price-trend-indicator.asp",
+            
+            # Squeeze & Volatility Events (NEW)
+            "Short Squeeze": "https://www.investopedia.com/terms/s/shortsqueeze.asp",
+            "Long Squeeze": "https://www.investopedia.com/terms/l/longsqueeze.asp",
+            "Squeeze": "https://www.investopedia.com/terms/s/shortsqueeze.asp",
+            "Volatility Expansion": "https://www.investopedia.com/articles/financial-theory/08/volatility.asp",
+            
+            # Market Structure - Swing Points (NEW)
+            "Swing High": "https://www.investopedia.com/terms/s/swinghigh.asp",
+            "Swing Low": "https://www.investopedia.com/terms/s/swinglow.asp",
+            "Higher Highs": "https://www.investopedia.com/terms/s/swinghigh.asp",
+            "Higher Lows": "https://www.investopedia.com/terms/s/swinglow.asp",
+            "Lower Highs": "https://www.investopedia.com/terms/s/swinghigh.asp",
+            "Lower Lows": "https://www.investopedia.com/terms/s/swinglow.asp",
+            
+            # Regulatory & Investment Vehicles (NEW)
+            "ETF": "https://www.investopedia.com/terms/e/etf.asp",
+            "ETFs": "https://www.investopedia.com/terms/e/etf.asp",
+            "Exchange-Traded Fund": "https://www.investopedia.com/terms/e/etf.asp",
+            "Spot ETF": "https://www.investopedia.com/terms/e/etf.asp",
+            "Regulatory": "https://www.investopedia.com/terms/r/regulated-market.asp",
+            "Regulatory Clarity": "https://www.investopedia.com/terms/r/regulated-market.asp",
+            "Regulation": "https://www.investopedia.com/terms/r/regulated-market.asp"
         }
     
     def add_indicator_links(self, content: str) -> str:

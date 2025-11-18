@@ -425,6 +425,10 @@ class ModelManager(ModelManagerProtocol):
             
             if self._is_valid_response(response):
                 self.logger.info("Successfully used paid Google AI API after free tier overload")
+            else:
+                # Paid API also failed - log the specific error
+                paid_error = response.get("error", "unknown") if response else "no response"
+                self.logger.error(f"Paid Google AI API also failed: {paid_error}. Both free and paid tiers unavailable.")
         elif self._is_valid_response(response):
             tier_success = "free tier" if is_free_tier_model else "paid tier"
             self.logger.info(f"Successfully used {tier_success} Google AI API")
