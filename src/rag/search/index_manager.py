@@ -122,44 +122,11 @@ class IndexManager:
         """Detect cryptocurrency mentions in article content - delegates to ArticleProcessor."""
         return self.article_processor.detect_coins_in_article(article, known_crypto_tickers)
     
-    def search_by_category(self, category: str) -> List[int]:
-        """Search for articles in a specific category."""
-        return self.category_index.get(category.lower(), [])
-    
-    def search_by_tag(self, tag: str) -> List[int]:
-        """Search for articles with a specific tag."""
-        return self.tag_index.get(tag.lower(), [])
-    
     def search_by_coin(self, coin: str) -> List[int]:
         """Search for articles mentioning a specific coin."""
         coin_lower = coin.lower()
         return self.coin_index.get(coin_lower, [])
     
-    def search_by_keyword(self, keyword: str) -> List[int]:
-        """Search for articles containing a specific keyword."""
-        return self.keyword_index.get(keyword.lower(), [])
-    
-    def get_category_indices(self) -> Dict[str, List[int]]:
-        """Get the category index."""
-        return dict(self.category_index)
-    
-    def get_tag_indices(self) -> Dict[str, List[int]]:
-        """Get the tag index."""
-        return dict(self.tag_index)
-    
     def get_coin_indices(self) -> Dict[str, List[int]]:
         """Get the coin index."""
         return dict(self.coin_index)
-    
-    def get_keyword_indices(self) -> Dict[str, List[int]]:
-        """Get the keyword index."""
-        return dict(self.keyword_index)
-    
-    def get_index_stats(self) -> Dict[str, int]:
-        """Get statistics about the indices."""
-        return {
-            "categories": len(self.category_index),
-            "tags": len(self.tag_index),
-            "coins": len(self.coin_index),
-            "keywords": len(self.keyword_index)
-        }

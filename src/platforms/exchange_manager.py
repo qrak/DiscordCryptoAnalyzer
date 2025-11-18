@@ -239,34 +239,3 @@ class ExchangeManager:
         for symbols in self.symbols_by_exchange.values():
             all_symbols.update(symbols)
         return all_symbols
-    
-    def get_all_base_symbols(self) -> Set[str]:
-        """Extract and return all base symbols from trading pairs across all loaded exchanges"""
-        all_base_symbols = set()
-        for exchange_symbols in self.symbols_by_exchange.values():
-            for symbol in exchange_symbols:
-                if '/' in symbol:
-                    base = symbol.split('/')[0]
-                    all_base_symbols.add(base)
-        return all_base_symbols
-    
-    def get_exchange_info(self) -> List[Dict]:
-        """Get information about loaded exchanges"""
-        info = []
-        for exchange_id in self.exchange_names:
-            if exchange_id in self.exchanges:
-                last_loaded = self.exchange_last_loaded.get(exchange_id)
-                info.append({
-                    'id': exchange_id,
-                    'loaded': True,
-                    'symbol_count': len(self.symbols_by_exchange.get(exchange_id, set())),
-                    'last_loaded': last_loaded.isoformat() if last_loaded else None
-                })
-            else:
-                info.append({
-                    'id': exchange_id,
-                    'loaded': False,
-                    'symbol_count': 0,
-                    'last_loaded': None
-                })
-        return info

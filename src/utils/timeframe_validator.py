@@ -211,48 +211,6 @@ class TimeframeValidator:
         return target_minutes // timeframe_minutes
     
     @classmethod
-    def format_timeframe_display(cls, timeframe: str) -> str:
-        """
-        Format timeframe for human-readable display.
-        
-        Args:
-            timeframe: Timeframe string (e.g., "1h", "4h", "1d", "1w")
-            
-        Returns:
-            str: Formatted display name
-            
-        Example:
-            >>> format_timeframe_display("4h")
-            "4-Hour"
-            >>> format_timeframe_display("1d")
-            "Daily"
-            >>> format_timeframe_display("1w")
-            "Weekly"
-        """
-        if timeframe == "1d":
-            return "Daily"
-        elif timeframe == "1w":
-            return "Weekly"
-        elif "h" in timeframe:
-            hours = timeframe.replace("h", "")
-            return f"{hours}-Hour"
-        else:
-            return timeframe.upper()
-    
-    @classmethod
-    def is_intraday(cls, timeframe: str) -> bool:
-        """
-        Check if timeframe is intraday (less than 1 day).
-        
-        Args:
-            timeframe: Timeframe string
-            
-        Returns:
-            bool: True if timeframe is less than 1 day
-        """
-        return cls.to_minutes(timeframe) < 1440
-    
-    @classmethod
     def validate_and_normalize(cls, timeframe: str) -> str:
         """
         Validate and normalize timeframe string.

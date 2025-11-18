@@ -7,7 +7,7 @@ with clear separation of concerns following the same principles as the analyzer 
 
 from .core import RagEngine, ContextBuilder
 from .data import MarketDataManager, NewsManager, RagFileHandler
-from .search import IndexManager, SearchUtilities
+from .search import IndexManager
 from .processing import ArticleProcessor, NewsCategoryAnalyzer
 from .management import CategoryManager, TickerManager, CategoryFetcher, CategoryProcessor
 
@@ -19,7 +19,7 @@ __all__ = [
     'MarketDataManager', 'NewsManager', 'RagFileHandler',
     
     # Search operations
-    'IndexManager', 'SearchUtilities',
+    'IndexManager',
     
     # Content processing
     'ArticleProcessor', 'NewsCategoryAnalyzer',

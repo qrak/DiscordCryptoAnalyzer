@@ -416,30 +416,14 @@ article_indices = index_manager.search_by_coin("BTC")
 # Returns: [0, 5, 12, 23, ...] (indices in news_database)
 ```
 
-#### `search_by_category(category: str) -> List[int]`
-Find articles in a category:
+#### `get_coin_indices() -> Dict[str, List[int]]`
+Get complete coin-to-articles mapping:
 ```python
-article_indices = index_manager.search_by_category("DeFi")
-# Returns: [1, 8, 15, ...] (indices of DeFi-related articles)
+coin_indices = index_manager.get_coin_indices()
+# Returns: {"btc": [0, 5, 12], "eth": [1, 8, 15], ...}
 ```
 
-#### `search_by_keyword(keyword: str) -> List[int]`
-Find articles containing keyword:
-```python
-article_indices = index_manager.search_by_keyword("regulation")
-# Returns: [3, 9, 17, ...] (indices of articles with "regulation")
-```
-
-**Index Statistics**:
-```python
-stats = index_manager.get_index_stats()
-# Returns: {
-#   "categories": 50,    # Number of unique categories
-#   "tags": 200,         # Number of unique tags
-#   "coins": 150,        # Number of unique coins
-#   "keywords": 5000     # Number of unique keywords
-# }
-```
+**Note**: Category, tag, and keyword search functions were removed (unused). Only coin-based search is actively implemented.
 
 **Index Rebuilding**:
 - Triggered on: News database update, category refresh
@@ -641,6 +625,10 @@ btc_articles = [news_database[i] for i in btc_indices]
 # Get top 5 by recency
 btc_articles.sort(key=lambda x: x['published_on'], reverse=True)
 top_5 = btc_articles[:5]
+
+# Or get all coin indices at once
+all_coin_indices = index_manager.get_coin_indices()
+btc_articles = [news_database[i] for i in all_coin_indices.get("btc", [])]
 ```
 
 ### Build Context for Specific Symbol

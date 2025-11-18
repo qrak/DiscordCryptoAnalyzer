@@ -80,16 +80,3 @@ def classify_swings_numba(high: np.ndarray, low: np.ndarray,
             last_swing_low = low[i]
     
     return classifications
-
-
-def detect_swings_smoothed(high: np.ndarray, low: np.ndarray, 
-                          smooth_length: int = 10,
-                          lookback: int = 5, 
-                          lookahead: int = 5) -> tuple:
-    smoothed_high = f_ess(high, smooth_length)
-    smoothed_low = f_ess(low, smooth_length)
-    
-    swing_highs = detect_swing_highs_numba(smoothed_high, lookback, lookahead)
-    swing_lows = detect_swing_lows_numba(smoothed_low, lookback, lookahead)
-    
-    return swing_highs, swing_lows

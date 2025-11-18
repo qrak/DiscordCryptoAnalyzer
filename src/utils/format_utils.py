@@ -215,54 +215,6 @@ class FormatUtils:
             pass
         return ""
 
-    def format_periods_ago_with_context(self, periods_ago: int, timeframe: str = "1h") -> str:
-        """
-        Format 'periods ago' with human-readable time context.
-        
-        Args:
-            periods_ago: Number of periods ago
-            timeframe: The timeframe (e.g., "1h", "4h", "1d")
-            
-        Returns:
-            Formatted string like "3 periods ago (3h ago)"
-        """
-        if periods_ago == 0:
-            return "current period"
-        elif periods_ago == 1:
-            return f"1 period ago ({timeframe} ago)"
-        
-        # Calculate time duration
-        timeframe_minutes = self._get_timeframe_minutes(timeframe)
-        total_minutes = periods_ago * timeframe_minutes
-        
-        if total_minutes < 60:
-            time_context = f"{total_minutes}m ago"
-        elif total_minutes < 1440:  # Less than 24 hours
-            hours = total_minutes // 60
-            time_context = f"{hours}h ago"
-        else:  # Days
-            days = total_minutes // 1440
-            time_context = f"{days}d ago"
-        
-        return f"{periods_ago} periods ago ({time_context})"
-
-    def format_pattern_duration(self, duration: int, is_active: bool = False) -> str:
-        """
-        Format pattern duration with active status.
-        
-        Args:
-            duration: Duration in periods
-            is_active: Whether the pattern is still active
-            
-        Returns:
-            Formatted duration string
-        """
-        if duration == 1:
-            return "1 period" + (" (active)" if is_active else "")
-        else:
-            active_text = " (active)" if is_active else ""
-            return f"{duration} consecutive periods{active_text}"
-
     def _get_timeframe_minutes(self, timeframe: str) -> int:
         """Convert timeframe string to minutes."""
         if timeframe.endswith('m'):
@@ -273,3 +225,4 @@ class FormatUtils:
             return int(timeframe[:-1]) * 24 * 60
         else:
             return 60  # Default to 1 hour
+
