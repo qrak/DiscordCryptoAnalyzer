@@ -1,6 +1,7 @@
-// Collapsible sections functionality
+// Modern collapsible sections with smooth animations
 class CollapsibleManager {
     constructor() {
+        this.animationDuration = 400;
         this.init();
     }
 
@@ -24,18 +25,21 @@ class CollapsibleManager {
             icon.classList.remove('expanded');
 
             header.addEventListener('click', () => {
-                const isExpanded = content.classList.contains('expanded');
+                this.toggleSection(content, icon);
+            });
 
-                if (isExpanded) {
-                    content.classList.remove('expanded');
-                    content.classList.add('collapsed');
-                    icon.classList.remove('expanded');
-                } else {
-                    content.classList.remove('collapsed');
-                    content.classList.add('expanded');
-                    icon.classList.add('expanded');
+            // Add keyboard accessibility
+            header.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    this.toggleSection(content, icon);
                 }
             });
+
+            // Make header focusable
+            header.setAttribute('tabindex', '0');
+            header.setAttribute('role', 'button');
+            header.setAttribute('aria-expanded', 'false');
         }
     }
 
@@ -54,20 +58,55 @@ class CollapsibleManager {
                 icon.classList.add('expanded');
 
                 header.addEventListener('click', () => {
-                    const isExpanded = content.classList.contains('expanded');
+                    this.toggleSection(content, icon, header);
+                });
 
-                    if (isExpanded) {
-                        content.classList.remove('expanded');
-                        content.classList.add('collapsed');
-                        icon.classList.remove('expanded');
-                    } else {
-                        content.classList.remove('collapsed');
-                        content.classList.add('expanded');
-                        icon.classList.add('expanded');
+                // Add keyboard accessibility
+                header.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        this.toggleSection(content, icon, header);
                     }
                 });
+
+                // Make header focusable
+                header.setAttribute('tabindex', '0');
+                header.setAttribute('role', 'button');
+                header.setAttribute('aria-expanded', 'true');
             }
         });
+    }
+
+    // Toggle section with smooth animation
+    toggleSection(content, icon, header = null) {
+        const isExpanded = content.classList.contains('expanded');
+
+        if (isExpanded) {
+            // Collapse
+            content.style.maxHeight = content.scrollHeight + 'px';
+            requestAnimationFrame(() => {
+                content.classList.remove('expanded');
+                content.classList.add('collapsed');
+                icon.classList.remove('expanded');
+                if (header) header.setAttribute('aria-expanded', 'false');
+            });
+        } else {
+            // Expand
+            content.classList.remove('collapsed');
+            content.classList.add('expanded');
+            icon.classList.add('expanded');
+            if (header) header.setAttribute('aria-expanded', 'true');
+
+            // Set max-height for smooth transition
+            content.style.maxHeight = content.scrollHeight + 'px';
+
+            // Remove max-height after transition completes
+            setTimeout(() => {
+                if (content.classList.contains('expanded')) {
+                    content.style.maxHeight = 'none';
+                }
+            }, this.animationDuration);
+        }
     }
 }
 

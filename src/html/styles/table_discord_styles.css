@@ -1,33 +1,41 @@
-/* Simplified table and Discord component styles */
+/* Modern table styling with glassmorphism */
 
 /* Basic table styling */
 table {
     width: 100%;
-    border-collapse: collapse;
-    margin: 20px 0;
+    border-collapse: separate;
+    border-spacing: 0;
+    margin: 24px 0;
     font-size: 0.95em;
-    border-radius: 8px;
+    border-radius: 12px;
     overflow: hidden;
     border: 1px solid var(--table-border-color);
-    background: var(--container-bg);
+    background: var(--glass-bg);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    box-shadow: 0 4px 6px var(--shadow-color);
 }
 
 thead tr {
-    background: var(--table-header-bg);
+    background: linear-gradient(135deg, var(--table-header-bg), var(--glass-bg));
     color: var(--text-color);
     text-align: left;
-    font-weight: 600;
+    font-weight: 700;
 }
 
 th, td {
-    padding: 12px 15px;
+    padding: 14px 18px;
     text-align: left;
     border-bottom: 1px solid var(--table-border-color);
+    transition: all 0.2s ease;
 }
 
 th {
-    font-weight: 600;
-    border-bottom: 2px solid var(--border-color);
+    font-weight: 700;
+    border-bottom: 2px solid var(--accent-color);
+    text-transform: uppercase;
+    font-size: 0.85em;
+    letter-spacing: 0.5px;
 }
 
 tbody tr:nth-of-type(even) {
@@ -36,6 +44,8 @@ tbody tr:nth-of-type(even) {
 
 tbody tr:hover {
     background: var(--keypoint-bg);
+    transform: scale(1.01);
+    box-shadow: 0 2px 8px var(--shadow-color);
 }
 
 tbody tr:last-of-type td {
@@ -78,24 +88,41 @@ tbody tr:last-of-type td {
     font-weight: 600;
 }
 
-/* Simplified Discord Summary Section */
+/* Modern Discord Summary Section */
 .discord-summary {
-    background: var(--container-bg);
-    border-radius: 8px;
-    margin: 30px 0;
-    border: 1px solid var(--border-color);
-    box-shadow: 0 2px 8px var(--shadow-color);
+    background: var(--glass-bg);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-radius: 16px;
+    margin: 40px 0;
+    border: 1px solid var(--glass-border);
+    box-shadow: 
+        0 4px 6px rgba(0, 0, 0, 0.05),
+        0 10px 20px var(--shadow-color);
     overflow: hidden;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.discord-summary:hover {
+    box-shadow: 
+        0 8px 12px rgba(0, 0, 0, 0.08),
+        0 16px 32px var(--shadow-hover);
 }
 
 .discord-summary-header {
-    background: var(--table-header-bg);
-    padding: 15px 20px;
+    background: linear-gradient(135deg, var(--table-header-bg), var(--glass-bg));
+    padding: 18px 24px;
     cursor: pointer;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-bottom: 1px solid var(--border-color);
+    border-bottom: 1px solid var(--glass-border);
+    transition: all 0.3s ease;
+}
+
+.discord-summary-header:hover {
+    background: linear-gradient(135deg, var(--keypoint-bg), var(--glass-bg));
+    padding-left: 28px;
 }
 
 .discord-summary-header h3 {

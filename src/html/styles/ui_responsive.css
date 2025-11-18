@@ -1,100 +1,142 @@
-/* Simplified UI components and responsive styles */
+/* Modern UI components with glassmorphism */
 
 /* Theme switcher */
 .theme-switch {
     position: fixed;
-    top: 20px;
-    right: 20px;
-    background: var(--container-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 20px;
-    padding: 10px 15px;
+    top: 24px;
+    right: 24px;
+    background: var(--glass-bg);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--glass-border);
+    border-radius: 24px;
+    padding: 12px 20px;
     cursor: pointer;
     font-size: 14px;
-    font-weight: 500;
+    font-weight: 600;
     display: flex;
     align-items: center;
-    transition: all 0.3s ease;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     z-index: 1000;
-    box-shadow: 0 2px 8px var(--shadow-color);
+    box-shadow: 
+        0 4px 6px rgba(0, 0, 0, 0.05),
+        0 8px 16px var(--shadow-color);
     color: var(--text-color);
 }
 
 .theme-switch:hover {
     background: var(--keypoint-bg);
+    transform: translateY(-2px) scale(1.05);
+    box-shadow: 
+        0 8px 12px rgba(0, 0, 0, 0.1),
+        0 16px 24px var(--shadow-hover),
+        0 0 0 1px var(--accent-color);
+}
+
+.theme-switch:active {
+    transform: translateY(0) scale(1);
 }
 
 .theme-switch-icon {
     margin-right: 8px;
-    font-size: 16px;
+    font-size: 18px;
+    transition: transform 0.3s ease;
 }
 
-/* Back to top button */
+.theme-switch:hover .theme-switch-icon {
+    transform: rotate(20deg);
+}
+
+/* Modern back to top button */
 .back-to-top {
     position: fixed;
-    bottom: 25px;
-    right: 25px;
-    background: var(--link-color);
+    bottom: 28px;
+    right: 28px;
+    background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
     color: white;
     border-radius: 50%;
-    width: 50px;
-    height: 50px;
+    width: 56px;
+    height: 56px;
     text-align: center;
-    line-height: 50px;
-    font-size: 20px;
+    line-height: 56px;
+    font-size: 24px;
     cursor: pointer;
     opacity: 0;
-    transition: all 0.3s ease;
-    box-shadow: 0 2px 8px var(--shadow-color);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 
+        0 4px 6px rgba(0, 0, 0, 0.1),
+        0 8px 16px var(--shadow-color);
     z-index: 1000;
     border: none;
 }
 
 .back-to-top.visible {
-    opacity: 0.8;
+    opacity: 0.9;
 }
 
 .back-to-top:hover {
     opacity: 1;
-    background: var(--link-hover-color);
+    background: linear-gradient(135deg, var(--gradient-end), var(--gradient-start));
+    transform: translateY(-4px) scale(1.1);
+    box-shadow: 
+        0 8px 12px rgba(0, 0, 0, 0.15),
+        0 16px 32px var(--shadow-hover);
 }
 
-/* Simplified collapsible sections */
+.back-to-top:active {
+    transform: translateY(-2px) scale(1.05);
+}
+
+/* Modern collapsible sections */
 .collapsible-section {
-    margin: 30px 0;
-    border-radius: 8px;
+    margin: 40px 0;
+    border-radius: 16px;
     overflow: hidden;
-    border: 1px solid var(--border-color);
-    background: var(--container-bg);
-    box-shadow: 0 2px 8px var(--shadow-color);
+    border: 1px solid var(--glass-border);
+    background: var(--glass-bg);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    box-shadow: 
+        0 4px 6px rgba(0, 0, 0, 0.05),
+        0 10px 20px var(--shadow-color);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.collapsible-section:hover {
+    box-shadow: 
+        0 8px 12px rgba(0, 0, 0, 0.08),
+        0 16px 32px var(--shadow-hover);
 }
 
 .collapsible-header {
     cursor: pointer;
-    padding: 15px 20px;
-    background: var(--keypoint-bg);
+    padding: 18px 24px;
+    background: linear-gradient(135deg, var(--keypoint-bg), transparent);
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-bottom: 1px solid var(--border-color);
+    border-bottom: 1px solid var(--glass-border);
+    transition: all 0.3s ease;
 }
 
 .collapsible-header:hover {
-    background: var(--resources-bg);
+    background: linear-gradient(135deg, var(--resources-bg), transparent);
+    padding-left: 28px;
 }
 
 .collapsible-header h3 {
     margin: 0;
     color: var(--heading-color);
-    font-size: 1.2em;
-    font-weight: 600;
+    font-size: 1.25em;
+    font-weight: 700;
 }
 
 .collapsible-content {
     background: var(--container-bg);
     max-height: 0;
     overflow: hidden;
-    transition: max-height 0.3s ease, padding 0.3s ease;
+    transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+                padding 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .collapsible-content.expanded {

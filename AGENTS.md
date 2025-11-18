@@ -1,7 +1,22 @@
 # Discord Crypto Analyzer - Global Agent Instructions
 
-**Version**: 1.0  
-**Last Updated**: 2025-11-13
+**Version**: 1.1  
+**Last Updated**: 2025-11-18
+
+## Recent Changes
+
+### November 18, 2025 - Dead Code Cleanup
+- Removed 276 lines of confirmed dead code across 9 files
+- Deleted `src/rag/search/search_utilities.py` (entire file unused)
+- Removed 5 unused response builder functions (discord_interface)
+- Removed 7 unused RAG search functions (only coin-based search is active)
+- Removed 2 unused data processor functions (analyzer)
+- Removed 2 unused exchange info functions (platforms)
+- Removed 1 experimental swing detection function (analyzer)
+- Removed 2 legacy format utility functions (utils)
+- Removed 2 unused timeframe utility functions (utils)
+- Fixed duplicate `@classmethod` decorator bug in `timeframe_validator.py`
+- See `DEAD_CODE_ANALYSIS.md` and `CODE_CLEANUP_TODO.md` for full details
 
 ## Instruction Hierarchy & Precedence
 

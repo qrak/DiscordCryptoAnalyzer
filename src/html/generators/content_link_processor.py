@@ -17,6 +17,7 @@ class ContentLinkProcessor:
     def _initialize_indicator_docs(self) -> Dict[str, str]:
         """Initialize the dictionary mapping indicator names to documentation links."""
         return {
+            # Technical Indicators (Original)
             "RSI": "https://www.investopedia.com/terms/r/rsi.asp",
             "MACD": "https://www.investopedia.com/terms/m/macd.asp",
             "Bollinger Bands": "https://www.investopedia.com/terms/b/bollingerbands.asp",
@@ -66,7 +67,113 @@ class ContentLinkProcessor:
             "Weiss Cryptocurrency Rating": "https://weissratings.com/en/rating-definitions",
             "Weiss Cryptocurrency Ratings": "https://weissratings.com/en/rating-definitions",
             "Weiss Crypto Rating": "https://weissratings.com/en/rating-definitions",
-            "Weiss Crypto Ratings": "https://weissratings.com/en/rating-definitions"
+            "Weiss Crypto Ratings": "https://weissratings.com/en/rating-definitions",
+            
+            # Chart Patterns (NEW)
+            "Head and Shoulders": "https://www.investopedia.com/terms/h/head-shoulders.asp",
+            "Head & Shoulders": "https://www.investopedia.com/terms/h/head-shoulders.asp",
+            "Double Top": "https://www.investopedia.com/terms/d/double-top-and-bottom.asp",
+            "Double Bottom": "https://www.investopedia.com/terms/d/double-top-and-bottom.asp",
+            "Triple Top": "https://www.investopedia.com/terms/t/tripletop.asp",
+            "Triple Bottom": "https://www.investopedia.com/terms/t/triplebottom.asp",
+            "Flag": "https://www.investopedia.com/terms/f/flag.asp",
+            "Pennant": "https://www.investopedia.com/terms/p/pennant.asp",
+            "Triangle": "https://www.investopedia.com/articles/technical/03/091003.asp",
+            "Ascending Triangle": "https://www.investopedia.com/terms/a/ascendingtriangle.asp",
+            "Descending Triangle": "https://www.investopedia.com/terms/d/descendingtriangle.asp",
+            "Symmetrical Triangle": "https://www.investopedia.com/terms/s/symmetricaltriangle.asp",
+            "Wedge": "https://www.investopedia.com/terms/w/wedge.asp",
+            "Rising Wedge": "https://www.investopedia.com/terms/r/rising-wedge.asp",
+            "Falling Wedge": "https://www.investopedia.com/terms/f/falling-wedge.asp",
+            "Cup and Handle": "https://www.investopedia.com/terms/c/cupandhandle.asp",
+            "Rounding Bottom": "https://www.investopedia.com/terms/r/roundingbottom.asp",
+            "Channel": "https://www.investopedia.com/articles/trading/05/020905.asp",
+            
+            # Market Structure & Trading Concepts (NEW)
+            "Support": "https://www.investopedia.com/terms/s/support.asp",
+            "Resistance": "https://www.investopedia.com/terms/r/resistance.asp",
+            "Trend": "https://www.investopedia.com/terms/t/trend.asp",
+            "Uptrend": "https://www.investopedia.com/terms/u/uptrend.asp",
+            "Downtrend": "https://www.investopedia.com/terms/d/downtrend.asp",
+            "Breakout": "https://www.investopedia.com/articles/trading/08/trading-breakouts.asp",
+            "Breakdown": "https://www.investopedia.com/terms/b/breakdown.asp",
+            "Consolidation": "https://www.investopedia.com/terms/c/consolidation.asp",
+            "Retracement": "https://www.investopedia.com/terms/r/retracement.asp",
+            "Reversal": "https://www.investopedia.com/terms/r/reversal.asp",
+            "Correction": "https://www.investopedia.com/terms/c/correction.asp",
+            "Rally": "https://www.investopedia.com/terms/r/rally.asp",
+            "Pullback": "https://www.investopedia.com/terms/p/pullback.asp",
+            "Momentum": "https://www.investopedia.com/terms/m/momentum.asp",
+            "Volatility": "https://www.investopedia.com/terms/v/volatility.asp",
+            "Liquidity": "https://www.investopedia.com/terms/l/liquidity.asp",
+            "Market Cap": "https://www.investopedia.com/terms/m/marketcapitalization.asp",
+            "Market Capitalization": "https://www.investopedia.com/terms/m/marketcapitalization.asp",
+            "Trading Volume": "https://www.investopedia.com/terms/v/volumeoftrade.asp",
+            "Order Book": "https://www.investopedia.com/terms/o/order-book.asp",
+            "Bid": "https://www.investopedia.com/terms/b/bid.asp",
+            "Ask": "https://www.investopedia.com/terms/a/ask.asp",
+            "Spread": "https://www.investopedia.com/terms/s/spread.asp",
+            "Liquidation": "https://www.investopedia.com/terms/l/liquidationlevel.asp",
+            "Margin Call": "https://www.investopedia.com/terms/m/margincall.asp",
+            "Leverage": "https://www.investopedia.com/terms/l/leverage.asp",
+            "Long Position": "https://www.investopedia.com/terms/l/long.asp",
+            "Short Position": "https://www.investopedia.com/terms/s/short.asp",
+            "Stop Loss": "https://www.investopedia.com/terms/s/stop-lossorder.asp",
+            "Take Profit": "https://www.investopedia.com/terms/t/take-profitorder.asp",
+            "Limit Order": "https://www.investopedia.com/terms/l/limitorder.asp",
+            "Market Order": "https://www.investopedia.com/terms/m/marketorder.asp",
+            "Candlestick": "https://www.investopedia.com/terms/c/candlestick.asp",
+            "Doji": "https://www.investopedia.com/terms/d/doji.asp",
+            "Hammer": "https://www.investopedia.com/terms/h/hammer.asp",
+            "Shooting Star": "https://www.investopedia.com/terms/s/shootingstar.asp",
+            "Engulfing": "https://www.investopedia.com/terms/b/bullishengulfingpattern.asp",
+            "Divergence": "https://www.investopedia.com/terms/d/divergence.asp",
+            "Convergence": "https://www.investopedia.com/terms/c/convergence.asp",
+            "Oversold": "https://www.investopedia.com/terms/o/oversold.asp",
+            "Overbought": "https://www.investopedia.com/terms/o/overbought.asp",
+            "Golden Cross": "https://www.investopedia.com/terms/g/goldencross.asp",
+            "Death Cross": "https://www.investopedia.com/terms/d/deathcross.asp",
+            
+            # Market Psychology & Sentiment (NEW)
+            "FOMO": "https://www.investopedia.com/deal-with-crypto-fomo-6455103",
+            "Fear": "https://alternative.me/crypto/fear-and-greed-index/",
+            "Greed": "https://alternative.me/crypto/fear-and-greed-index/",
+            "Panic Selling": "https://www.investopedia.com/terms/p/panicselling.asp",
+            "Capitulation": "https://www.investopedia.com/terms/c/capitulation.asp",
+            
+            # Market Participants & Structure (NEW)
+            "Whale": "https://www.investopedia.com/terms/b/bitcoin-whale.asp",
+            "Crypto Whale": "https://www.investopedia.com/terms/b/bitcoin-whale.asp",
+            "Bitcoin Whale": "https://www.investopedia.com/terms/b/bitcoin-whale.asp",
+            "Institutional Investors": "https://www.investopedia.com/terms/i/institutionalinvestor.asp",
+            "Retail Investors": "https://www.investopedia.com/retail-investors-are-back-in-crypto-markets-5095407",
+            "Retail": "https://www.investopedia.com/retail-investors-are-back-in-crypto-markets-5095407",
+            "Institutional": "https://www.investopedia.com/terms/i/institutionalinvestor.asp",
+            
+            # Crypto-Specific Concepts (NEW)
+            "Altcoin": "https://www.investopedia.com/terms/a/altcoin.asp",
+            "Altcoins": "https://www.investopedia.com/terms/a/altcoin.asp",
+            "Bitcoin Dominance": "https://www.investopedia.com/bitcoin-dominance-of-crypto-market-reaches-highest-level-since-2021-8744927",
+            "Dominance": "https://www.investopedia.com/bitcoin-dominance-of-crypto-market-reaches-highest-level-since-2021-8744927",
+            "Deleveraging": "https://www.investopedia.com/terms/d/deleverage.asp",
+            "Futures": "https://www.investopedia.com/terms/f/futures.asp",
+            "Crypto Futures": "https://www.investopedia.com/terms/f/futures.asp",
+            "Bull Market": "https://www.investopedia.com/insights/digging-deeper-bull-and-bear-markets/",
+            "Bear Market": "https://www.investopedia.com/terms/b/bearmarket.asp",
+            "Bullish": "https://www.investopedia.com/insights/digging-deeper-bull-and-bear-markets/",
+            "Bearish": "https://www.investopedia.com/terms/b/bearmarket.asp",
+            
+            # Distribution & Accumulation (NEW)
+            "Distribution": "https://www.investopedia.com/articles/trading/08/stock-cycle-trend-price.asp",
+            "Accumulation": "https://www.investopedia.com/articles/trading/08/accumulation-distribution-line.asp",
+            "Accumulation Phase": "https://www.investopedia.com/articles/trading/08/stock-cycle-trend-price.asp",
+            "Distribution Phase": "https://www.investopedia.com/articles/trading/08/stock-cycle-trend-price.asp",
+            
+            # Trading Pressure & Flow (NEW)
+            "Buy Pressure": "https://www.investopedia.com/terms/v/volume-price-trend-indicator.asp",
+            "Sell Pressure": "https://www.investopedia.com/terms/v/volume-price-trend-indicator.asp",
+            "Buying Pressure": "https://www.investopedia.com/terms/v/volume-price-trend-indicator.asp",
+            "Selling Pressure": "https://www.investopedia.com/terms/v/volume-price-trend-indicator.asp"
         }
     
     def add_indicator_links(self, content: str) -> str:

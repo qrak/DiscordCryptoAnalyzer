@@ -15,58 +15,103 @@
     margin-top: 20px;
 }
 
-/* Simplified key points */
+/* Modern key points with gradient accent */
 .key-point {
     background: var(--keypoint-bg);
-    border-left: 4px solid var(--link-color);
-    border-radius: 4px;
-    padding: 15px 20px;
-    margin: 20px 0;
-    border: 1px solid var(--border-color);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border-left: 4px solid transparent;
+    border-image: linear-gradient(180deg, var(--gradient-start), var(--gradient-end)) 1;
+    border-radius: 8px;
+    padding: 20px 24px;
+    margin: 24px 0;
+    border-right: 1px solid var(--glass-border);
+    border-top: 1px solid var(--glass-border);
+    border-bottom: 1px solid var(--glass-border);
+    box-shadow: 0 2px 8px var(--shadow-color);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Simplified charts */
+.key-point:hover {
+    transform: translateX(4px);
+    box-shadow: 0 4px 12px var(--shadow-hover);
+}
+
+/* Modern charts with glassmorphism */
 .chart-section {
-    margin: 30px 0;
+    margin: 40px 0;
     width: 100%;
 }
 
 .market-chart {
-    background: var(--container-bg);
-    border-radius: 8px;
-    border: 1px solid var(--border-color);
-    box-shadow: 0 2px 8px var(--shadow-color);
-    padding: 20px;
-    margin: 20px 0;
+    background: var(--glass-bg);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-radius: 16px;
+    border: 1px solid var(--glass-border);
+    box-shadow: 
+        0 4px 6px rgba(0, 0, 0, 0.05),
+        0 10px 20px var(--shadow-color);
+    padding: 24px;
+    margin: 24px 0;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.market-chart:hover {
+    box-shadow: 
+        0 8px 12px rgba(0, 0, 0, 0.08),
+        0 16px 32px var(--shadow-hover),
+        0 0 0 1px var(--accent-color);
+    transform: translateY(-2px);
 }
 
 .market-chart h3 {
     color: var(--heading-color);
     margin: 0 0 20px 0;
-    font-size: 1.3em;
-    font-weight: 600;
+    font-size: 1.4em;
+    font-weight: 700;
     text-align: center;
-    border-bottom: 1px solid var(--border-color);
-    padding-bottom: 10px;
+    border-bottom: 2px solid transparent;
+    border-image: linear-gradient(90deg, var(--gradient-start), var(--gradient-end)) 1;
+    padding-bottom: 12px;
 }
 
 .chart-container {
     border: 1px solid var(--chart-border);
-    border-radius: 4px;
-    padding: 15px;
-    margin: 15px 0;
+    border-radius: 12px;
+    padding: 20px;
+    margin: 20px 0;
     background: var(--container-bg);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
     width: 100%;
     box-sizing: border-box;
+    transition: all 0.3s ease;
+}
+
+.chart-container:hover {
+    border-color: var(--accent-color);
 }
 
 .analysis-details {
-    background: var(--container-bg);
-    border-radius: 8px;
-    border: 1px solid var(--border-color);
-    box-shadow: 0 2px 8px var(--shadow-color);
-    padding: 20px;
-    margin: 20px 0;
+    background: var(--glass-bg);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-radius: 16px;
+    border: 1px solid var(--glass-border);
+    box-shadow: 
+        0 4px 6px rgba(0, 0, 0, 0.05),
+        0 10px 20px var(--shadow-color);
+    padding: 24px;
+    margin: 24px 0;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.analysis-details:hover {
+    box-shadow: 
+        0 8px 12px rgba(0, 0, 0, 0.08),
+        0 16px 32px var(--shadow-hover);
+    transform: translateY(-2px);
 }
 
 /* Simplified loading and timestamps */
@@ -151,25 +196,37 @@
     text-decoration: underline;
 }
 
-/* Simplified resources section */
+/* Modern resources section */
 .resources {
-    background: var(--resources-bg);
-    border-radius: 8px;
-    padding: 20px;
-    margin-top: 30px;
-    border: 1px solid var(--border-color);
-    box-shadow: 0 2px 8px var(--shadow-color);
+    background: var(--glass-bg);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-radius: 16px;
+    padding: 24px;
+    margin-top: 40px;
+    border: 1px solid var(--glass-border);
+    box-shadow: 
+        0 4px 6px rgba(0, 0, 0, 0.05),
+        0 10px 20px var(--shadow-color);
+    transition: all 0.3s ease;
+}
+
+.resources:hover {
+    box-shadow: 
+        0 8px 12px rgba(0, 0, 0, 0.08),
+        0 16px 32px var(--shadow-hover);
 }
 
 .resources h4 {
     margin-top: 0;
-    margin-bottom: 15px;
+    margin-bottom: 20px;
     color: var(--heading-color);
-    font-size: 1.2em;
-    font-weight: 600;
+    font-size: 1.3em;
+    font-weight: 700;
     text-align: center;
-    border-bottom: 1px solid var(--border-color);
-    padding-bottom: 10px;
+    border-bottom: 2px solid transparent;
+    border-image: linear-gradient(90deg, var(--gradient-start), var(--gradient-end)) 1;
+    padding-bottom: 12px;
 }
 
 .resources ul {
@@ -178,12 +235,21 @@
 }
 
 .resources li {
-    margin: 10px 0;
-    padding: 10px 15px;
+    margin: 12px 0;
+    padding: 12px 18px;
     background: var(--container-bg);
-    border-radius: 4px;
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    border-radius: 8px;
     border-left: 3px solid var(--link-color);
-    border: 1px solid var(--border-color);
+    border: 1px solid var(--glass-border);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.resources li:hover {
+    transform: translateX(4px);
+    box-shadow: 0 4px 8px var(--shadow-color);
+    border-left-color: var(--accent-color);
 }
 
 /* Make charts responsive */

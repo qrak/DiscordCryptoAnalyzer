@@ -1,67 +1,85 @@
-/* Simplified base styles for crypto analysis reports */
+/* Modern base styles for crypto analysis reports with glassmorphism */
 
 /* CSS Variables */
 :root[data-theme="light"] {
-    --text-color: #2c3e50;
-    --background-color: #f8f9fa;
-    --container-bg: #ffffff;
-    --heading-color: #1e3a8a;
-    --border-color: #2563eb;
-    --link-color: #1d4ed8;
-    --link-hover-color: #1e40af;
-    --keypoint-bg: #f0f9ff;
-    --code-bg: #f1f5f9;
-    --expiry-bg: #fef3c7;
+    --text-color: #1e293b;
+    --background-color: #f1f5f9;
+    --container-bg: rgba(255, 255, 255, 0.85);
+    --heading-color: #0f172a;
+    --border-color: #3b82f6;
+    --link-color: #2563eb;
+    --link-hover-color: #1d4ed8;
+    --keypoint-bg: rgba(240, 249, 255, 0.6);
+    --code-bg: rgba(241, 245, 249, 0.8);
+    --expiry-bg: rgba(254, 243, 199, 0.9);
     --expiry-border: #f59e0b;
-    --resources-bg: #f8fafc;
+    --resources-bg: rgba(248, 250, 252, 0.7);
     --shadow-color: rgba(0, 0, 0, 0.08);
+    --shadow-hover: rgba(0, 0, 0, 0.15);
     --timestamp-color: #64748b;
     --chart-border: #e2e8f0;
     --table-border-color: #e2e8f0;
-    --table-header-bg: #f1f5f9;
+    --table-header-bg: rgba(241, 245, 249, 0.9);
+    --glass-bg: rgba(255, 255, 255, 0.7);
+    --glass-border: rgba(255, 255, 255, 0.3);
+    --gradient-start: #3b82f6;
+    --gradient-end: #8b5cf6;
+    --accent-color: #3b82f6;
 }
 
 :root[data-theme="dark"] {
-    --text-color: #e9ecef;
-    --background-color: #212529;
-    --container-bg: #343a40;
-    --heading-color: #64b5f6;
-    --border-color: #4789c0;
-    --link-color: #64b5f6;
-    --link-hover-color: #90caf9;
-    --keypoint-bg: #495057;
-    --code-bg: #495057;
-    --expiry-bg: #6f4e37;
-    --expiry-border: #ffc107;
-    --resources-bg: #495057;
-    --shadow-color: rgba(0, 0, 0, 0.3);
-    --timestamp-color: #adb5bd;
-    --chart-border: #6c757d;
-    --table-border-color: #6c757d;
-    --table-header-bg: #495057;
+    --text-color: #e2e8f0;
+    --background-color: #0f172a;
+    --container-bg: rgba(30, 41, 59, 0.85);
+    --heading-color: #60a5fa;
+    --border-color: #3b82f6;
+    --link-color: #60a5fa;
+    --link-hover-color: #93c5fd;
+    --keypoint-bg: rgba(51, 65, 85, 0.6);
+    --code-bg: rgba(51, 65, 85, 0.8);
+    --expiry-bg: rgba(120, 53, 15, 0.9);
+    --expiry-border: #f59e0b;
+    --resources-bg: rgba(51, 65, 85, 0.7);
+    --shadow-color: rgba(0, 0, 0, 0.4);
+    --shadow-hover: rgba(0, 0, 0, 0.6);
+    --timestamp-color: #94a3b8;
+    --chart-border: #475569;
+    --table-border-color: #475569;
+    --table-header-bg: rgba(51, 65, 85, 0.9);
+    --glass-bg: rgba(30, 41, 59, 0.7);
+    --glass-border: rgba(100, 116, 139, 0.3);
+    --gradient-start: #3b82f6;
+    --gradient-end: #8b5cf6;
+    --accent-color: #60a5fa;
 }
 
-/* Simplified layout */
+/* Modern layout with glassmorphism */
 body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Inter', sans-serif;
     line-height: 1.6;
     color: var(--text-color);
     margin: 0;
     padding: 20px;
-    background-color: var(--background-color);
-    transition: background-color 0.3s ease;
+    background: linear-gradient(135deg, var(--background-color) 0%, rgba(59, 130, 246, 0.05) 100%);
+    transition: all 0.3s ease;
+    min-height: 100vh;
 }
 
 .container {
     background: var(--container-bg);
-    border-radius: 8px;
-    padding: 30px;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-radius: 16px;
+    padding: 40px;
     margin: 0 auto;
     width: 90%;
     max-width: none;
-    box-shadow: 0 2px 10px var(--shadow-color);
-    border: 1px solid var(--border-color);
-    transition: background-color 0.3s ease;
+    box-shadow: 
+        0 4px 6px rgba(0, 0, 0, 0.05),
+        0 10px 20px var(--shadow-color),
+        0 0 1px rgba(59, 130, 246, 0.1);
+    border: 1px solid var(--glass-border);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* Simplified typography */
@@ -142,17 +160,30 @@ code {
     border: 1px solid var(--border-color);
 }
 
-/* Simple links */
+/* Enhanced links with smooth transitions */
 a {
     color: var(--link-color);
     text-decoration: none;
     border-bottom: 1px solid transparent;
-    transition: all 0.2s ease;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    font-weight: 500;
 }
 
 a:hover {
     color: var(--link-hover-color);
     border-bottom-color: var(--link-hover-color);
+    transform: translateY(-1px);
+}
+
+a:focus {
+    outline: 2px solid var(--accent-color);
+    outline-offset: 2px;
+    border-radius: 2px;
+}
+
+a:active {
+    transform: translateY(0);
 }
 
 /* Smooth scrolling */
