@@ -220,6 +220,7 @@ class TemplateManager:
             - Look for candlestick reversal patterns
             - Note potential harmonic patterns and Fibonacci relationships
             - Identify overbought/oversold conditions across indicators
+            - Prioritize recent patterns over older ones; older patterns may be less relevant given the dynamic timeframe analysis (e.g., 1D).
         
         4. Support/Resistance Validation:
             - Map key price levels from all timeframes

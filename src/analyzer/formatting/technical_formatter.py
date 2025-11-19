@@ -184,7 +184,7 @@ class TechnicalFormatter:
                 if pattern_summaries:
                     if self.logger:
                         self.logger.debug(f"Including {len(pattern_summaries)} recent patterns in technical analysis (adaptive recency filter)")
-                    return "\n\n## Detected Patterns:\n" + "\n".join(pattern_summaries[-20:])  # Show last 20 recent patterns
+                    return "\n\n## Detected Patterns:\n" + "\n".join(pattern_summaries[-50:])  # Show last 50 recent patterns
             except Exception as e:
                 if self.logger:
                     self.logger.debug(f"Error using stored technical_patterns: {e}")

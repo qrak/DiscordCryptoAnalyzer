@@ -235,177 +235,18 @@ class AnalysisEngine:
         """
         try:
             # Step 1: Collect all required data
-            data_result = await self.data_collector.collect_data(self.context)
-            if not data_result["success"]:
-                self.logger.error(f"Failed to collect market data: {data_result['errors']}")
-                return {"error": "Failed to collect market data", "details": data_result['errors']}
+            if not await self._collect_market_data():
+                return {"error": "Failed to collect market data", "details": "Data collection failed"}
             
-            # Store article URLs
-            self.article_urls = self.data_collector.article_urls
+            # Step 2: Enrich context with external data
+            await self._enrich_market_context()
             
-            # Fetch market overview
-            try:
-                market_overview = await self.rag_engine.get_market_overview()
-                self.context.market_overview = market_overview
-                self.logger.debug("Market overview data fetched and added to context")
-            except Exception as e:
-                self.logger.warning(f"Failed to fetch market overview: {e}")
-                # Initialize as empty dict to avoid AttributeError
-                self.context.market_overview = {}
+            # Step 3: Perform technical analysis
+            await self._perform_technical_analysis()
             
-            # Fetch market microstructure (order book, trades, funding rate)
-            try:
-                microstructure = await self.data_collector.data_fetcher.fetch_market_microstructure(self.symbol)
-                self.context.market_microstructure = microstructure
-                self.logger.debug(f"Market microstructure data fetched for {self.symbol}")
-            except Exception as e:
-                self.logger.warning(f"Failed to fetch market microstructure: {e}")
-                self.context.market_microstructure = {}
+            # Step 4: Generate AI analysis
+            analysis_result = await self._generate_ai_analysis(provider, model)
             
-            # Fetch cryptocurrency details if CryptoCompare is available
-            if self.cryptocompare_api:
-                try:
-                    coin_details = await self.cryptocompare_api.get_coin_details(self.base_symbol)
-                    self.context.coin_details = coin_details
-                    if coin_details:
-                        self.logger.debug(f"Coin details for {self.base_symbol} fetched and added to context")
-                    else:
-                        self.logger.warning(f"No coin details found for {self.base_symbol}")
-                except Exception as e:
-                    self.logger.warning(f"Failed to fetch coin details for {self.base_symbol}: {e}")
-                    self.context.coin_details = {}
-            
-            # Step 2: Calculate technical indicators
-            await self._calculate_technical_indicators()
-            
-            # Step 3: Process long-term data if available
-            await self._process_long_term_data()
-            
-            # Step 4: Calculate market metrics for different periods
-            # Use data_collector's method instead of the local _extract_ohlcv_data method
-            data = self.data_collector.extract_ohlcv_data(self.context)
-            self.metrics_calculator.update_period_metrics(data, self.context)
-            
-            # Step 5: Run technical pattern analysis
-            technical_patterns = self.pattern_analyzer.detect_patterns(
-                self.context.ohlcv_candles,
-                self.context.technical_history,
-                self.context.long_term_data if hasattr(self.context, 'long_term_data') else None,
-                self.context.timestamps
-            )
-            
-            # If we found meaningful patterns, add them to context
-            if any(technical_patterns.values()):
-                self.context.technical_patterns = technical_patterns
-            
-            # Step 6: Add market context to prompt builder if available
-            market_context = data_result.get("market_context")
-            if market_context:
-                self.prompt_builder.add_custom_instruction(market_context)
-            else:
-                self.logger.warning(f"No market context available for {self.symbol}")
-            
-                        # Step 7: Check if chart analysis is supported and build system prompt accordingly
-            self.prompt_builder.language = self.language
-            has_chart_analysis = self.model_manager.supports_image_analysis(provider)
-            system_prompt = self.prompt_builder.build_system_prompt(self.symbol, has_chart_analysis)
-            
-            # Step 8: Generate chart image for AI analysis (Google AI only)
-            chart_image = None
-            if has_chart_analysis:
-                try:
-                    self.logger.info("Generating chart image for AI pattern analysis")
-                    chart_image = self.chart_generator.create_chart_image(
-                        ohlcv=self.context.ohlcv_candles,
-                        technical_history=self.context.technical_history,
-                        pair_symbol=self.symbol,
-                        timeframe=self.context.timeframe,
-                        save_to_disk=self.config.DEBUG_SAVE_CHARTS,
-                        timestamps=self.context.timestamps
-                    )
-                    
-                except Exception as e:
-                    self.logger.warning(f"Failed to generate chart image for AI analysis: {e}")
-                    chart_image = None
-                    has_chart_analysis = False
-            
-            # Build prompt with chart analysis information
-            prompt = self.prompt_builder.build_prompt(self.context, has_chart_analysis)
-            
-            # Step 9: Process analysis through appropriate processor
-            if self.config.TEST_ENVIRONMENT:
-                self.logger.debug(f"TEST_ENVIRONMENT is True - using mock analysis")
-                analysis_result = self.result_processor.process_mock_analysis(
-                    self.symbol,
-                    self.context.current_price,
-                    self.language,
-                    self.article_urls,
-                    technical_history=getattr(self.context, 'technical_history', None),
-                    technical_data=getattr(self.context, 'technical_data', None)
-                )
-            else:
-                # Log provider/model override if provided
-                if provider and model:
-                    self.logger.info(f"Using admin-specified provider: {provider}, model: {model}")
-                
-                # First try chart analysis if available
-                if chart_image is not None and self.model_manager.supports_image_analysis(provider):
-                    prov_name, model_name = self.model_manager.describe_provider_and_model(provider, model, chart=True)
-                    prov_label = prov_name.upper() if prov_name else "UNKNOWN"
-                    self.logger.info(
-                        "Attempting chart image analysis via %s (model: %s)",
-                        prov_label,
-                        model_name
-                    )
-                    try:
-                        analysis_result = await self.result_processor.process_analysis(
-                            system_prompt, 
-                            prompt,
-                            self.language,
-                            chart_image=chart_image,
-                            provider=provider,
-                            model=model
-                        )
-                    except ValueError as e:
-                        # Chart analysis failed, rebuild prompts without chart analysis and retry with text-only
-                        self.logger.warning(
-                            f"Chart analysis failed for {self.symbol} via {prov_label} ({model_name}): {e}. "
-                            f"Retrying with text-only analysis..."
-                        )
-                        has_chart_analysis = False
-                        system_prompt = self.prompt_builder.build_system_prompt(self.symbol, has_chart_analysis)
-                        prompt = self.prompt_builder.build_prompt(self.context, has_chart_analysis)
-                        
-                        analysis_result = await self.result_processor.process_analysis(
-                            system_prompt, 
-                            prompt,
-                            self.language,
-                            chart_image=None,
-                            provider=provider,
-                            model=model
-                        )
-                        self.logger.info(f"Text-only analysis completed successfully for {self.symbol}")
-                else:
-                    # No chart analysis available, use text-only
-                    analysis_result = await self.result_processor.process_analysis(
-                        system_prompt, 
-                        prompt,
-                        self.language,
-                        chart_image=None,
-                        provider=provider,
-                        model=model
-                    )
-                
-            # Add article URLs to result
-            analysis_result["article_urls"] = self.article_urls
-            # Add timeframe to result for Discord embed and HTML
-            analysis_result["timeframe"] = self.context.timeframe
-            # Add provider and model info to result
-            actual_provider, actual_model = self.model_manager.describe_provider_and_model(provider, model, chart=has_chart_analysis)
-            analysis_result["provider"] = actual_provider
-            analysis_result["model"] = actual_model
-            
-
             # Store the result for later publication
             self.last_analysis_result = analysis_result
                 
@@ -417,6 +258,170 @@ class AnalysisEngine:
         except Exception as e:
             self.logger.exception(f"Analysis failed: {e}")
             return {"error": str(e), "recommendation": "HOLD"}
+
+    async def _collect_market_data(self) -> bool:
+        """Collect market data using data collector"""
+        data_result = await self.data_collector.collect_data(self.context)
+        if not data_result["success"]:
+            self.logger.error(f"Failed to collect market data: {data_result['errors']}")
+            return False
+        
+        # Store article URLs
+        self.article_urls = self.data_collector.article_urls
+        
+        # Add market context to prompt builder if available
+        market_context = data_result.get("market_context")
+        if market_context:
+            self.prompt_builder.add_custom_instruction(market_context)
+        else:
+            self.logger.warning(f"No market context available for {self.symbol}")
+            
+        return True
+
+    async def _enrich_market_context(self) -> None:
+        """Enrich market context with overview, microstructure, and coin details"""
+        # Fetch market overview
+        try:
+            market_overview = await self.rag_engine.get_market_overview()
+            self.context.market_overview = market_overview
+            self.logger.debug("Market overview data fetched and added to context")
+        except Exception as e:
+            self.logger.warning(f"Failed to fetch market overview: {e}")
+            self.context.market_overview = {}
+        
+        # Fetch market microstructure
+        try:
+            microstructure = await self.data_collector.data_fetcher.fetch_market_microstructure(self.symbol)
+            self.context.market_microstructure = microstructure
+            self.logger.debug(f"Market microstructure data fetched for {self.symbol}")
+        except Exception as e:
+            self.logger.warning(f"Failed to fetch market microstructure: {e}")
+            self.context.market_microstructure = {}
+        
+        # Fetch cryptocurrency details
+        if self.cryptocompare_api:
+            try:
+                coin_details = await self.cryptocompare_api.get_coin_details(self.base_symbol)
+                self.context.coin_details = coin_details
+                if coin_details:
+                    self.logger.debug(f"Coin details for {self.base_symbol} fetched and added to context")
+                else:
+                    self.logger.warning(f"No coin details found for {self.base_symbol}")
+            except Exception as e:
+                self.logger.warning(f"Failed to fetch coin details for {self.base_symbol}: {e}")
+                self.context.coin_details = {}
+
+    async def _perform_technical_analysis(self) -> None:
+        """Perform all technical analysis steps"""
+        # Calculate technical indicators
+        await self._calculate_technical_indicators()
+        
+        # Process long-term data
+        await self._process_long_term_data()
+        
+        # Calculate market metrics
+        data = self.data_collector.extract_ohlcv_data(self.context)
+        self.metrics_calculator.update_period_metrics(data, self.context)
+        
+        # Run technical pattern analysis
+        technical_patterns = self.pattern_analyzer.detect_patterns(
+            self.context.ohlcv_candles,
+            self.context.technical_history,
+            self.context.long_term_data if hasattr(self.context, 'long_term_data') else None,
+            self.context.timestamps
+        )
+        
+        if any(technical_patterns.values()):
+            self.context.technical_patterns = technical_patterns
+
+    async def _generate_ai_analysis(self, provider: Optional[str], model: Optional[str]) -> Dict[str, Any]:
+        """Generate AI analysis using prompt builder and result processor"""
+        self.prompt_builder.language = self.language
+        has_chart_analysis = self.model_manager.supports_image_analysis(provider)
+        system_prompt = self.prompt_builder.build_system_prompt(self.symbol, has_chart_analysis)
+        
+        # Generate chart image
+        chart_image = None
+        if has_chart_analysis:
+            try:
+                self.logger.info("Generating chart image for AI pattern analysis")
+                chart_image = self.chart_generator.create_chart_image(
+                    ohlcv=self.context.ohlcv_candles,
+                    technical_history=self.context.technical_history,
+                    pair_symbol=self.symbol,
+                    timeframe=self.context.timeframe,
+                    save_to_disk=self.config.DEBUG_SAVE_CHARTS,
+                    timestamps=self.context.timestamps
+                )
+            except Exception as e:
+                self.logger.warning(f"Failed to generate chart image for AI analysis: {e}")
+                chart_image = None
+                has_chart_analysis = False
+        
+        # Build prompt
+        prompt = self.prompt_builder.build_prompt(self.context, has_chart_analysis)
+        
+        # Process analysis
+        if self.config.TEST_ENVIRONMENT:
+            self.logger.debug(f"TEST_ENVIRONMENT is True - using mock analysis")
+            analysis_result = self.result_processor.process_mock_analysis(
+                self.symbol,
+                self.context.current_price,
+                self.language,
+                self.article_urls,
+                technical_history=getattr(self.context, 'technical_history', None),
+                technical_data=getattr(self.context, 'technical_data', None)
+            )
+        else:
+            analysis_result = await self._execute_ai_request(
+                system_prompt, prompt, chart_image, provider, model, has_chart_analysis
+            )
+            
+        # Add metadata to result
+        analysis_result["article_urls"] = self.article_urls
+        analysis_result["timeframe"] = self.context.timeframe
+        actual_provider, actual_model = self.model_manager.describe_provider_and_model(provider, model, chart=has_chart_analysis)
+        analysis_result["provider"] = actual_provider
+        analysis_result["model"] = actual_model
+        
+        return analysis_result
+
+    async def _execute_ai_request(
+        self, 
+        system_prompt: str, 
+        prompt: str, 
+        chart_image: Any, 
+        provider: Optional[str], 
+        model: Optional[str],
+        has_chart_analysis: bool
+    ) -> Dict[str, Any]:
+        """Execute the AI request with fallback logic"""
+        if provider and model:
+            self.logger.info(f"Using admin-specified provider: {provider}, model: {model}")
+        
+        # Try chart analysis if available
+        if chart_image is not None and has_chart_analysis:
+            prov_name, model_name = self.model_manager.describe_provider_and_model(provider, model, chart=True)
+            self.logger.info(f"Attempting chart image analysis via {prov_name.upper() if prov_name else 'UNKNOWN'} (model: {model_name})")
+            try:
+                return await self.result_processor.process_analysis(
+                    system_prompt, prompt, self.language, chart_image=chart_image, provider=provider, model=model
+                )
+            except ValueError as e:
+                self.logger.warning(f"Chart analysis failed: {e}. Retrying with text-only analysis...")
+                # Fallback to text-only
+                has_chart_analysis = False
+                system_prompt = self.prompt_builder.build_system_prompt(self.symbol, has_chart_analysis)
+                prompt = self.prompt_builder.build_prompt(self.context, has_chart_analysis)
+                
+                return await self.result_processor.process_analysis(
+                    system_prompt, prompt, self.language, chart_image=None, provider=provider, model=model
+                )
+        else:
+            # Text-only analysis
+            return await self.result_processor.process_analysis(
+                system_prompt, prompt, self.language, chart_image=None, provider=provider, model=model
+            )
 
     async def _calculate_technical_indicators(self) -> None:
         """Calculate technical indicators using the technical calculator"""

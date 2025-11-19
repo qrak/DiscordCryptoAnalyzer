@@ -29,7 +29,6 @@ from .calculations import MarketMetricsCalculator, TechnicalCalculator, PatternA
 
 # Formatting components  
 from .formatting import TechnicalFormatter, MarketFormatter, IndicatorFormatter
-from .formatting.technical_analysis import TechnicalAnalysisFormatter
 
 # Prompt components
 from .prompts import PromptBuilder, ContextBuilder, TemplateManager
@@ -56,7 +55,6 @@ __all__ = [
     'TechnicalFormatter',
     'MarketFormatter', 
     'IndicatorFormatter',
-    'TechnicalAnalysisFormatter',
     
     # Prompts
     'PromptBuilder',
