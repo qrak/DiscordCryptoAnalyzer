@@ -586,3 +586,9 @@ All major components are injected during initialization:
 - **Enable debug logging**: Set `logger_debug = true` in `config/config.ini` under `[general]`
 - **Check log files**: Review `logs/` directory for detailed error information
 - **Bot status**: Use Discord's built-in status commands or check bot presence in server
+
+---
+
+## Summary Documents Policy
+
+**Do not create summary documents** in `.md` format or any format. All documentation should be maintained in the appropriate `AGENTS.md` file.

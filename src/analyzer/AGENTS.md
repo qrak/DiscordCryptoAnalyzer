@@ -507,35 +507,6 @@ context.indicators = indicators
 }
 ```
 
-**Integration**: See **`pattern_engine/AGENTS.md`** for detailed pattern detection algorithms.
-
-### MarketMetricsCalculator
-
-**Location**: `src/analyzer/calculations/market_metrics_calculator.py`
-
-**Purpose**: Calculates aggregated metrics across multiple time periods for context.
-
-**Metrics Calculated**:
-- **Price changes**: 1h, 4h, 24h, 7d, 30d percentage changes
-- **Volume metrics**: Average volume, volume trend
-- **Volatility**: Standard deviation, ATR-based volatility
-- **Trend strength**: Multi-period momentum indicators
-- **Market structure**: Higher highs/lows, support/resistance breaks
-
-**Key Methods**:
-- **`calculate_metrics(context)`**: Calculate all period-based metrics
-- **`_calculate_period_metrics(ohlcv_data, period_name)`**: Single period calculation
-
-**Output**:
-```python
-{
-    "1h": {"change_pct": 2.5, "volume": 1234.5, ...},
-    "4h": {"change_pct": 5.2, "volume": 5678.9, ...},
-    "24h": {"change_pct": 12.3, "volume": 9876.5, ...},
-    ...
-}
-```
-
 ## Prompt Generation
 
 ### PromptBuilder
@@ -985,3 +956,9 @@ See **`src/platforms/AGENTS.md`** for detailed error handling philosophy and log
 - **Prompts**: `prompts/prompt_builder.py`, `prompts/template_manager.py`
 - **Publishing**: `publishing/analysis_publisher.py`
 - **AI integration**: `src/models/manager.py` → See **`platforms/AGENTS.md`**
+
+---
+
+## Summary Documents Policy
+
+**Do not create summary documents** in `.md` format or any format. All documentation should be maintained in the appropriate `AGENTS.md` file.

@@ -217,7 +217,7 @@ self.ai_colors = {
 - **`error_template.html`**: Fallback template for error conditions
 
 **Embedded Assets**:
-- Base64-encoded CSS files (`base_styles.css`, `component_styles.css`, etc.)
+- Base64-encoded CSS files (`base_styles.css`, `component_styles.css`, `ui_responsive.css`, etc.)
 - Base64-encoded JavaScript files (`theme-manager.js`, `collapsible-manager.js`, etc.)
 - Inline Plotly chart data for interactive visualizations
 
@@ -485,3 +485,9 @@ png_bytes = chart_gen.export_to_image(chart_html)
 - **Templates not loading**: Check `src/html/templates/` directory existence
 - **Chart rendering issues**: Verify Plotly version and kaleido installation
 - **File upload failures**: Check Discord channel permissions and file size limits
+
+---
+
+## Summary Documents Policy
+
+**Do not create summary documents** in `.md` format or any format. All documentation should be maintained in the appropriate `AGENTS.md` file.

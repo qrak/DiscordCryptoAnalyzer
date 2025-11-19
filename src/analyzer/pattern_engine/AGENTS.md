@@ -19,6 +19,14 @@
 - `pattern_matchers.py`: numba matchers for individual chart structures (head/shoulders, triangles, wedges, channels, multi-top/bottom).
 - `trendline_fitting.py`: Regression utilities used by the channel/wedge detectors to confirm slope alignment.
 - `indicator_patterns/`: Indicator-specific detectors and the `IndicatorPatternEngine` orchestrator.
+    - `indicator_pattern_engine.py`: Orchestrator
+    - `divergence_patterns.py`: Divergence detection
+    - `ma_crossover_patterns.py`: Moving average crossovers
+    - `macd_patterns.py`: MACD patterns
+    - `rsi_patterns.py`: RSI patterns
+    - `stochastic_patterns.py`: Stochastic patterns
+    - `volatility_patterns.py`: Volatility patterns
+    - `volume_patterns.py`: Volume patterns
 
 ## Chart Pattern Engine
 
@@ -153,3 +161,9 @@ signals = indicator_patterns.detect_patterns(
 - **Too Noisy**: Increase `lookback`/`lookahead` or use `detect_swings_smoothed` with a longer `smooth_length` to reduce false positives on lower timeframes.
 - **Mismatched Lengths**: Ensure indicator arrays share the same length as `ohlcv`. Divergence and volume detectors skip processing if lengths differ.
 - **Performance**: Both engines operate in microseconds once numba JIT caches are warm. The heaviest operations are the initial JIT compile; keep the bot warm during deployment to avoid first-run latency.
+
+---
+
+## Summary Documents Policy
+
+**Do not create summary documents** in `.md` format or any format. All documentation should be maintained in the appropriate `AGENTS.md` file.

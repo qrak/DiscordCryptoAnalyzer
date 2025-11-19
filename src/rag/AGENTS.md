@@ -32,17 +32,21 @@ src/rag/
 │   ├── news_manager.py         # News fetching & caching
 │   ├── market_data_manager.py  # Market overview data
 │   ├── file_handler.py         # JSON file I/O
-│   └── market_components.py    # Market data sub-components
+│   └── market_components/      # Market data sub-components
+│       ├── market_data_cache.py
+│       ├── market_data_fetcher.py
+│       ├── market_data_processor.py
+│       └── market_overview_builder.py
 ├── management/
 │   ├── category_manager.py     # Cryptocurrency categories
 │   ├── ticker_manager.py       # Known ticker validation
-│   └── category_fetcher.py     # Category API integration
+│   ├── category_fetcher.py     # Category API integration
+│   └── category_processor.py   # Category processing logic
 ├── processing/
 │   ├── article_processor.py    # Article parsing utilities
 │   └── news_category_analyzer.py  # Category classification
 └── search/
-    ├── index_manager.py        # Search indices
-    └── search_utilities.py     # Search helpers
+    └── index_manager.py        # Search indices
 ```
 
 ## Core Engine
@@ -754,13 +758,8 @@ if not coins:
 - Force refresh: `await rag_engine.refresh_market_data()`
 - Verify API connectivity
 
-## Files for Deeper Context
+---
 
-- **Core engine**: `src/rag/core/rag_engine.py`, `context_builder.py`
-- **News management**: `src/rag/data/news_manager.py`, `file_handler.py`
-- **Market data**: `src/rag/data/market_data_manager.py`, `market_components.py`
-- **Categories**: `src/rag/management/category_manager.py`, `ticker_manager.py`
-- **Search**: `src/rag/search/index_manager.py`, `search_utilities.py`
-- **Processing**: `src/rag/processing/article_processor.py`, `news_category_analyzer.py`
-- **Integration**: `src/analyzer/core/analysis_engine.py`, `prompts/prompt_builder.py`
-- **Configuration**: `config/config.ini`, `data/*.json`
+## Summary Documents Policy
+
+**Do not create summary documents** in `.md` format or any format. All documentation should be maintained in the appropriate `AGENTS.md` file.

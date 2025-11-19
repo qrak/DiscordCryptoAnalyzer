@@ -39,7 +39,13 @@ src/platforms/
     ├── cryptocompare_news_api.py         # News fetching & caching
     ├── cryptocompare_categories_api.py   # Category management
     ├── cryptocompare_market_api.py       # Market data endpoints
-    └── cryptocompare_data_processor.py   # Data processing utilities
+    ├── cryptocompare_data_processor.py   # Data processing utilities
+    └── news_components/                  # News processing components
+        ├── news_cache.py
+        ├── news_client.py
+        ├── news_filter.py
+        ├── news_processor.py
+        └── timestamp_utils.py
 ```
 
 ## Exchange Integrations
@@ -984,3 +990,9 @@ Some Google AI models (e.g., Gemini with thinking mode) return additional respon
 - **Provider fallback**: `src/analyzer/prompts/manager.py` (ModelManager)
 - **Integration usage**: `src/analyzer/core/analysis_engine.py`
 - **Configuration**: `config/config.ini`, `keys.env.example`
+
+---
+
+## Summary Documents Policy
+
+**Do not create summary documents** in `.md` format or any format. All documentation should be maintained in the appropriate `AGENTS.md` file.

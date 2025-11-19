@@ -25,6 +25,7 @@ The indicators layer provides 50+ technical indicators organized by category (mo
 ```
 src/indicators/
 ├── AGENTS.md (this file)
+├── constants.py                   # Shared constants
 ├── base/
 │   ├── indicator_base.py          # Base class for all indicators
 │   ├── indicator_categories.py    # Category wrapper classes
@@ -967,13 +968,8 @@ if np.any(np.isnan(close)) or np.any(np.isinf(close)):
 - Consider calculating only needed indicators
 - Use data slicing for recent periods only
 
-## Files for Deeper Context
+---
 
-- **Base system**: `base/technical_indicators.py`, `base/indicator_base.py`
-- **Momentum**: `indicators/momentum/momentum_indicators.py`
-- **Trend**: `indicators/trend/trend_indicators.py`
-- **Volatility**: `indicators/volatility/volatility_indicators.py`
-- **Volume**: `indicators/volume/volume_indicators.py`
-- **Statistical**: `indicators/statistical/statistical_indicators.py`
-- **Support/Resistance**: `indicators/support_resistance/support_resistance_indicators.py`
-- **Integration**: `src/analyzer/calculations/technical_calculator.py`
+## Summary Documents Policy
+
+**Do not create summary documents** in `.md` format or any format. All documentation should be maintained in the appropriate `AGENTS.md` file.
