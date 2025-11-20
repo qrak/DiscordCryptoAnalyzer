@@ -6,6 +6,21 @@ from src.logger.logger import Logger
 
 class MarketMetricsCalculator:
     """Handles calculation of market metrics and technical pattern detection"""
+    INDICATOR_CHANGE_KEYS = (
+        "rsi",
+        "macd_line",
+        "macd_signal",
+        "macd_hist",
+        "adx",
+        "stoch_k",
+        "stoch_d",
+        "mfi",
+        "obv",
+        "bb_percent_b",
+        "atr",
+        "cmf",
+        "force_index",
+    )
     
     def __init__(self, logger: Logger):
         """Initialize the calculator
@@ -185,14 +200,13 @@ class MarketMetricsCalculator:
         history = context.technical_history
         self.logger.debug(f"Calculating indicator changes from index {start_idx} to {end_idx}")
         
-        # Signal interpretations are scalar values, not arrays - skip them
-        signal_indicators = {'ichimoku_signal', 'bb_signal'}
-        
-        for ind_name, values in history.items():
-            # Skip signal interpretations
-            if ind_name in signal_indicators:
-                continue
-                
+        relevant_keys = [key for key in self.INDICATOR_CHANGE_KEYS if key in history]
+        if not relevant_keys:
+            self.logger.debug("No whitelisted indicators available for change calculation")
+            return indicator_changes
+
+        for ind_name in relevant_keys:
+            values = history.get(ind_name)
             try:
                 if len(values) >= abs(start_idx):
                     try:
@@ -218,6 +232,6 @@ class MarketMetricsCalculator:
                 self.logger.debug(f"{ind_name} is scalar, skipping")
                 pass
         
-        self.logger.debug(f"Calculated {len(indicator_changes)} indicator change metrics")
+        self.logger.debug(f"Calculated {len(indicator_changes)} indicator change metrics across {len(relevant_keys)} indicators")
         return indicator_changes
     

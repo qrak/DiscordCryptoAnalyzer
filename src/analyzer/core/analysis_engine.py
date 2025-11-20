@@ -102,6 +102,10 @@ class AnalysisEngine:
         self.model_manager = model_manager
         self.technical_calculator = TechnicalCalculator(logger=logger, format_utils=format_utils)
         self.pattern_analyzer = PatternAnalyzer(logger=logger, format_utils=format_utils)
+        try:
+            self.pattern_analyzer.warmup()
+        except Exception as warmup_error:
+            self.logger.warning(f"Pattern analyzer warm-up could not run: {warmup_error}")
         self.prompt_builder = PromptBuilder(
             timeframe=self.timeframe, 
             logger=logger,

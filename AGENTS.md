@@ -1,9 +1,15 @@
 # Discord Crypto Analyzer - Global Agent Instructions
 
 **Version**: 1.1  
-**Last Updated**: 2025-11-18
+**Last Updated**: 2025-11-19
 
 ## Recent Changes
+
+### November 19, 2025 - Refactoring & Cleanup
+- Refactored `AnalysisEngine` (`src/analyzer/core/analysis_engine.py`) to break down `analyze_market` into modular steps.
+- Refactored `TechnicalCalculator` (`src/analyzer/calculations/technical_calculator.py`) to break down `get_indicators` into category-specific methods.
+- Removed unused `src/analyzer/formatting/technical_analysis` directory.
+- Removed unused import in `src/analyzer/pattern_engine/swing_detection.py`.
 
 ### November 18, 2025 - Dead Code Cleanup
 - Removed 276 lines of confirmed dead code across 9 files

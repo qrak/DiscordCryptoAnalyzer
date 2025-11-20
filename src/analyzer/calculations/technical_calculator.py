@@ -101,10 +101,9 @@ class TechnicalCalculator:
         indicators["kc_middle"] = kc_middle
         indicators["kc_lower"] = kc_lower
         
-        # Donchian Channels
-        donchian_upper, donchian_middle, donchian_lower = self.ti.volatility.donchian_channels(length=20)
+        # Donchian Channels (only retain extremes for formatting/patterns)
+        donchian_upper, _, donchian_lower = self.ti.volatility.donchian_channels(length=20)
         indicators["donchian_upper"] = donchian_upper
-        indicators["donchian_middle"] = donchian_middle  
         indicators["donchian_lower"] = donchian_lower
         
         # Chandelier Exit
@@ -143,8 +142,6 @@ class TechnicalCalculator:
             lagging_span2_length=52,
             displacement=26
         )
-        indicators["ichimoku_conversion"] = conversion
-        indicators["ichimoku_base"] = base
         indicators["ichimoku_span_a"] = span_a
         indicators["ichimoku_span_b"] = span_b
         
@@ -156,7 +153,6 @@ class TechnicalCalculator:
         # SMAs
         indicators["sma_20"] = self.ti.overlap.sma(self.ti.close, 20)
         indicators["sma_50"] = self.ti.overlap.sma(self.ti.close, 50)
-        indicators["sma_100"] = self.ti.overlap.sma(self.ti.close, 100)
         indicators["sma_200"] = self.ti.overlap.sma(self.ti.close, 200)
         
         return indicators
@@ -184,14 +180,6 @@ class TechnicalCalculator:
         )
         indicators["advanced_support"] = adv_support
         indicators["advanced_resistance"] = adv_resistance
-        
-        # Fibonacci
-        fib_levels = self.ti.support_resistance.fibonacci_retracement(length=20)
-        if fib_levels is not None and len(fib_levels) > 0:
-            indicators["fib_236"] = fib_levels[:, 1]
-            indicators["fib_382"] = fib_levels[:, 2]
-            indicators["fib_500"] = fib_levels[:, 3]
-            indicators["fib_618"] = fib_levels[:, 4]
         
         # Pivot Points
         pivot_point, r1, r2, r3, r4, s1, s2, s3, s4 = self.ti.support_resistance.pivot_points()

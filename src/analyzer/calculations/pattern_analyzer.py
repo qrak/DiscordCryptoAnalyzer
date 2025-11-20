@@ -14,6 +14,7 @@ class PatternAnalyzer:
         self.format_utils = format_utils
         self.pattern_engine = PatternEngine(lookback=5, lookahead=5, format_utils=format_utils)
         self.indicator_pattern_engine = IndicatorPatternEngine(format_utils=format_utils)
+        self._warmed_up = False
     
     def detect_patterns(
         self,
@@ -72,6 +73,69 @@ class PatternAnalyzer:
             self.logger.debug(f"Detected {total_patterns} patterns: {chart_count} chart + {ind_count} indicator")
         
         return patterns
+    
+    def warmup(self) -> None:
+        """Run a lightweight detection pass to prime numba caches."""
+        if self._warmed_up:
+            return
+
+        sample_count = max(self.pattern_engine.lookback + self.pattern_engine.lookahead + 5, 64)
+        try:
+            dummy_ohlcv = self._build_dummy_ohlcv(sample_count)
+            dummy_history = self._build_dummy_history(sample_count, dummy_ohlcv[:, 4])
+            # Run both engines to trigger numba compilation
+            self.pattern_engine.detect_patterns(dummy_ohlcv, None)
+            self.indicator_pattern_engine.detect_patterns(dummy_history, dummy_ohlcv, None, None)
+            self._warmed_up = True
+            if self.logger:
+                self.logger.debug("PatternAnalyzer warm-up completed (Numba cache primed)")
+        except Exception as exc:
+            if self.logger:
+                self.logger.warning(f"PatternAnalyzer warm-up skipped: {exc}")
+
+    def _build_dummy_ohlcv(self, sample_count: int) -> np.ndarray:
+        """Create deterministic OHLCV data for warm-up."""
+        timestamps = np.arange(sample_count) * 60_000
+        base = np.linspace(100.0, 110.0, sample_count)
+        noise = np.sin(np.linspace(0, np.pi * 3, sample_count)) * 0.5
+        close = base + noise
+        open_prices = close - 0.1
+        high = close + 0.5
+        low = close - 0.5
+        volume = np.linspace(1_000.0, 1_500.0, sample_count)
+        return np.column_stack((timestamps, open_prices, high, low, close, volume))
+
+    def _build_dummy_history(self, sample_count: int, close_series: np.ndarray) -> Dict[str, np.ndarray]:
+        """Construct the minimal indicator history needed for pattern warm-up."""
+        ramp = np.linspace(-1.0, 1.0, sample_count)
+        rsi = np.clip(50 + 20 * np.sin(ramp * np.pi), 0, 100)
+        macd_line = ramp
+        macd_signal = ramp * 0.8
+        macd_hist = macd_line - macd_signal
+        stoch_k = np.clip(50 + 30 * np.sin(ramp * np.pi), 0, 100)
+        stoch_d = np.clip(50 + 20 * np.cos(ramp * np.pi), 0, 100)
+        atr = np.linspace(0.5, 1.5, sample_count)
+        bb_upper = close_series + 1.0
+        bb_lower = close_series - 1.0
+        kc_upper = close_series + 0.8
+        kc_lower = close_series - 0.8
+
+        return {
+            'rsi': rsi.astype(np.float64),
+            'macd_line': macd_line.astype(np.float64),
+            'macd_signal': macd_signal.astype(np.float64),
+            'macd_hist': macd_hist.astype(np.float64),
+            'stoch_k': stoch_k.astype(np.float64),
+            'stoch_d': stoch_d.astype(np.float64),
+            'atr': atr.astype(np.float64),
+            'bb_upper': bb_upper.astype(np.float64),
+            'bb_lower': bb_lower.astype(np.float64),
+            'kc_upper': kc_upper.astype(np.float64),
+            'kc_lower': kc_lower.astype(np.float64),
+            'sma_20': close_series.astype(np.float64),
+            'sma_50': close_series.astype(np.float64),
+            'sma_200': close_series.astype(np.float64)
+        }
         
     def get_all_patterns(
         self,
