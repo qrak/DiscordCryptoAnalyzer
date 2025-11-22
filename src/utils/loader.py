@@ -296,7 +296,9 @@ class Config:
     
     @property
     def FILE_MESSAGE_EXPIRY(self):
-        return self.get_config('cooldowns', 'file_message_expiry', 86400)
+        """Get file message expiry time in seconds (configured in hours in config.ini)."""
+        hours = self.get_config('cooldowns', 'file_message_expiry', 168)
+        return hours * 3600
     
     # RAG Configuration
     @property

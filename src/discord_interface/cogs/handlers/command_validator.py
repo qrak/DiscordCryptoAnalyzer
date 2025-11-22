@@ -24,6 +24,7 @@ class ValidationResult:
     provider: Optional[str] = None
     model: Optional[str] = None
     error_message: Optional[str] = None
+    is_help: bool = False
 
 
 class CommandValidator:
@@ -285,7 +286,7 @@ class CommandValidator:
         if not is_valid:
             # If error_msg is None, it's a help request - show usage only
             if error_msg is None and usage:
-                return ValidationResult(is_valid=False, error_message=usage)
+                return ValidationResult(is_valid=False, error_message=usage, is_help=True)
             # Otherwise combine error and usage
             return ValidationResult(is_valid=False, error_message=f"{error_msg}\n\n{usage}" if usage else error_msg)
 

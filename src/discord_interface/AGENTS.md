@@ -24,7 +24,6 @@ The `src/discord_interface/` directory contains a comprehensive Discord bot inte
 Specialized Discord bot extensions (cogs) for different functionalities:
 - **`command_handler.py`**: Main command processing cog for analysis requests
 - **`anti_spam.py`**: Rate limiting and spam protection cog
-- **`reaction_handler.py`**: User reaction handling cog (extensible for future features)
 - **`handlers/`**: Command processing pipeline components
 - **`__init__.py`**: Package initialization
 
@@ -74,7 +73,7 @@ Specialized message lifecycle management:
 
 **Supported Commands**:
 - `!analyze <symbol> [timeframe] [language]`: Main analysis command
-- `!analyze help`: Display comprehensive help message with usage examples
+- `!analyze help`: Sends comprehensive help message (auto-deleted after 5 minutes)
 - Symbol validation against thousands of trading pairs from multiple exchanges
 - Timeframe support: 1h, 2h, 4h, 6h, 8h, 12h, 1d (configurable)
 - Language support: English, Polish, Spanish, French, German, Chinese, Japanese, Russian
@@ -324,8 +323,9 @@ Putting these usage notes in this AGENTS.md keeps the integration guidance local
 - **`upload_analysis_content()`**: Handles file uploads with retry logic
 
 **Configuration**:
-- **Intents**: `message_content`, `reactions` enabled for full functionality
+- **Intents**: `message_content` enabled for full functionality
 - **Command Prefix**: `!` for all bot commands
+- **Help Command**: Default help command disabled (`help_command=None`) for security
 - **Channel Whitelist**: Configurable allowed channels for testing
 - **Logo URL**: Bot branding for embeds
 
@@ -335,7 +335,7 @@ Putting these usage notes in this AGENTS.md keeps the integration guidance local
 - **FileHandler**: Integrated for automatic message tracking
 - **Logger**: Comprehensive logging throughout bot operations
 
-**Error Handling**: Global command error handler with user-friendly responses
+**Error Handling**: Global command error handler with user-friendly responses (restricted to main channel)
 
 ## Bot Lifecycle
 

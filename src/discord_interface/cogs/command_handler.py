@@ -103,7 +103,7 @@ class CommandHandler(commands.Cog):
 
             validation_result = await self._validate_analysis_request(ctx)
             if not validation_result.is_valid:
-                # Validation messages should also be short-lived (5 minutes)
+                # Validation messages (including help) should be short-lived (5 minutes)
                 await self.send_tracked_message(ctx, validation_result.error_message, expire_after=300)
                 return
 

@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 
 from src.discord_interface.cogs.anti_spam import AntiSpam
 from src.discord_interface.cogs.command_handler import CommandHandler
-from src.discord_interface.cogs.reaction_handler import ReactionHandler
+from src.discord_interface.cogs.handlers.response_builder import ResponseBuilder
 from .filehandler import DiscordFileHandler
 from src.utils.decorators import retry_async
 
@@ -49,14 +49,17 @@ class DiscordNotifier:
         self.spam_allowed_channels = {self.config.TEMPORARY_CHANNEL_ID_DISCORD}
         self.is_initialized = False
         self._ready_event = asyncio.Event()  # New event to properly track ready state
+        
+        # Initialize response builder for help messages
+        self.response_builder = ResponseBuilder(logger, config)
 
         intents = discord.Intents.default()
         intents.message_content = True
-        intents.reactions = True
+        intents.reactions = False
         intents.typing = False
         intents.presences = False
 
-        self.bot = commands.Bot(command_prefix="!", intents=intents)
+        self.bot = commands.Bot(command_prefix="!", intents=intents, help_command=None)
         
         # Assign self to bot instance early for cogs to access
         self.bot.discord_notifier = self
@@ -77,10 +80,6 @@ class DiscordNotifier:
             self.logger.debug("Adding AntiSpam cog...")
             await self.bot.add_cog(AntiSpam(self.bot, self.spam_allowed_channels, self.config))
             self.logger.debug("AntiSpam cog added.")
-
-            self.logger.debug("Adding ReactionHandler cog...")
-            await self.bot.add_cog(ReactionHandler(self.bot, self.logger))
-            self.logger.debug("ReactionHandler cog added.")
 
             self.logger.debug("Adding CommandHandler cog...")
             await self.bot.add_cog(CommandHandler(
@@ -129,52 +128,7 @@ class DiscordNotifier:
 
     async def on_command_error(self, ctx, error):
         if isinstance(error, commands.CommandNotFound):
-            # Track the user's message for deletion
-            await self.file_handler.track_message(
-                message_id=ctx.message.id,
-                channel_id=ctx.channel.id,
-                user_id=ctx.author.id,
-                message_type="user_command",
-                expire_after=300  # Also expire after 5 minutes
-            )
-            
-            # Provide help message for unknown commands
-            help_embed = discord.Embed(
-                title="❓ Command Not Found",
-                description="I don't recognize that command. Here's how to use this bot:",
-                color=discord.Colour.blue()
-            )
-            
-            help_embed.add_field(
-                name="Analysis Command",
-                value=(
-                    "Type `!analyze <SYMBOL> [TIMEFRAME] [LANGUAGE]`\n"
-                    "Examples:\n"
-                    "`!analyze BTC/USDC` - Default timeframe, English\n"
-                    "`!analyze BTC/USDC 4h` - 4-hour timeframe\n"
-                    "`!analyze BTC/USDC Polish` - Polish language\n"
-                    "`!analyze BTC/USDC 1d English` - Daily, English\n"
-                    "Supported timeframes: 1h, 2h, 4h, 6h, 8h, 12h, 1d"
-                ),
-                inline=False
-            )
-            
-            help_embed.add_field(
-                name="Available Languages",
-                value=", ".join(sorted(self.config.SUPPORTED_LANGUAGES.keys())),
-                inline=False
-            )
-            
-            help_embed.set_footer(text="Market analysis is limited by cooldown periods")
-            
-            # Use the file handler to track and automatically delete this help message later
-            await self.send_message(
-                message="",
-                channel_id=ctx.channel.id,
-                embed=help_embed,
-                user_id=ctx.author.id,
-                expire_after=300  # Expire after 5 minutes
-            )
+            # Silently ignore unknown commands to avoid conflicts with multiple bot instances
             return
             
         # Log other errors
