@@ -4,6 +4,13 @@
 
 **This document** contains Discord interface-specific implementation details that extend/override root instructions.
 
+## Recent Changes
+
+### November 22, 2025 - Dead Code Cleanup
+- Removed unused methods `_handle_analysis_result`, `_cleanup_analysis`, and `_delete_message_with_retry` from `src/discord_interface/cogs/handlers/analysis_handler.py`.
+- Removed unused `commands` import from `src/discord_interface/cogs/handlers/analysis_handler.py`.
+- Removed unused method `build_help_embed` from `src/discord_interface/cogs/handlers/response_builder.py`.
+
 ---
 
 ## Overview

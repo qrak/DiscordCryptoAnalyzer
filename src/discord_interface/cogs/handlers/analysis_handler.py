@@ -6,7 +6,6 @@ import asyncio
 from datetime import datetime
 from typing import Any, Dict, Optional, Set, Tuple, TYPE_CHECKING
 import discord
-from discord.ext import commands
 
 if TYPE_CHECKING:
     from src.analyzer.core.analysis_engine import AnalysisEngine
@@ -87,36 +86,6 @@ class AnalysisHandler:
             self.market_analyzer.last_analysis_result = result
             success = await self.market_analyzer.publish_analysis()
             return success, result
-    
-    async def _handle_analysis_result(self, symbol: str, success: bool, result: Any, 
-                                    ctx: commands.Context, send_message_func) -> None:
-        """Handle the analysis result and send appropriate messages."""
-        if not success or (isinstance(result, dict) and "error" in result):
-            error_msg = result.get("error", "Analysis failed") if isinstance(result, dict) else "Analysis failed"
-            await send_message_func(ctx, f"⚠️ Analysis of {symbol} failed: {error_msg}")
-        else:
-            await send_message_func(ctx, f"✅ Analysis of {symbol} completed!")
-    
-    async def _cleanup_analysis(self, symbol: str, error_handler) -> None:
-        """Clean up analysis state and resources."""
-        request_info = self.remove_analysis_request(symbol)
-        
-        if request_info:
-            initial_msg = request_info.get("message")
-            if initial_msg:
-                try:
-                    await self._delete_message_with_retry(initial_msg)
-                except Exception as e:
-                    await error_handler.handle_cleanup_error(symbol, initial_msg, e)
-    
-    async def _delete_message_with_retry(self, message: discord.Message) -> bool:
-        """Helper method to delete a Discord message with retry logic."""
-        try:
-            await message.delete()
-            return True
-        except Exception as e:
-            # Let error handler manage the specific error types
-            return False
     
     def set_shutdown_flag(self) -> None:
         """Set shutdown flag to prevent new analyses."""
