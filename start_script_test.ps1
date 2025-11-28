@@ -20,7 +20,8 @@ if (Test-Path .git) {
     Write-Host "Switching to 'development' branch..."
     git fetch --all --prune
     git checkout development
-} else {
+}
+else {
     Write-Host "No .git folder found; skipping branch checkout."
 }
 
@@ -28,7 +29,8 @@ if (Test-Path .git) {
 if (-not (Test-Path $Venv)) {
     Write-Host "Creating virtual environment at '$Venv'..."
     python -m venv $Venv
-} else {
+}
+else {
     Write-Host "Virtual environment '$Venv' already exists."
 }
 
@@ -53,23 +55,27 @@ if (-not $SkipInstall) {
             if ($r -match '==') {
                 $pattern = '^' + [regex]::Escape($r) + '$'
                 if (-not ($installed -match $pattern)) { $missing += $r }
-            } else {
+            }
+            else {
                 $pattern = '^' + [regex]::Escape($name) + '=='
                 if (-not ($installed -match $pattern)) { $missing += $r }
             }
         }
         if ($missing.Count -eq 0) {
             Write-Host "All requirements satisfied; skipping pip install."
-        } else {
+        }
+        else {
             Write-Host "Missing or mismatched requirements detected:`n$missing"
             Write-Host "Installing/Updating dependencies from requirements.txt..."
             pip install --upgrade pip
             pip install -r requirements.txt
         }
-    } else {
+    }
+    else {
         Write-Host "No requirements.txt found; skipping pip install."
     }
-} else {
+}
+else {
     Write-Host "Skipping dependency installation (--SkipInstall provided)."
 }
 
@@ -77,6 +83,15 @@ if (-not $SkipInstall) {
 if (Test-Path 'start.py') {
     Write-Host "Running start.py..."
     python start.py
-} else {
+    $exitCode = $LASTEXITCODE
+    if ($exitCode -ne 0) {
+        Write-Host "`n=== Process exited with error code: $exitCode ===" -ForegroundColor Red
+    }
+}
+else {
     Write-Host "No start.py found in repository root."
 }
+
+# Keep window open to review output
+Write-Host "`n=== Script completed. Press ENTER to close this window... ===" -ForegroundColor Cyan
+Read-Host
