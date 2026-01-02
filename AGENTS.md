@@ -1,9 +1,17 @@
 # Discord Crypto Analyzer - Global Agent Instructions
 
 **Version**: 1.1  
-**Last Updated**: 2025-11-19
+**Last Updated**: 2026-01-02
 
 ## Recent Changes
+
+### January 2, 2026 - Weekly Macro Bug Fix
+- Fixed NoneType comparison error in `TechnicalCalculator.get_weekly_macro_indicators()`
+- Added validation for `golden_weeks_ago` and `death_weeks_ago` before timestamp access
+- Prevents "'>' not supported between instances of 'NoneType' and 'int'" error with insufficient weekly data
+- Validates crossover periods are not None, > 0, and within ohlcv_data array bounds
+- Gracefully logs warning when crossover detected but timestamp unavailable
+- See `src/analyzer/AGENTS.md` → TechnicalCalculator section for details
 
 ### November 19, 2025 - Refactoring & Cleanup
 - Refactored `AnalysisEngine` (`src/analyzer/core/analysis_engine.py`) to break down `analyze_market` into modular steps.
@@ -57,6 +65,13 @@ This repository uses a **layered instruction system** for AI agents:
 - **Initialization order matters**: Components initialized in `DiscordCryptoBot.initialize()`, torn down in reverse in `shutdown()`
 - **Inject dependencies**: Pass initialized API clients/managers into constructors. Never construct services inside other classes
 - **Await readiness**: `discord_notifier.wait_until_ready()`, `symbol_manager.initialize()` must be awaited before use
+- **Environment Management**: ALWAYS use the project's `.venv` located in the root directory. Never rely on global Python installations.
+
+### Virtual Environment & Activation
+- **Auto-activation**: The project is configured via `.vscode/settings.json` to automatically point to `.venv\Scripts\python.exe`.
+- **Manual Activation**: If the environment is not active, use `. .venv\Scripts\Activate.ps1` (PowerShell) or `.venv\Scripts\activate.bat` (CMD).
+- **Agent Commands**: Agents must ensure they use the `.venv` interpreter for all command executions (e.g., `.\.venv\Scripts\python.exe ...`).
+
 
 ### Type Safety & Error Handling
 - **No defensive checks**: Do NOT use `isinstance`, `hasattr`, `getattr`. Correct types must be passed from init

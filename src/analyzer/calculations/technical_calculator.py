@@ -353,27 +353,30 @@ class TechnicalCalculator:
             )
             
             golden_found, golden_weeks_ago, _, _ = detect_golden_cross_numba(sma_50w_array, sma_200w_array)
-            if golden_found:
-                analysis['golden_cross'] = True
-                analysis['golden_cross_weeks_ago'] = golden_weeks_ago
-                cross_ts = ohlcv_data[-(golden_weeks_ago + 1), 0] / 1000
-                analysis['golden_cross_date'] = formatter.format_date_from_timestamp(cross_ts)
-                if self.logger:
-                    self.logger.info(f"🌟 Weekly Golden Cross: {golden_weeks_ago}w ago ({analysis['golden_cross_date']})")
+            if golden_found and golden_weeks_ago is not None and golden_weeks_ago > 0:
+                # Validate that index is within bounds
+                if golden_weeks_ago < len(ohlcv_data):
+                    analysis['golden_cross'] = True
+                    analysis['golden_cross_weeks_ago'] = golden_weeks_ago
+                    cross_ts = ohlcv_data[-(golden_weeks_ago + 1), 0] / 1000
+                    analysis['golden_cross_date'] = formatter.format_date_from_timestamp(cross_ts)
+                    if self.logger:
+                        self.logger.info(f"🌟 Weekly Golden Cross: {golden_weeks_ago}w ago ({analysis['golden_cross_date']})")
+                elif self.logger:
+                    self.logger.warning(f"Golden cross detected {golden_weeks_ago}w ago, but timestamp unavailable (insufficient data)")
             
             death_found, death_weeks_ago, _, _ = detect_death_cross_numba(sma_50w_array, sma_200w_array)
-            if death_found:
-                analysis['death_cross'] = True
-                analysis['death_cross_weeks_ago'] = death_weeks_ago
-                cross_ts = ohlcv_data[-(death_weeks_ago + 1), 0] / 1000
-                analysis['death_cross_date'] = formatter.format_date_from_timestamp(cross_ts)
-                if self.logger:
-                    self.logger.warning(f"⚠️ Weekly Death Cross: {death_weeks_ago}w ago ({analysis['death_cross_date']})")
-            
-            # SMA relationship
-            if weekly_sma_values[50] > weekly_sma_values[200]:
-                analysis['sma_50w_vs_200w'] = 'Bullish'
-            elif weekly_sma_values[50] < weekly_sma_values[200]:
+            if death_found and death_weeks_ago is not None and death_weeks_ago > 0:
+                # Validate that index is within bounds
+                if death_weeks_ago < len(ohlcv_data):
+                    analysis['death_cross'] = True
+                    analysis['death_cross_weeks_ago'] = death_weeks_ago
+                    cross_ts = ohlcv_data[-(death_weeks_ago + 1), 0] / 1000
+                    analysis['death_cross_date'] = formatter.format_date_from_timestamp(cross_ts)
+                    if self.logger:
+                        self.logger.warning(f"⚠️ Weekly Death Cross: {death_weeks_ago}w ago ({analysis['death_cross_date']})")
+                elif self.logger:
+                    self.logger.warning(f"Death cross detected {death_weeks_ago}w ago, but timestamp unavailable (insufficient data)")
                 analysis['sma_50w_vs_200w'] = 'Bearish'
         
         # SMA alignment check

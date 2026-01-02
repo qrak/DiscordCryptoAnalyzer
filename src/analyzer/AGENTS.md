@@ -435,8 +435,16 @@ return all_candles, latest_close
 
 **Key Methods**:
 - **`get_indicators(ohlcv_data)`**: Calculate all indicators - main entry point
+- **`get_weekly_macro_indicators(weekly_ohlcv_data)`**: Calculate 200W SMA macro trends with golden/death cross detection
 - **`format_indicator_value(value, decimals)`**: Format for display
 - **`get_indicator_thresholds()`**: Return threshold configurations
+
+**Weekly Macro Analysis (Jan 2 2026)**:
+- `get_weekly_macro_indicators()` validates crossover weeks_ago values before timestamp access
+- Prevents NoneType comparison errors when insufficient weekly data is available
+- Checks that `golden_weeks_ago` and `death_weeks_ago` are not None, > 0, and within array bounds
+- Falls back gracefully when crossover detected but timestamp unavailable (logs warning)
+- Fixes "'>' not supported between instances of 'NoneType' and 'int'" error with <122 weeks of data
 
 **Threshold Configuration**:
 ```python
